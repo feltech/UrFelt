@@ -1,0 +1,25 @@
+$#include "UrFelt.hpp"
+$using namespace felt;
+
+class UrFelt : public Urho3D::Application
+{
+public:
+	void zap (const Urho3D::Ray& ray, const float& amount);
+	void repoly ();
+};
+
+tolua_readonly tolua_property__get_set UrFelt* felt;
+UrFelt* GetFelt();
+tolua_readonly tolua_property__get_set UrFelt* felt;
+
+${
+#define TOLUA_DISABLE_tolua_UrFelt_GetFelt00
+static int tolua_UrFelt_GetFelt00(lua_State* tolua_S)
+{
+	$using namespace Urho3D;
+    return ToluaGetSubsystem<UrFelt>(tolua_S);
+}
+
+#define TOLUA_DISABLE_tolua_get_felt_ptr
+#define tolua_get_felt_ptr tolua_UrFelt_GetFelt00
+$}
