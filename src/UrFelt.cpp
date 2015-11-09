@@ -22,11 +22,19 @@
 #include <Urho3D/Resource/ResourceCache.h>
 #include <Urho3D/Scene/Scene.h>
 #include <Urho3D/Graphics/Camera.h>
+#include <Urho3D/Physics/RigidBody.h>
+#include <Urho3D/Physics/PhysicsWorld.h>
 
 #include "UrPolyGrid3D.hpp"
+#include "FeltCollisionShape.hpp"
+#include "btFeltCollisionConfiguration.hpp"
 
 
 using namespace felt;
+
+const char* PHYSICS_CATEGORY = "Physics";
+const char* SUBSYSTEM_CATEGORY = "Subsystem";
+
 
 UrFelt::~UrFelt ()
 {
@@ -57,6 +65,10 @@ void UrFelt::Setup()
 	engineParameters_["WindowResizable"]=true;
 
 	context_->RegisterSubsystem(this);
+	context_->RegisterFactory<FeltCollisionShape>(PHYSICS_CATEGORY);
+
+	PhysicsWorld::customCollisionConfig = new btFeltCollisionConfiguration();
+
 	LuaScript* lua = context_->GetSubsystem<LuaScript>();
 	tolua_UrFelt_open (lua->GetState());
 }
@@ -70,6 +82,9 @@ void UrFelt::Start()
 	lua->ExecuteFunction("Init");
 
 	Scene* scene = GetSubsystem<Renderer>()->GetViewport(0)->GetScene();
+
+	lua->ExecuteFunction("InitPhysics");
+
 	Node* node = scene->CreateChild("PolyGrid");
 	node->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
 
@@ -78,6 +93,18 @@ void UrFelt::Start()
 	m_surface.update([](auto& pos, auto& phi)->FLOAT {
 		return -1.0f;
 	});
+
+	m_surface_body = node->CreateComponent<RigidBody>();
+	m_surface_body->SetMass(10000000.0f);
+	m_surface_body->SetFriction(1.0f);
+	m_surface_body->SetUseGravity(false);
+
+	for (Vec3i pos_child : m_surface.phi().branch())
+	{
+		FeltCollisionShape* shape = node->CreateComponent<FeltCollisionShape>();
+		shape->SetSurface(&m_surface, pos_child);
+	}
+
 
 	start_updater();
 
@@ -122,12 +149,38 @@ void UrFelt::updater()
 	Seconds time_step;
 	float ftime_step;
 
+
+	Zapper zap_current;
+	bool is_zapping = false;
+	WorkerMessagePtr msg;
+
 	while (m_state_updater != STOP)
 	{
 		Zapper zap;
 		switch (m_state_updater)
 		{
 		case RUNNING:
+			{
+				std::lock_guard<std::mutex> lock(m_worker_queue_mutex);
+				while (!m_worker_queue.empty())
+				{
+					msg = m_worker_queue.front();
+					m_worker_queue.pop();
+
+					switch (msg->type)
+					{
+					case WorkerMessage::STOP_ZAP:
+						is_zapping = false;
+						break;
+					case WorkerMessage::ZAP:
+						is_zapping = true;
+						ZapWorkerMessage* msg_zap = static_cast<ZapWorkerMessage*>(msg.get());
+						zap_current = msg_zap->zap;
+						break;
+					}
+				}
+			}
+
 			time_step =  (Clock::now() - time_last);
 			if (time_step.count() < 3)
 			{
@@ -142,20 +195,16 @@ void UrFelt::updater()
 				});
 			}
 
-			zap = m_zap.load();
-			if (zap.amount != 0)
+			if (is_zapping)
 			{
-				for (UINT i = 0; i < 1; i++)
-				{
-					m_surface.update_start();
-					FLOAT leftover = m_surface.dphi_gauss<4>(
-						Vec3f(zap.pos[0], zap.pos[1], zap.pos[2]),
-						Vec3f(zap.dir[0], zap.dir[1], zap.dir[2]),
-						zap.amount, 2.0f
-					);
-					m_surface.update_end_local();
-					m_surface.poly().notify(m_surface);
-				}
+				m_surface.update_start();
+				FLOAT leftover = m_surface.dphi_gauss<4>(
+					Vec3f(zap_current.pos[0], zap_current.pos[1], zap_current.pos[2]),
+					Vec3f(zap_current.dir[0], zap_current.dir[1], zap_current.dir[2]),
+					zap_current.amount, 2.0f
+				);
+				m_surface.update_end_local();
+				m_surface.poly().notify(m_surface);
 			}
 
 			break;
@@ -190,9 +239,7 @@ void UrFelt::zap (const Urho3D::Ray& ray, const float& amount)
 {
 	using namespace Urho3D;
 
-	const Camera* camera = (
-		GetSubsystem<Renderer>()->GetViewport(0)->GetCamera()
-	);
+	const Camera* camera = GetSubsystem<Renderer>()->GetViewport(0)->GetCamera();
 
 //	const Ray& ray = camera->GetScreenRay(0.5, 0.5);
 
@@ -209,6 +256,27 @@ void UrFelt::zap (const Urho3D::Ray& ray, const float& amount)
 	zap.dir[2] = ray.direction_.z_;
 	zap.amount = amount;
 	m_zap = zap;
+
+	std::lock_guard<std::mutex> lock(m_worker_queue_mutex);
+	if (amount == 0)
+	{
+		m_worker_queue.push(WorkerMessagePtr(new WorkerMessage(WorkerMessage::STOP_ZAP)));
+		m_surface_body->Activate();
+	}
+	else
+	{
+		m_worker_queue.push(WorkerMessagePtr(new ZapWorkerMessage(zap)));
+//		m_surface.update_start();
+//		FLOAT leftover = m_surface.dphi_gauss<4>(
+//			Vec3f(zap.pos[0], zap.pos[1], zap.pos[2]),
+//			Vec3f(zap.dir[0], zap.dir[1], zap.dir[2]),
+//			zap.amount, 3.0f
+//		);
+//		m_surface.update_end_local();
+//		m_surface.poly().notify(m_surface);
+//		m_surface.poly().poly_cubes(m_surface);
+		m_surface_body->Activate();
+	}
 }
 
 
