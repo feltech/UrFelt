@@ -95,6 +95,7 @@ void UrFelt::Start()
 	});
 
 	m_surface_body = node->CreateComponent<RigidBody>();
+	m_surface_body->SetKinematic(true);
 	m_surface_body->SetMass(10000000.0f);
 	m_surface_body->SetFriction(1.0f);
 	m_surface_body->SetUseGravity(false);

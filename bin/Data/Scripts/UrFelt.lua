@@ -39,36 +39,50 @@ function Init()
 	local zoneNode = scene_:CreateChild("Zone")
 	local zone = zoneNode:CreateComponent("Zone")
 	zone.boundingBox = BoundingBox(-1000.0, 1000.0)
-	zone.fogColor = Color(0.2, 0.2, 0.2)
-	zone.fogStart = 200.0
-	zone.fogEnd = 300.0
---	zone.ambientColor = Color(1,1,1)
+    zone.fogColor = Color(1.0, 1.0, 1.0)
+    zone.fogStart = 300.0
+    zone.fogEnd = 500.0
+    zone.ambientColor = Color(0.15, 0.15, 0.15)
 
 	-- Create the camera. Create it outside the scene so that we can clear the 
 	-- whole scene without affecting it
+	-- NOTE: can't create outside scene if attaching a point light to it.
 --	cameraNode = Node()
 	cameraNode = scene_:CreateChild("Camera")	
 	cameraNode.position = Vector3(0.0, 0.0, -20.0)
 	camera = cameraNode:CreateComponent("Camera")
-	camera.farClip = 300.0
+	camera.farClip = 1000.0
+
+	local viewport = Viewport:new(scene_, cameraNode:GetComponent("Camera"))
+	renderer:SetViewport(0, viewport)   
  
 	 -- Create a directional light
 --	local lightNode = cameraNode:CreateChild("PointLight")
 --	lightNode.position = Vector3(0.0, 0.0, 0.0)  
 	 -- The direction vector does not need to be normalized
 --	lightNode.direction = Vector3(-0.6, -1.0, 0.8)
+    local lightNode = scene_:CreateChild("DirectionalLight")
+    lightNode.direction = Vector3(0.6, -1.0, 0.8)
+    local light = lightNode:CreateComponent("Light")
+    light.lightType = LIGHT_DIRECTIONAL
+    light.castShadows = true
+    light.shadowBias = BiasParameters(0.00025, 0.5)
+    -- Set cascade splits at 10, 50 and 200 world units, fade shadows out at 80% of maximum shadow distance
+    light.shadowCascade = CascadeParameters(10.0, 50.0, 200.0, 0.0, 0.8)
 
-	local light = cameraNode:CreateComponent("Light")
-	light.lightType = LIGHT_POINT
-	light.color = Color(1.0, 1.0, 1.0)
-	light.specularIntensity = 1.5
-	light.range = 200
-	   
+	local point_light = cameraNode:CreateComponent("Light")
+	point_light.lightType = LIGHT_POINT
+	point_light.color = Color(1.0, 1.0, 1.0)
+	point_light.specularIntensity = 0.001
+	point_light.range = 50
 	-- Set up a viewport to the Renderer subsystem so that the 3D scene can be 
 	-- seen
-	local viewport = Viewport:new(scene_, cameraNode:GetComponent("Camera"))
-	renderer:SetViewport(0, viewport)   
 	
+    local skyNode = scene_:CreateChild("Sky")
+    skyNode:SetScale(1000.0) -- The scale actually does not matter
+    local skybox = skyNode:CreateComponent("Skybox")
+    skybox.model = cache:GetResource("Model", "Models/Box.mdl")
+    skybox.material = cache:GetResource("Material", "Materials/Skybox.xml")
 	
 	-- Construct new Text object, set string to display and font to use
 	locTxt = ui.root:CreateChild("Text")
@@ -89,7 +103,7 @@ end
 function InitPhysics()
     -- Create a floor object, 1000 x 1000 world units. Adjust position so that the ground is at zero Y
     local floorNode = scene_:CreateChild("Floor")
-    floorNode.position = Vector3(0.0, -200, 0.0)
+    floorNode.position = Vector3(0.0, -100, 0.0)
     floorNode.scale = Vector3(1000.0, 1.0, 1000.0)
     local floorObject = floorNode:CreateComponent("StaticModel")
     floorObject.model = cache:GetResource("Model", "Models/Box.mdl")

@@ -15,6 +15,7 @@
 #include <queue>
 
 #include <Urho3D/Urho3D.h>
+#include <Urho3D/Resource/ResourceCache.h>
 #include <Urho3D/Engine/Engine.h>
 #include <Urho3D/Engine/Application.h>
 #include <Urho3D/LuaScript/LuaScript.h>

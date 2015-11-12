@@ -1,5 +1,9 @@
 #include "UrPoly3D.hpp"
-using namespace felt;
+
+#include <Urho3D/Resource/ResourceCache.h>
+
+namespace felt
+{
 
 
 UrPoly3D::UrPoly3D ()
@@ -11,7 +15,7 @@ UrPoly3D::UrPoly3D ()
 UrPoly3D::UrPoly3D (
 	const Vec3u& dims_, const Vec3i& offset_
 ) : Base(dims_, offset_), m_pmodel(), m_pvb(), m_pib(), m_pgeom(),
-	m_pnode(NULL), m_pstatic_model(NULL)
+	m_pnode(NULL), m_pstatic_model(NULL), m_pcontext(NULL)
 {}
 
 
@@ -24,6 +28,7 @@ void UrPoly3D::init_gpu (
 	Urho3D::Node* pnode_root_
 ) {
 	using namespace Urho3D;
+	m_pcontext = pcontext_;
 	m_pmodel = SharedPtr<Model>(new Model(pcontext_));
 	m_pvb = SharedPtr<VertexBuffer>(new VertexBuffer(pcontext_));
 	m_pib = SharedPtr<IndexBuffer>(new IndexBuffer(pcontext_));
@@ -68,7 +73,13 @@ bool UrPoly3D::update_gpu()
 	m_pgeom->SetDrawRange(TRIANGLE_LIST, 0, this->spx().size() * 3, false);
 	m_pmodel->SetGeometry(0, 0, m_pgeom);
 	m_pstatic_model->SetModel(m_pmodel);
+	ResourceCache* cache = m_pcontext->GetSubsystem<ResourceCache>();
+	m_pstatic_model->SetMaterial(
+		cache->GetResource<Material>("Materials/Surface.xml")
+	);
+	m_pstatic_model->SetCastShadows(true);
 	m_pnode->SetEnabled(true);
 
 	return true;
+}
 }

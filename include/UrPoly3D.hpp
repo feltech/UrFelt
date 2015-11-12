@@ -1,4 +1,5 @@
 #include <Urho3D/Urho3D.h>
+#include <Urho3D/Core/Context.h>
 #include <Urho3D/Graphics/Graphics.h>
 #include <Urho3D/Graphics/Model.h>
 #include <Urho3D/Graphics/StaticModel.h>
@@ -28,6 +29,7 @@ protected:
 	Urho3D::SharedPtr<Urho3D::Geometry> m_pgeom;
 	Urho3D::Node*			m_pnode;
 	Urho3D::StaticModel*	m_pstatic_model;
+	Urho3D::Context* 		m_pcontext;
     
 public:
 	~UrPoly3D();
