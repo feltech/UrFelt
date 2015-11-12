@@ -55,9 +55,14 @@ public:
 	///fills the dataBuffer and returns the struct name (and 0 on failure)
 	virtual	const char*	serialize(void* dataBuffer, btSerializer* serializer) const;
 
-	const felt::UrSurface3D::PosArray& layer () const
+	const felt::UrSurface3D* surface () const
 	{
-		return m_psurface->layer(m_pos_child, 0);
+		return m_psurface;
+	}
+
+	const felt::UrSurface3D::PosArray& layer (const felt::UINT& layerID) const
+	{
+		return m_psurface->layer(m_pos_child, layerID);
 	}
 
     const felt::UrSurface3D::PhiGrid::Child& child () const

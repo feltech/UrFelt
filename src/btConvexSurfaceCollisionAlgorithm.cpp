@@ -86,35 +86,47 @@ void btConvexSurfaceCollisionAlgorithm::processCollision (
 
 	resultOut->setPersistentManifold(m_manifoldPtr);
 
+	const float X = (float)surfaceShape->surface()->phi().dims()(0);
+	const float Y = (float)surfaceShape->surface()->phi().dims()(1);
+
+	std::set<float> vtx_hash_set;
+
 	m_manifoldPtr->clearManifold();
 
-	for (const felt::Vec3i& pos_leaf : surfaceShape->layer())
+	for (const felt::Vec3i& pos_leaf : surfaceShape->layer(0))
 	{
-		const felt::Vec3f& normal = surfaceShape->child().grad(pos_leaf).normalized();
-		const felt::Vec3f& fpos_leaf =  -surfaceShape->child().get(pos_leaf) * normal;
+		const felt::Vec3f& grad = surfaceShape->surface()->phi().grad(pos_leaf);
+		const felt::FLOAT& mag_grad_sq = grad.blueNorm();
+		if (mag_grad_sq < 0.1f)
+			continue;
+		const felt::Vec3f& normal = grad.normalized();
 
-		const btVector3 btfpos_leaf(fpos_leaf(0), pos_leaf(1), fpos_leaf(2));
 		btVector3 btnormal(normal(0), normal(1), normal(2));
+
 		btVector3 btnormalInConvex = surfaceInConvex.getBasis() * (-btnormal);
 
 		btVector3 vtx = convexShape->localGetSupportingVertexWithoutMargin(btnormalInConvex);
+
+		const float& vtx_hash = vtx.z() * X * Y + vtx.y() * X + vtx.x();
+		if (!vtx_hash_set.insert(vtx_hash).second)
+			continue;
 
 		btVector3 vtxInSurface = convexInSurfaceTrans(vtx);
 
 		const felt::Vec3f pos_vtx(vtxInSurface.x(), vtxInSurface.y(), vtxInSurface.z());
 
-		if (!surfaceShape->child().inside(pos_vtx))
+		if (!surfaceShape->surface()->phi().inside(pos_vtx))
 			continue;
 
-		const btScalar distance = surfaceShape->child().interp(pos_vtx);
+		btScalar distance = surfaceShape->surface()->phi().interp(pos_vtx);
 
 		if (distance < m_manifoldPtr->getContactBreakingThreshold())
 		{
 			btVector3 normalOnSurfaceB = surfaceObjWrap->getWorldTransform().getBasis() * btnormal;
-			btVector3 pOnB = vtxInSurface;//surfaceObjWrap->getWorldTransform() * btfpos_leaf;;
-			resultOut->addContactPoint(normalOnSurfaceB, pOnB, distance);
+			resultOut->addContactPoint(normalOnSurfaceB, vtxInSurface, distance);
 		}
 	}
+
 
 	if (m_ownManifold)
 	{

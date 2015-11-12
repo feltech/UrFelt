@@ -98,6 +98,7 @@ void UrFelt::Start()
 	m_surface_body->SetMass(10000000.0f);
 	m_surface_body->SetFriction(1.0f);
 	m_surface_body->SetUseGravity(false);
+	m_surface_body->SetRestitution(0.0);
 
 	for (Vec3i pos_child : m_surface.phi().branch())
 	{

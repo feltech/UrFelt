@@ -232,6 +232,7 @@ function SpawnObject()
     local body = boxNode:CreateComponent("RigidBody")
     body.mass = 0.25
     body.friction = 0.75
+    body.restitution = 0
     local shape = boxNode:CreateComponent("CollisionShape")
     shape:SetBox(Vector3(1.0, 1.0, 1.0))
 
