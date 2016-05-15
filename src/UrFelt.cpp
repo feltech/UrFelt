@@ -101,7 +101,7 @@ void UrFelt::Start()
 	m_surface_body->SetUseGravity(false);
 	m_surface_body->SetRestitution(0.0);
 
-	for (Vec3i pos_child : m_surface.phi().branch())
+	for (Vec3i pos_child : m_surface.isogrid().children())
 	{
 		FeltCollisionShape* shape = node->CreateComponent<FeltCollisionShape>();
 		shape->SetSurface(&m_surface, pos_child);
@@ -200,7 +200,7 @@ void UrFelt::updater()
 			if (is_zapping)
 			{
 				m_surface.update_start();
-				FLOAT leftover = m_surface.dphi_gauss<4>(
+				FLOAT leftover = m_surface.delta_gauss<4>(
 					Vec3f(zap_current.pos[0], zap_current.pos[1], zap_current.pos[2]),
 					Vec3f(zap_current.dir[0], zap_current.dir[1], zap_current.dir[2]),
 					zap_current.amount, 2.0f

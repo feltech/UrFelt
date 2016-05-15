@@ -38,7 +38,7 @@ UrPolyGrid3D& UrSurface3D::poly()
 	return m_poly;
 }
 
-void UrSurface3D::update(std::function<FLOAT(const VecDi&, const PhiGrid&)> fn_)
+void UrSurface3D::update(std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_)
 {
 	Base::update(fn_);
 	m_poly.notify(*this);

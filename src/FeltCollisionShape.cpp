@@ -9,7 +9,7 @@ void FeltCollisionShape::SetSurface(const UrSurface3D* psurface_, const Vec3i& p
 {
 	m_pos_child = pos_child_;
 	m_psurface = psurface_;
-	Vec3i child_size = m_psurface->phi().child_dims().template cast<INT>();
+	Vec3i child_size = m_psurface->isogrid().child_size().template cast<INT>();
 	Vec3i pos = (child_size.array() * m_pos_child.array()).matrix();
 
 	SetPosition(reinterpret_cast<Urho3D::Vector3&>(pos));

@@ -49,7 +49,7 @@ function Init()
 	-- NOTE: can't create outside scene if attaching a point light to it.
 --	cameraNode = Node()
 	cameraNode = scene_:CreateChild("Camera")	
-	cameraNode.position = Vector3(0.0, 0.0, -20.0)
+	cameraNode.position = Vector3(0.0, 0.0, -50.0)
 	camera = cameraNode:CreateComponent("Camera")
 	camera.farClip = 1000.0
 

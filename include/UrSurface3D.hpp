@@ -34,7 +34,7 @@ public:
 	UrSurface3D(
 		Urho3D::Context* pcontext_, Urho3D::Node* pnode_root_,
 		const VecDu& dims_,
-		const VecDu& dims_partition_ = VecDu::Constant(DEFAULT_PARTITION)
+		const VecDu& dims_partition_ = VecDu::Constant(8)
 	);
 
 
@@ -44,7 +44,7 @@ public:
 	void init(
 		Urho3D::Context* pcontext_, Urho3D::Node* pnode_root_,
 		const VecDu& dims_,
-		const VecDu& dims_partition_ = VecDu::Constant(DEFAULT_PARTITION)
+		const VecDu& dims_partition_ = VecDu::Constant(8)
 	);
 
 
@@ -63,7 +63,7 @@ public:
 	 *
 	 * @param fn_ (pos, phi) -> float
 	 */
-	void update(std::function<FLOAT(const VecDi&, const PhiGrid&)> fn_);
+	void update(std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_);
 
 };
 

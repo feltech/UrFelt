@@ -13,7 +13,6 @@
 #include <Urho3D/Graphics/IndexBuffer.h>
 #include <Urho3D/Graphics/Geometry.h>
 
-#include <Felt/MappedGrid.hpp>
 #include <Felt/PolyGrid.hpp>
 #include <Felt/Surface.hpp>
 
@@ -22,11 +21,9 @@
 namespace felt
 {
 
-
 class UrPolyGrid3D;
 
-
-template <> struct PolyGridBaseTraits<UrPolyGrid3D>
+template <> struct GridTraits<UrPolyGrid3D>
 {
 	using ThisType = UrPolyGrid3D;
 	using LeafType = UrPoly3D;

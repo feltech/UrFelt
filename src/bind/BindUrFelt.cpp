@@ -1,6 +1,6 @@
 /*
 ** Lua binding: UrFelt
-** Generated automatically by tolua++-1.0.93 on Mon Aug 31 18:44:41 2015.
+** Generated automatically by tolua++-1.0.93 on Mon Apr  4 22:56:41 2016.
 */
 
 //
@@ -40,6 +40,8 @@ TOLUA_API int tolua_UrFelt_open (lua_State* tolua_S);
 #include "UrFelt.hpp"
 using namespace felt;
 using namespace Urho3D;
+
+#undef self
 
 #define TOLUA_DISABLE_tolua_UrFelt_GetFelt00
 static int tolua_UrFelt_GetFelt00(lua_State* tolua_S)

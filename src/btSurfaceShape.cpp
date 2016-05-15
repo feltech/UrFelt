@@ -33,9 +33,10 @@ btSurfaceShape::~btSurfaceShape()
 
 void btSurfaceShape::getAabb(const btTransform& t,btVector3& aabbMin,btVector3& aabbMax) const
 {
-	const felt::UrSurface3D::PhiGrid::Child& child = m_psurface->phi().child(m_pos_child);
+	const felt::UrSurface3D::IsoGrid::Child& child =
+		m_psurface->isogrid().children().get(m_pos_child);
 	felt::Vec3i pos_min = child.offset();
-	felt::Vec3i pos_max = pos_min + child.dims().template cast<felt::INT>();
+	felt::Vec3i pos_max = pos_min + child.size().template cast<felt::INT>();
 
 	aabbMin.setValue(btScalar(pos_min(0)),btScalar(pos_min(1)),btScalar(pos_min(2)));
 	aabbMax.setValue(btScalar(pos_max(0)),btScalar(pos_max(1)),btScalar(pos_max(2)));

@@ -65,9 +65,9 @@ public:
 		return m_psurface->layer(m_pos_child, layerID);
 	}
 
-    const felt::UrSurface3D::PhiGrid::Child& child () const
+    const felt::UrSurface3D::IsoGrid::Child& child () const
     {
-        return m_psurface->phi().child(m_pos_child);
+        return m_psurface->isogrid().children().get(m_pos_child);
     }
 };
 

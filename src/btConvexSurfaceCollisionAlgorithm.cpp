@@ -86,8 +86,8 @@ void btConvexSurfaceCollisionAlgorithm::processCollision (
 
 	resultOut->setPersistentManifold(m_manifoldPtr);
 
-	const float X = (float)surfaceShape->surface()->phi().dims()(0);
-	const float Y = (float)surfaceShape->surface()->phi().dims()(1);
+	const float X = (float)surfaceShape->surface()->isogrid().size()(0);
+	const float Y = (float)surfaceShape->surface()->isogrid().size()(1);
 
 	std::set<float> vtx_hash_set;
 
@@ -95,7 +95,7 @@ void btConvexSurfaceCollisionAlgorithm::processCollision (
 
 	for (const felt::Vec3i& pos_leaf : surfaceShape->layer(0))
 	{
-		const felt::Vec3f& grad = surfaceShape->surface()->phi().grad(pos_leaf);
+		const felt::Vec3f& grad = surfaceShape->surface()->isogrid().grad(pos_leaf);
 		const felt::FLOAT& mag_grad_sq = grad.blueNorm();
 		if (mag_grad_sq < 0.1f)
 			continue;
@@ -115,10 +115,10 @@ void btConvexSurfaceCollisionAlgorithm::processCollision (
 
 		const felt::Vec3f pos_vtx(vtxInSurface.x(), vtxInSurface.y(), vtxInSurface.z());
 
-		if (!surfaceShape->surface()->phi().inside(pos_vtx))
+		if (!surfaceShape->surface()->isogrid().inside(pos_vtx))
 			continue;
 
-		btScalar distance = surfaceShape->surface()->phi().interp(pos_vtx);
+		btScalar distance = surfaceShape->surface()->isogrid().interp(pos_vtx);
 
 		if (distance < m_manifoldPtr->getContactBreakingThreshold())
 		{
