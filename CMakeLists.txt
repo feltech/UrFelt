@@ -33,7 +33,12 @@ find_package (Felt REQUIRED)
 include (Urho3D-CMake-common)
 
 # Set include folders
-include_directories (${FELT_INCLUDE_DIRS} ${URHO3D_INCLUDE_DIRS} include)
+set (LUACPPMSG_INCLUDE vendor/LuaCppMsg/include)
+set (LUAHPP_INCLUDE ${URHO3D_HOME}/Source/ThirdParty/LuaJIT/src)
+
+include_directories (
+    ${FELT_INCLUDE_DIRS} ${URHO3D_INCLUDE_DIRS} include ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
+)
 
 # Define target name
 set (TARGET_NAME UrFelt)

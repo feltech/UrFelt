@@ -49,7 +49,7 @@ function Init()
 	-- NOTE: can't create outside scene if attaching a point light to it.
 --	cameraNode = Node()
 	cameraNode = scene_:CreateChild("Camera")	
-	cameraNode.position = Vector3(0.0, 0.0, -50.0)
+	cameraNode.position = Vector3(0.0, 10.0, -50.0)
 	camera = cameraNode:CreateComponent("Camera")
 	camera.farClip = 1000.0
 
@@ -85,15 +85,29 @@ function Init()
     skybox.material = cache:GetResource("Material", "Materials/Skybox.xml")
 	
 	-- Construct new Text object, set string to display and font to use
-	locTxt = ui.root:CreateChild("Text")
-	locTxt:SetFont(cache:GetResource("Font", "Fonts/Anonymous Pro.ttf"), 15)
+	coord_ui_txt = ui.root:CreateChild("Text")
+	coord_ui_txt:SetFont(cache:GetResource("Font", "Fonts/Anonymous Pro.ttf"), 15)
 	-- The text has multiple rows. Center them in relation to each other
-	locTxt.textAlignment = HA_CENTER
+	coord_ui_txt.textAlignment = HA_CENTER
 	-- Position the text relative to the screen center
-	locTxt.horizontalAlignment = HA_RIGHT
-	locTxt.verticalAlignment = VA_BOTTOM
-	locTxt:SetPosition(0, 0)	
+	coord_ui_txt.horizontalAlignment = HA_RIGHT
+	coord_ui_txt.verticalAlignment = VA_BOTTOM
+	coord_ui_txt:SetPosition(0, 0)	
 	
+	percent_top_ui_txt = ui.root:CreateChild("Text")
+	percent_top_ui_txt:SetFont(cache:GetResource("Font", "Fonts/Anonymous Pro.ttf"), 15)
+	percent_top_ui_txt.textAlignment = HA_CENTER
+	percent_top_ui_txt.horizontalAlignment = HA_CENTER
+	percent_top_ui_txt.verticalAlignment = VA_TOP
+	percent_top_ui_txt:SetPosition(0, 18)	
+	
+	percent_bottom_ui_txt = ui.root:CreateChild("Text")
+	percent_bottom_ui_txt:SetFont(cache:GetResource("Font", "Fonts/Anonymous Pro.ttf"), 15)
+	percent_bottom_ui_txt.textAlignment = HA_CENTER
+	percent_bottom_ui_txt.horizontalAlignment = HA_CENTER
+	percent_bottom_ui_txt.verticalAlignment = VA_BOTTOM
+	percent_bottom_ui_txt:SetPosition(0, 0)	
+		
 	-- Subscribe key down event
 	SubscribeToEvent("KeyDown", "HandleKeyDown")
 	SubscribeToEvent("Update", "HandleUpdate")
@@ -145,11 +159,53 @@ end
 
 yaw = 0
 pitch = 0
-zapping = false
+zapping = {amount=0}
+
+main_initialised = false
+worker_initialised = false
 
 function HandleUpdate(eventType, eventData)
 	-- Take the frame time step, which is stored as a float
 	local timeStep = eventData["TimeStep"]:GetFloat()
+ 	
+ 	local msg = queue_in:pop()	
+	while msg do
+		if msg.type == "PERCENT_TOP" then 
+			if msg.value < 0 then
+				percent_top_ui_txt:SetText("")
+			else
+				percent_top_ui_txt:SetText("Loading physics " .. msg.value .. "%") 
+			end
+			
+		elseif msg.type == "PERCENT_BOTTOM" then 
+			if msg.value < 0 then
+				percent_bottom_ui_txt:SetText("")
+			else
+				percent_bottom_ui_txt:SetText("Constructing surface " .. msg.value .. "%") 
+			end
+			
+		elseif msg == "MAIN_INIT_DONE" then 
+			main_initialised = true
+			if worker_initialised then
+				queue_main:push({type="STATE_RUNNING"})
+				queue_worker:push({type="STATE_RUNNING"})
+			end
+				
+		elseif msg == "WORKER_INIT_DONE" then 
+			worker_initialised = true
+			if main_initialised then
+				queue_main:push({type="STATE_RUNNING"})
+				queue_worker:push({type="STATE_RUNNING"})
+			end
+		end
+		
+		msg = queue_in:pop()
+	end
+	
+	if not main_initialised or not worker_initialised then 
+		return 
+	end
+	
 	-- Do not move if the UI has a focused element (the console)
 	if ui.focusElement ~= nil then
 		return
@@ -160,19 +216,32 @@ function HandleUpdate(eventType, eventData)
 	   	local screenCoordX = mousePos.x / graphics:GetWidth()
 	   	local screenCoordY = mousePos.y / graphics:GetHeight()
 	   	local ray = camera:GetScreenRay(screenCoordX, screenCoordY)
-		if input:GetMouseButtonDown(1) then
+	   	
+		if input:GetMouseButtonDown(1) and zapping.amount <= 0 then
 --		   	Log:Write(
 --		   		LOG_INFO, "+'ve zap (" .. mousePos.x .. ", " .. mousePos.y ..") -> ("
 --		   		..  screenCoordX .. ", " .. screenCoordY .. ")"
 --		   	)
-			felt:zap(ray, 1.0)
-			zapping = true
-		elseif input:GetMouseButtonDown(4) then
-			felt:zap(ray, -1.0)
-			zapping = true
-		elseif zapping then
-			felt:zap(ray, 0)
-			zapping = false
+			zapping.amount = 1
+			queue_worker:push({
+				type="START_ZAP",
+				ray=ray,
+				amount=zapping.amount
+			})
+			
+		elseif input:GetMouseButtonDown(4) and zapping.amount >= 0 then
+			zapping.amount = -1
+			queue_worker:push({
+				type="START_ZAP",
+				ray=ray,
+				amount=zapping.amount
+			})
+			
+		elseif zapping.amount ~= 0 then
+			zapping.amount = 0
+			queue_worker:push({
+				type="STOP_ZAP"
+			})
 		end
 	end	
 	if input:GetKeyPress(KEY_R) then
@@ -224,7 +293,7 @@ function HandleUpdate(eventType, eventData)
         SpawnObject()
     end	
 	
-	locTxt:SetText(
+	coord_ui_txt:SetText(
 		"(" .. cameraNode:GetWorldPosition():ToString() 
 		.. ") (" .. cameraNode:GetWorldRotation():ToString() .. ")"
 	)

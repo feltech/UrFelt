@@ -1,6 +1,7 @@
 #include "UrPoly3D.hpp"
 
 #include <Urho3D/Resource/ResourceCache.h>
+#include <Urho3D/IO/Log.h>
 
 namespace felt
 {
@@ -45,7 +46,6 @@ void UrPoly3D::init_gpu (
 	m_pmodel->SetBoundingBox(BoundingBox(pos_min, pos_max));
 	m_pmodel->SetNumGeometries(1);
 
-//	m_pnode->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
 	m_pnode->SetEnabled(false);
 
 	m_pvb->SetShadowed(false);

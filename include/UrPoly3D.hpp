@@ -45,5 +45,4 @@ public:
 	bool update_gpu ();
 };
   
-  
 }

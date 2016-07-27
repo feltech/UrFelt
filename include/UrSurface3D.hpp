@@ -26,6 +26,9 @@ public:
 	using Base::VecDf;
 protected:
 	UrPolyGrid3D	m_poly;
+	Urho3D::Node* 	m_pnode;
+
+	UINT	m_physics_init;
 
 public:
 	UrSurface3D () = default;
@@ -37,9 +40,7 @@ public:
 		const VecDu& dims_partition_ = VecDu::Constant(8)
 	);
 
-
 	~UrSurface3D();
-
 
 	void init(
 		Urho3D::Context* pcontext_, Urho3D::Node* pnode_root_,
@@ -47,10 +48,9 @@ public:
 		const VecDu& dims_partition_ = VecDu::Constant(8)
 	);
 
+	bool addPhysics(UINT chunk_size);
 
 	const UrPolyGrid3D& poly() const;
-
-
 	UrPolyGrid3D& poly();
 
 
@@ -65,6 +65,10 @@ public:
 	 */
 	void update(std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_);
 
+	FLOAT fraction_physics_initialised () const
+	{
+		return (FLOAT)m_physics_init / this->m_grid_isogrid.children().data().size();
+	}
 };
 
 } /* namespace felt */

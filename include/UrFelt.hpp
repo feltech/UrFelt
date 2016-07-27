@@ -22,6 +22,7 @@
 #include <Urho3D/Physics/RigidBody.h>
 
 #include <Felt/Surface.hpp>
+#include <LuaCppMsg.hpp>
 
 #include "UrSurface3D.hpp"
 
@@ -34,58 +35,10 @@ namespace felt
 	class UrFelt : public Urho3D::Application
 	{
 	public:
-		typedef Surface<3>	Surface_t;
-	protected:
-		UrSurface3D		m_surface;
-		Urho3D::RigidBody* 		m_surface_body;
-		float			m_time_since_update;
-
-		enum UpdaterState {
-			STOPPED, RUNNING, STOP, PAUSE, PAUSED, ZAP, REPOLY
-		};
-
-		std::thread 				m_thread_updater;
-		std::atomic<UpdaterState>	m_state_updater;
-		std::mutex					m_mutex_updater;
-		std::condition_variable		m_cond_updater;
-
-		struct Zapper {
-			float pos[3];
-			float dir[3];
-			float amount;
-		};
-
-		struct WorkerMessage
-		{
-			enum Type
-			{
-				STOP_ZAP,
-				ZAP
-			};
-			const Type type;
-			WorkerMessage(const Type& type_) : type(type_) {}
-		};
-
-		struct ZapWorkerMessage : public WorkerMessage
-		{
-			const Zapper zap;
-			ZapWorkerMessage(const Zapper& zap_) : WorkerMessage(ZAP), zap(zap_) {}
-		};
-
-		using WorkerMessagePtr = std::shared_ptr<WorkerMessage>;
-
-		std::queue<WorkerMessagePtr>	m_worker_queue;
-		std::mutex						m_worker_queue_mutex;
-
-		std::atomic<Zapper> m_zap;
-
-	public:
 		~UrFelt();
 		UrFelt(Urho3D::Context* context);
 
 		static Urho3D::String GetTypeNameStatic();
-
-		void zap(const Urho3D::Ray& ray, const float& amount);
 
 		void repoly();
 
@@ -97,6 +50,29 @@ namespace felt
 		);
 		void updater();
 		void start_updater();
+
+	protected:
+		using UrQueue = LuaCppMsg::Queue<
+			Urho3D::Ray, LuaCppMsg::CopyPtr<Urho3D::Ray>*
+		>;
+
+		UrSurface3D				m_surface;
+		Urho3D::RigidBody* 		m_surface_body;
+		float					m_time_since_update;
+		enum State {
+			INIT, INIT_DONE, RUNNING,
+			STOPPED, STOP, PAUSE, PAUSED, ZAP, REPOLY
+		};
+
+		std::thread 				m_thread_updater;
+		State						m_state_main;
+		std::atomic<State>			m_state_updater;
+		std::mutex					m_mutex_updater;
+		std::condition_variable		m_cond_updater;
+
+		UrQueue	m_queue_script;
+		UrQueue	m_queue_worker;
+		UrQueue	m_queue_main;
 	};
 
 }

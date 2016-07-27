@@ -2,6 +2,7 @@
 
 #include "UrFelt.hpp"
 
+
 #include <thread>
 #include <chrono>
 #include <omp.h>
@@ -25,10 +26,8 @@
 #include <Urho3D/Physics/RigidBody.h>
 #include <Urho3D/Physics/PhysicsWorld.h>
 
-#include "UrPolyGrid3D.hpp"
 #include "FeltCollisionShape.hpp"
 #include "btFeltCollisionConfiguration.hpp"
-
 
 using namespace felt;
 
@@ -39,14 +38,14 @@ const char* SUBSYSTEM_CATEGORY = "Subsystem";
 UrFelt::~UrFelt ()
 {
 	m_state_updater = STOP;
+	m_cond_updater.notify_all();
 	if (m_thread_updater.joinable())
 		m_thread_updater.join();
 }
 
 
 UrFelt::UrFelt (Urho3D::Context* context) : Urho3D::Application(context),
-	m_surface(), m_time_since_update(0), m_state_updater(STOPPED),
-	m_zap(Zapper())
+	m_surface(), m_time_since_update(0), m_state_main(INIT), m_state_updater(STOPPED)
 {
 	context_->RegisterSubsystem(new Urho3D::LuaScript(context_));
 }
@@ -71,6 +70,17 @@ void UrFelt::Setup()
 
 	LuaScript* lua = context_->GetSubsystem<LuaScript>();
 	tolua_UrFelt_open (lua->GetState());
+
+	m_queue_worker.bind(lua->GetState());
+	m_queue_worker.to_lua("queue_worker");
+	m_queue_main.bind(lua->GetState());
+	m_queue_main.to_lua("queue_main");
+	m_queue_script.bind(lua->GetState());
+	m_queue_script.to_lua("queue_in");
+
+	m_queue_script.lua()->writeVariable(
+		"Ray", "_typeid", &typeid(LuaCppMsg::CopyPtr<Urho3D::Ray>*)
+	);
 }
 
 
@@ -86,13 +96,15 @@ void UrFelt::Start()
 	lua->ExecuteFunction("InitPhysics");
 
 	Node* node = scene->CreateChild("PolyGrid");
-	node->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
+	node->SetPosition(Vector3(0, 0, 0));
 
-	m_surface.init(context_, node, Vec3u(200,200,200), Vec3u(16,16,16));
+	m_surface.init(context_, node, Vec3u(100,100,100), Vec3u(16,16,16));
 	m_surface.seed(Vec3i(0,0,0));
-	m_surface.update([](auto& pos, auto& phi)->FLOAT {
-		return -1.0f;
-	});
+
+	for (UINT i = 0; i < 2; i++)
+		m_surface.update([](auto& pos, auto& phi)->FLOAT {
+			return -1.0f;
+		});
 
 	m_surface_body = node->CreateComponent<RigidBody>();
 	m_surface_body->SetKinematic(true);
@@ -100,13 +112,6 @@ void UrFelt::Start()
 	m_surface_body->SetFriction(1.0f);
 	m_surface_body->SetUseGravity(false);
 	m_surface_body->SetRestitution(0.0);
-
-	for (Vec3i pos_child : m_surface.isogrid().children())
-	{
-		FeltCollisionShape* shape = node->CreateComponent<FeltCollisionShape>();
-		shape->SetSurface(&m_surface, pos_child);
-	}
-
 
 	start_updater();
 
@@ -117,25 +122,75 @@ void UrFelt::handle_update(
 	Urho3D::StringHash event_type_, Urho3D::VariantMap& event_data_
 ) {
 	using namespace Urho3D;
-	// Take the frame time step, which is stored as a float
-	float time_step = event_data_[Update::P_TIMESTEP].GetFloat();
-	m_time_since_update += time_step;
+	using namespace LuaCppMsg;
 
-	if (m_time_since_update > 1.0f/30.0f)
+	while (UrQueue::Msg::Opt msg_exists = m_queue_main.pop())
 	{
-		switch (m_state_updater)
-		{
-		case RUNNING:
-			m_state_updater = PAUSE;
-			break;
-		case PAUSED:
-			m_time_since_update = 0;
-			m_surface.poly().update_gpu();
-			m_surface.poly().update_end();
-			m_cond_updater.notify_all();
-			break;
-		}
+		const UrQueue::Msg& msg = *msg_exists;
+		const UrQueue::Msg::Str& type = msg.get("type").as<UrQueue::Msg::Str>();
+
+		if (type == "STATE_RUNNING")
+			m_state_main = RUNNING;
 	}
+
+	switch (m_state_main)
+	{
+	case INIT:
+		if (m_surface.addPhysics(1))
+		{
+			m_queue_script.push(UrQueue::Msg(UrQueue::Map{
+				{"type", UrQueue::Str("PERCENT_TOP")},
+				{"value", -1.0}
+			}));
+			m_queue_script.push("MAIN_INIT_DONE");
+			m_state_main = INIT_DONE;
+		}
+		else
+		{
+			m_queue_script.push(UrQueue::Msg(UrQueue::Map{
+				{"type", UrQueue::Str("PERCENT_TOP")},
+				{"value", (FLOAT)(INT)(100.0 * m_surface.fraction_physics_initialised())}
+			}));
+		}
+		break;
+
+	case INIT_DONE:
+		break;
+
+	case RUNNING:
+
+		while (UrQueue::Msg::Opt msg_exists = m_queue_main.pop())
+		{
+			const UrQueue::Msg& msg = *msg_exists;
+			const UrQueue::Msg::Str& type = msg.get("type").as<UrQueue::Msg::Str>();
+			if (type == "ACTIVATE_SURFACE")
+			{
+				m_surface_body->Activate();
+			}
+		}
+
+		// Take the frame time step, which is stored as a float
+		float time_step = event_data_[Update::P_TIMESTEP].GetFloat();
+		m_time_since_update += time_step;
+
+		if (m_time_since_update > 1.0f/30.0f)
+		{
+			switch (m_state_updater)
+			{
+			case RUNNING:
+				m_state_updater = PAUSE;
+				break;
+			case PAUSED:
+				m_time_since_update = 0;
+				m_surface.poly().update_gpu();
+				m_surface.poly().update_end();
+				m_cond_updater.notify_all();
+				break;
+			}
+		}
+		break;
+	}
+
 }
 
 
@@ -149,61 +204,86 @@ void UrFelt::updater()
 
 	auto time_last = Clock::now();
 	Seconds time_step;
-	float ftime_step;
 
+	UINT expand_count = 0;
+	const UINT expand_max = 100;
 
-	Zapper zap_current;
+	bool is_physics_done = false;
+
 	bool is_zapping = false;
-	WorkerMessagePtr msg;
+	Ray zap_ray;
+	float zap_amount;
 
 	while (m_state_updater != STOP)
 	{
-		Zapper zap;
+		while (const UrQueue::Msg::Opt& msg_exists = m_queue_worker.pop())
+		{
+			const UrQueue::Msg& msg = *msg_exists;
+			const UrQueue::Str& type = msg.get("type").as<UrQueue::Str>();
+
+			if (type == "STOP_ZAP")
+			{
+				is_zapping = false;
+			}
+			else if (type == "START_ZAP")
+			{
+				is_zapping = true;
+				zap_ray = Ray(msg.get("ray").as<Urho3D::Ray>());
+				zap_amount = msg.get("amount").as<UrQueue::Num>();
+
+				m_queue_main.push(UrQueue::Msg(UrQueue::Map{
+					{ "type", UrQueue::Str("ACTIVATE_SURFACE") }
+				}));
+			}
+			else if (type == "STATE_RUNNING")
+			{
+				m_state_updater = RUNNING;
+			}
+		}
+
 		switch (m_state_updater)
 		{
-		case RUNNING:
-			{
-				std::lock_guard<std::mutex> lock(m_worker_queue_mutex);
-				while (!m_worker_queue.empty())
-				{
-					msg = m_worker_queue.front();
-					m_worker_queue.pop();
 
-					switch (msg->type)
-					{
-					case WorkerMessage::STOP_ZAP:
-						is_zapping = false;
-						break;
-					case WorkerMessage::ZAP:
-						is_zapping = true;
-						ZapWorkerMessage* msg_zap = static_cast<ZapWorkerMessage*>(msg.get());
-						zap_current = msg_zap->zap;
-						break;
-					}
-				}
-			}
-
-			time_step =  (Clock::now() - time_last);
-			if (time_step.count() < 3)
+		case INIT:
+			if (expand_count < expand_max)
 			{
 				m_surface.update([](auto& pos, auto& phi)->FLOAT {
 					using namespace felt;
-					const Vec3f grad = phi.gradE(pos);
-					const FLOAT mag = grad.blueNorm();
-					const FLOAT curv = phi.curv(pos);
-					const FLOAT delta = -0.5f * mag * (1.0f - 0.6f * curv);
-
-					return delta;
+					if (std::abs(pos(1)) > 1)
+						return 0;
+					else
+						return -1;
 				});
-			}
 
+				expand_count++;
+
+				m_queue_script.push(UrQueue::Msg(UrQueue::Map{
+					{"type", UrQueue::Str("PERCENT_BOTTOM")},
+					{"value", (FLOAT)(INT)(100.0 * (FLOAT)expand_count / expand_max)}
+				}));
+			}
+			if (expand_count == expand_max)
+			{
+				m_queue_script.push(UrQueue::Msg(UrQueue::Map{
+					{"type", UrQueue::Str("PERCENT_BOTTOM")},
+					{"value", -1.0}
+				}));
+				m_queue_script.push("WORKER_INIT_DONE");
+				m_state_updater = INIT_DONE;
+			}
+			break;
+
+		case INIT_DONE:
+			break;
+
+		case RUNNING:
 			if (is_zapping)
 			{
 				m_surface.update_start();
 				FLOAT leftover = m_surface.delta_gauss<4>(
-					Vec3f(zap_current.pos[0], zap_current.pos[1], zap_current.pos[2]),
-					Vec3f(zap_current.dir[0], zap_current.dir[1], zap_current.dir[2]),
-					zap_current.amount, 2.0f
+					reinterpret_cast<Vec3f&>(zap_ray.origin_),
+					reinterpret_cast<Vec3f&>(zap_ray.direction_),
+					zap_amount, 2.0f
 				);
 				m_surface.update_end_local();
 				m_surface.poly().notify(m_surface);
@@ -232,53 +312,8 @@ void UrFelt::updater()
 
 void UrFelt::start_updater ()
 {
-	m_state_updater = RUNNING;
+	m_state_updater = INIT;
 	m_thread_updater = std::thread(&UrFelt::updater, this);
-}
-
-
-void UrFelt::zap (const Urho3D::Ray& ray, const float& amount)
-{
-	using namespace Urho3D;
-
-	const Camera* camera = GetSubsystem<Renderer>()->GetViewport(0)->GetCamera();
-
-//	const Ray& ray = camera->GetScreenRay(0.5, 0.5);
-
-//	LOGINFO(
-//		String("Zapping: ") + ray.origin_.ToString()
-//		+ String(" in direction ") + ray.direction_.ToString()
-//	);
-	Zapper zap;
-	zap.pos[0] = ray.origin_.x_;
-	zap.pos[1] = ray.origin_.y_;
-	zap.pos[2] = ray.origin_.z_;
-	zap.dir[0] = ray.direction_.x_;
-	zap.dir[1] = ray.direction_.y_;
-	zap.dir[2] = ray.direction_.z_;
-	zap.amount = amount;
-	m_zap = zap;
-
-	std::lock_guard<std::mutex> lock(m_worker_queue_mutex);
-	if (amount == 0)
-	{
-		m_worker_queue.push(WorkerMessagePtr(new WorkerMessage(WorkerMessage::STOP_ZAP)));
-		m_surface_body->Activate();
-	}
-	else
-	{
-		m_worker_queue.push(WorkerMessagePtr(new ZapWorkerMessage(zap)));
-//		m_surface.update_start();
-//		FLOAT leftover = m_surface.dphi_gauss<4>(
-//			Vec3f(zap.pos[0], zap.pos[1], zap.pos[2]),
-//			Vec3f(zap.dir[0], zap.dir[1], zap.dir[2]),
-//			zap.amount, 3.0f
-//		);
-//		m_surface.update_end_local();
-//		m_surface.poly().notify(m_surface);
-//		m_surface.poly().poly_cubes(m_surface);
-		m_surface_body->Activate();
-	}
 }
 
 

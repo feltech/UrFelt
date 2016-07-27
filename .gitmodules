@@ -1,0 +1,3 @@
+[submodule "vendor/LuaCppMsg"]
+	path = vendor/LuaCppMsg
+	url = https://github.com/feltech/LuaCppMsg.git
