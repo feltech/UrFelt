@@ -1,6 +1,16 @@
 $#include "UrFelt.hpp"
 $using namespace felt;
 
+module MsgType
+{
+	$using namespace Messages;
+	enum MsgType
+	{
+		STATE_RUNNING, ACTIVATE_SURFACE, START_ZAP, STOP_ZAP, PERCENT_TOP, PERCENT_BOTTOM,
+		MAIN_INIT_DONE, WORKER_INIT_DONE
+	};
+}
+
 class UrFelt : public Urho3D::Application
 {
 public:

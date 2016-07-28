@@ -31,6 +31,15 @@ extern int tolua_UrFelt_open (lua_State* tolua_S);
 
 namespace felt
 {
+	namespace Messages
+	{
+		enum MsgType
+		{
+			STATE_RUNNING = 1, ACTIVATE_SURFACE, START_ZAP, STOP_ZAP, PERCENT_TOP, PERCENT_BOTTOM,
+			MAIN_INIT_DONE, WORKER_INIT_DONE
+		};
+	}
+
 	class UrFelt : public Urho3D::Application
 	{
 	public:
@@ -66,6 +75,7 @@ namespace felt
 		std::thread 				m_thread_updater;
 		State						m_state_main;
 		std::atomic<State>			m_state_updater;
+		std::atomic<bool>			m_quit;
 		std::mutex					m_mutex_updater;
 		std::condition_variable		m_cond_updater;
 

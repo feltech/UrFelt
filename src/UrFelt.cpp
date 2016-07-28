@@ -37,7 +37,7 @@ const char* SUBSYSTEM_CATEGORY = "Subsystem";
 
 UrFelt::~UrFelt ()
 {
-	m_state_updater = STOP;
+	m_quit = true;
 	m_cond_updater.notify_all();
 	if (m_thread_updater.joinable())
 		m_thread_updater.join();
@@ -45,7 +45,8 @@ UrFelt::~UrFelt ()
 
 
 UrFelt::UrFelt (Urho3D::Context* context) : Urho3D::Application(context),
-	m_surface(), m_time_since_update(0), m_state_main(INIT), m_state_updater(STOPPED)
+	m_surface(), m_time_since_update(0), m_state_main(INIT), m_state_updater(STOPPED),
+	m_quit(false)
 {
 	context_->RegisterSubsystem(new Urho3D::LuaScript(context_));
 }
@@ -123,15 +124,7 @@ void UrFelt::handle_update(
 ) {
 	using namespace Urho3D;
 	using namespace LuaCppMsg;
-
-	while (UrQueue::Msg::Opt msg_exists = m_queue_main.pop())
-	{
-		const UrQueue::Msg& msg = *msg_exists;
-		const UrQueue::Msg::Str& type = msg.get("type").as<UrQueue::Msg::Str>();
-
-		if (type == "STATE_RUNNING")
-			m_state_main = RUNNING;
-	}
+	using namespace Messages;
 
 	switch (m_state_main)
 	{
@@ -141,34 +134,49 @@ void UrFelt::handle_update(
 		if (frac_physics_inited == 1)
 		{
 			m_queue_script.push(UrQueue::Msg(UrQueue::Map{
-				{"type", UrQueue::Str("PERCENT_TOP")},
+				{"type", UrQueue::Num(MsgType::PERCENT_TOP)},
 				{"value", -1.0}
 			}));
-			m_queue_script.push("MAIN_INIT_DONE");
+			m_queue_script.push(UrQueue::Msg(UrQueue::Num(MsgType::MAIN_INIT_DONE)));
 			m_state_main = INIT_DONE;
 		}
 		else
 		{
 			m_queue_script.push(UrQueue::Msg(UrQueue::Map{
-				{"type", UrQueue::Str("PERCENT_TOP")},
-				{"value", (FLOAT)(INT)(100.0 * frac_physics_inited)}
+				{"type", UrQueue::Num(MsgType::PERCENT_TOP)},
+				{"value", (FLOAT)(INT)(100.0 * frac_physics_inited)},
+				{"label", "Initialising physics"}
 			}));
 		}
 		break;
 	}
 
 	case INIT_DONE:
-		break;
-
-	case RUNNING:
-
 		while (UrQueue::Msg::Opt msg_exists = m_queue_main.pop())
 		{
 			const UrQueue::Msg& msg = *msg_exists;
-			const UrQueue::Msg::Str& type = msg.get("type").as<UrQueue::Msg::Str>();
-			if (type == "ACTIVATE_SURFACE")
+			const MsgType type = (MsgType)msg.get("type").as<UrQueue::Num>();
+
+			if (type == MsgType::STATE_RUNNING)
+				m_state_main = RUNNING;
+		}
+		break;
+
+	case RUNNING:
+	{
+		while (UrQueue::Msg::Opt msg_exists = m_queue_main.pop())
+		{
+			const UrQueue::Msg& msg = *msg_exists;
+			const MsgType type = (MsgType)msg.get("type").as<UrQueue::Num>();
+			if (type == MsgType::ACTIVATE_SURFACE)
 			{
 				m_surface_body->Activate();
+			}
+			else
+			{
+				std::ostringstream str;
+				str << "Invalid message type: " << type;
+				throw std::runtime_error(str.str());
 			}
 		}
 
@@ -193,6 +201,7 @@ void UrFelt::handle_update(
 		}
 		break;
 	}
+	}
 
 }
 
@@ -200,6 +209,8 @@ void UrFelt::handle_update(
 void UrFelt::updater()
 {
 	using namespace Urho3D;
+	using namespace Messages;
+
 	typedef std::chrono::high_resolution_clock Clock;
 	typedef std::chrono::duration<float> Seconds;
 
@@ -217,30 +228,36 @@ void UrFelt::updater()
 	Ray zap_ray;
 	float zap_amount;
 
-	while (m_state_updater != STOP)
+	while (!m_quit)
 	{
 		while (const UrQueue::Msg::Opt& msg_exists = m_queue_worker.pop())
 		{
 			const UrQueue::Msg& msg = *msg_exists;
-			const UrQueue::Str& type = msg.get("type").as<UrQueue::Str>();
+			const MsgType type = (MsgType)msg.get("type").as<UrQueue::Num>();
 
-			if (type == "STOP_ZAP")
+			if (type == MsgType::STOP_ZAP)
 			{
 				is_zapping = false;
 			}
-			else if (type == "START_ZAP")
+			else if (type == MsgType::START_ZAP)
 			{
 				is_zapping = true;
 				zap_ray = Ray(msg.get("ray").as<Urho3D::Ray>());
 				zap_amount = msg.get("amount").as<UrQueue::Num>();
 
 				m_queue_main.push(UrQueue::Msg(UrQueue::Map{
-					{ "type", UrQueue::Str("ACTIVATE_SURFACE") }
+					{ "type", UrQueue::Num(ACTIVATE_SURFACE) }
 				}));
 			}
-			else if (type == "STATE_RUNNING")
+			else if (type == MsgType::STATE_RUNNING)
 			{
 				m_state_updater = RUNNING;
+			}
+			else
+			{
+				std::ostringstream str;
+				str << "Invalid message type: " << type;
+				throw std::runtime_error(str.str());
 			}
 		}
 
@@ -261,17 +278,18 @@ void UrFelt::updater()
 				expand_count++;
 
 				m_queue_script.push(UrQueue::Msg(UrQueue::Map{
-					{"type", UrQueue::Str("PERCENT_BOTTOM")},
-					{"value", (FLOAT)(INT)(100.0 * (FLOAT)expand_count / expand_max)}
+					{"type", UrQueue::Num(MsgType::PERCENT_BOTTOM)},
+					{"value", (FLOAT)(INT)(100.0 * (FLOAT)expand_count / expand_max)},
+					{"label", "Initialising surface"}
 				}));
 			}
 			if (expand_count == expand_max)
 			{
 				m_queue_script.push(UrQueue::Msg(UrQueue::Map{
-					{"type", UrQueue::Str("PERCENT_BOTTOM")},
+					{"type", UrQueue::Num(MsgType::PERCENT_BOTTOM)},
 					{"value", -1.0}
 				}));
-				m_queue_script.push("WORKER_INIT_DONE");
+				m_queue_script.push(UrQueue::Msg(UrQueue::Num(MsgType::WORKER_INIT_DONE)));
 				m_state_updater = INIT_DONE;
 			}
 			break;

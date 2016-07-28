@@ -111,6 +111,7 @@ function Init()
 	-- Subscribe key down event
 	SubscribeToEvent("KeyDown", "HandleKeyDown")
 	SubscribeToEvent("Update", "HandleUpdate")
+
 	
 end
 
@@ -170,33 +171,35 @@ function HandleUpdate(eventType, eventData)
  	
  	local msg = queue_in:pop()	
 	while msg do
-		if msg.type == "PERCENT_TOP" then 
+			
+		if msg == MsgType.MAIN_INIT_DONE then 
+			main_initialised = true
+			if worker_initialised then
+				queue_main:push({type=MsgType.STATE_RUNNING})
+				queue_worker:push({type=MsgType.STATE_RUNNING})
+			end
+				
+		elseif msg == MsgType.WORKER_INIT_DONE then 
+			worker_initialised = true
+			if main_initialised then
+				queue_main:push({type=MsgType.STATE_RUNNING})
+				queue_worker:push({type=MsgType.STATE_RUNNING})
+			end
+			
+		elseif msg.type == MsgType.PERCENT_TOP then 
 			if msg.value < 0 then
 				percent_top_ui_txt:SetText("")
 			else
 				percent_top_ui_txt:SetText("Loading physics " .. msg.value .. "%") 
 			end
 			
-		elseif msg.type == "PERCENT_BOTTOM" then 
+		elseif msg.type == MsgType.PERCENT_BOTTOM then 
 			if msg.value < 0 then
 				percent_bottom_ui_txt:SetText("")
 			else
 				percent_bottom_ui_txt:SetText("Constructing surface " .. msg.value .. "%") 
 			end
 			
-		elseif msg == "MAIN_INIT_DONE" then 
-			main_initialised = true
-			if worker_initialised then
-				queue_main:push({type="STATE_RUNNING"})
-				queue_worker:push({type="STATE_RUNNING"})
-			end
-				
-		elseif msg == "WORKER_INIT_DONE" then 
-			worker_initialised = true
-			if main_initialised then
-				queue_main:push({type="STATE_RUNNING"})
-				queue_worker:push({type="STATE_RUNNING"})
-			end
 		end
 		
 		msg = queue_in:pop()
@@ -217,31 +220,41 @@ function HandleUpdate(eventType, eventData)
 	   	local screenCoordY = mousePos.y / graphics:GetHeight()
 	   	local ray = camera:GetScreenRay(screenCoordX, screenCoordY)
 	   	
-		if input:GetMouseButtonDown(1) and zapping.amount <= 0 then
+		if input:GetMouseButtonDown(1) then
 --		   	Log:Write(
 --		   		LOG_INFO, "+'ve zap (" .. mousePos.x .. ", " .. mousePos.y ..") -> ("
 --		   		..  screenCoordX .. ", " .. screenCoordY .. ")"
 --		   	)
 			zapping.amount = 1
 			queue_worker:push({
-				type="START_ZAP",
+				type=MsgType.START_ZAP,
 				ray=ray,
 				amount=zapping.amount
 			})
-			
-		elseif input:GetMouseButtonDown(4) and zapping.amount >= 0 then
+		   	Log:Write(
+		   		LOG_INFO, "Zap = " .. zapping.amount
+		   	)
+		elseif input:GetMouseButtonDown(4) then
 			zapping.amount = -1
 			queue_worker:push({
-				type="START_ZAP",
+				type=MsgType.START_ZAP,
 				ray=ray,
 				amount=zapping.amount
 			})
-			
-		elseif zapping.amount ~= 0 then
+		   	Log:Write(
+		   		LOG_INFO, "Zap = " .. zapping.amount
+		   	)			
+		elseif not input:GetMouseButtonDown(1) 
+			and not input:GetMouseButtonDown(4) 
+			and zapping.amount ~= 0 
+			then
 			zapping.amount = 0
 			queue_worker:push({
-				type="STOP_ZAP"
+				type=MsgType.STOP_ZAP
 			})
+		   	Log:Write(
+		   		LOG_INFO, "Zap = " .. zapping.amount
+		   	)
 		end
 	end	
 	if input:GetKeyPress(KEY_R) then

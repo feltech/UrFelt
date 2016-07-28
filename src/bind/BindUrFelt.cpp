@@ -1,6 +1,6 @@
 /*
 ** Lua binding: UrFelt
-** Generated automatically by tolua++-1.0.93 on Wed Jul 27 22:05:32 2016.
+** Generated automatically by tolua++-1.0.93 on Thu Jul 28 20:28:11 2016.
 */
 
 //
@@ -39,6 +39,7 @@ TOLUA_API int tolua_UrFelt_open (lua_State* tolua_S);
 
 #include "UrFelt.hpp"
 using namespace felt;
+using namespace Messages;
 using namespace Urho3D;
 
 #define TOLUA_DISABLE_tolua_UrFelt_GetFelt00
@@ -141,6 +142,17 @@ TOLUA_API int tolua_UrFelt_open (lua_State* tolua_S)
  tolua_reg_types(tolua_S);
  tolua_module(tolua_S,NULL,1);
  tolua_beginmodule(tolua_S,NULL);
+ tolua_module(tolua_S,"MsgType",0);
+ tolua_beginmodule(tolua_S,"MsgType");
+  tolua_constant(tolua_S,"STATE_RUNNING",STATE_RUNNING);
+  tolua_constant(tolua_S,"ACTIVATE_SURFACE",ACTIVATE_SURFACE);
+  tolua_constant(tolua_S,"START_ZAP",START_ZAP);
+  tolua_constant(tolua_S,"STOP_ZAP",STOP_ZAP);
+  tolua_constant(tolua_S,"PERCENT_TOP",PERCENT_TOP);
+  tolua_constant(tolua_S,"PERCENT_BOTTOM",PERCENT_BOTTOM);
+  tolua_constant(tolua_S,"MAIN_INIT_DONE",MAIN_INIT_DONE);
+  tolua_constant(tolua_S,"WORKER_INIT_DONE",WORKER_INIT_DONE);
+ tolua_endmodule(tolua_S);
  tolua_cclass(tolua_S,"UrFelt","UrFelt","Urho3D::Application",NULL);
  tolua_beginmodule(tolua_S,"UrFelt");
   tolua_function(tolua_S,"repoly",tolua_UrFelt_UrFelt_repoly00);

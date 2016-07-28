@@ -17,7 +17,6 @@
 namespace felt
 {
 
-
 class UrSurface3D : public Surface<3, 3>
 {
 public:
