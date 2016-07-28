@@ -136,7 +136,9 @@ void UrFelt::handle_update(
 	switch (m_state_main)
 	{
 	case INIT:
-		if (m_surface.addPhysics(1))
+	{
+		FLOAT frac_physics_inited = m_surface.init_physics_chunk();
+		if (frac_physics_inited == 1)
 		{
 			m_queue_script.push(UrQueue::Msg(UrQueue::Map{
 				{"type", UrQueue::Str("PERCENT_TOP")},
@@ -149,10 +151,11 @@ void UrFelt::handle_update(
 		{
 			m_queue_script.push(UrQueue::Msg(UrQueue::Map{
 				{"type", UrQueue::Str("PERCENT_TOP")},
-				{"value", (FLOAT)(INT)(100.0 * m_surface.fraction_physics_initialised())}
+				{"value", (FLOAT)(INT)(100.0 * frac_physics_inited)}
 			}));
 		}
 		break;
+	}
 
 	case INIT_DONE:
 		break;

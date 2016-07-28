@@ -26,7 +26,6 @@
 
 #include "UrSurface3D.hpp"
 
-
 extern int tolua_UrFelt_open (lua_State* tolua_S);
 
 

@@ -57,4 +57,4 @@ set (
 setup_main_executable ()
 
 # Link to external libraries.
-target_link_libraries(UrFelt gomp atomic)
+target_link_libraries(UrFelt gomp atomic boost_coroutine boost_system)

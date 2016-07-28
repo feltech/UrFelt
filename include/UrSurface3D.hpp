@@ -9,6 +9,7 @@
 #define INCLUDE_URSURFACE3D_HPP_
 
 #include <functional>
+#include <boost/coroutine/all.hpp>
 
 #include <Felt/Surface.hpp>
 #include "UrPolyGrid3D.hpp"
@@ -48,7 +49,7 @@ public:
 		const VecDu& dims_partition_ = VecDu::Constant(8)
 	);
 
-	bool addPhysics(UINT chunk_size);
+	FLOAT init_physics_chunk();
 
 	const UrPolyGrid3D& poly() const;
 	UrPolyGrid3D& poly();
@@ -65,10 +66,10 @@ public:
 	 */
 	void update(std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_);
 
-	FLOAT fraction_physics_initialised () const
-	{
-		return (FLOAT)m_physics_init / this->m_grid_isogrid.children().data().size();
-	}
+protected:
+	boost::coroutines::coroutine<FLOAT>::pull_type m_initWatcher;
+
+	void init_physics_task(boost::coroutines::coroutine<FLOAT>::push_type& sink);
 };
 
 } /* namespace felt */

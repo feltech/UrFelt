@@ -33,22 +33,30 @@ void UrSurface3D::init(
 	m_pnode = pnode_root_;
 	Base::init(dims_, dims_partition_);
 	m_poly.init(*this, pcontext_, pnode_root_);
+	m_initWatcher = boost::coroutines::coroutine<FLOAT>::pull_type{
+		std::bind(&UrSurface3D::init_physics_task, this, std::placeholders::_1)
+	};
 }
 
-bool UrSurface3D::addPhysics(UINT chunk_size)
+FLOAT UrSurface3D::init_physics_chunk()
 {
-	UINT end_idx = std::min(
-		m_physics_init + chunk_size, (UINT)this->m_grid_isogrid.children().data().size()
-	);
+	m_initWatcher();
+	if (!m_initWatcher)
+		return 1;
+	return m_initWatcher.get();
+}
 
-	for (; m_physics_init < end_idx; m_physics_init++)
+void UrSurface3D::init_physics_task(boost::coroutines::coroutine<FLOAT>::push_type& sink)
+{
+	const UINT num_children = this->m_grid_isogrid.children().data().size();
+	for (UINT child_idx = 0; child_idx < num_children; child_idx++)
 	{
-		const Vec3i& pos_child = this->m_grid_isogrid.children().index(m_physics_init);
+		const Vec3i& pos_child = this->m_grid_isogrid.children().index(child_idx);
 		FeltCollisionShape* shape = m_pnode->CreateComponent<FeltCollisionShape>();
 		shape->SetSurface(this, pos_child);
-	}
 
-	return m_physics_init == this->m_grid_isogrid.children().data().size();
+		sink((FLOAT)child_idx / num_children);
+	}
 }
 
 const UrPolyGrid3D& UrSurface3D::poly() const
