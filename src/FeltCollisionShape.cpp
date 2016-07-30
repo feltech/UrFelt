@@ -17,11 +17,12 @@ void FeltCollisionShape::SetSurface(const UrSurface3D* psurface_, const Vec3i& p
 }
 
 
-void FeltCollisionShape::UpdateCustomShape(
-	 int shapeType, btCollisionShape** ppshape, const Urho3D::Vector3& newWorldScale
+btCollisionShape* FeltCollisionShape::UpdateDerivedShape(
+	 int shapeType, const Urho3D::Vector3& newWorldScale
 ) {
-	*ppshape = new btSurfaceShape(m_psurface, m_pos_child);
-	(*ppshape)->setLocalScaling(Urho3D::ToBtVector3(newWorldScale));
+	btCollisionShape* pshape = new btSurfaceShape(m_psurface, m_pos_child);
+	pshape->setLocalScaling(Urho3D::ToBtVector3(newWorldScale));
+	return pshape;
 }
 
 } /* namespace felt */

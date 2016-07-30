@@ -28,9 +28,7 @@ public:
 	void SetSurface(const UrSurface3D* psurface_, const felt::Vec3i& pos_child_);
 
 protected:
-	void UpdateCustomShape(
-		 int shapeType, btCollisionShape** ppshape, const Urho3D::Vector3& newWorldScale
-	);
+	btCollisionShape* UpdateDerivedShape(int shapeType, const Urho3D::Vector3& newWorldScale);
 };
 
 } /* namespace felt */

@@ -153,7 +153,7 @@ function HandleKeyDown(eventType, eventData)
 	
 	if input:GetKeyDown(KEY_SPACE) then		
 		input:SetMouseVisible(not input:IsMouseVisible())
-		input:SetMouseGrabbed(not input:IsMouseGrabbed())
+		input:SetMouseGrabbed(not input:IsMouseVisible())
 	end	
 end
 
@@ -220,7 +220,7 @@ function HandleUpdate(eventType, eventData)
 	   	local screenCoordY = mousePos.y / graphics:GetHeight()
 	   	local ray = camera:GetScreenRay(screenCoordX, screenCoordY)
 	   	
-		if input:GetMouseButtonDown(1) then
+		if input:GetMouseButtonDown(MOUSEB_LEFT) then
 --		   	Log:Write(
 --		   		LOG_INFO, "+'ve zap (" .. mousePos.x .. ", " .. mousePos.y ..") -> ("
 --		   		..  screenCoordX .. ", " .. screenCoordY .. ")"
@@ -231,30 +231,30 @@ function HandleUpdate(eventType, eventData)
 				ray=ray,
 				amount=zapping.amount
 			})
-		   	Log:Write(
-		   		LOG_INFO, "Zap = " .. zapping.amount
-		   	)
-		elseif input:GetMouseButtonDown(4) then
+--		   	Log:Write(
+--		   		LOG_INFO, "Zap = " .. zapping.amount
+--		   	)
+		elseif input:GetMouseButtonDown(MOUSEB_RIGHT) then
 			zapping.amount = -1
 			queue_worker:push({
 				type=MsgType.START_ZAP,
 				ray=ray,
 				amount=zapping.amount
 			})
-		   	Log:Write(
-		   		LOG_INFO, "Zap = " .. zapping.amount
-		   	)			
-		elseif not input:GetMouseButtonDown(1) 
-			and not input:GetMouseButtonDown(4) 
+--		   	Log:Write(
+--		   		LOG_INFO, "Zap = " .. zapping.amount
+--		   	)			
+		elseif not input:GetMouseButtonDown(MOUSEB_LEFT)
+			and not input:GetMouseButtonDown(MOUSEB_RIGHT)
 			and zapping.amount ~= 0 
 			then
 			zapping.amount = 0
 			queue_worker:push({
 				type=MsgType.STOP_ZAP
 			})
-		   	Log:Write(
-		   		LOG_INFO, "Zap = " .. zapping.amount
-		   	)
+--		   	Log:Write(
+--		   		LOG_INFO, "Zap = " .. zapping.amount
+--		   	)
 		end
 	end	
 	if input:GetKeyPress(KEY_R) then

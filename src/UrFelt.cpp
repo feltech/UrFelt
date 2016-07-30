@@ -67,7 +67,7 @@ void UrFelt::Setup()
 	context_->RegisterSubsystem(this);
 	context_->RegisterFactory<FeltCollisionShape>(PHYSICS_CATEGORY);
 
-	PhysicsWorld::customCollisionConfig = new btFeltCollisionConfiguration();
+	PhysicsWorld::config.collisionConfig = new btFeltCollisionConfiguration();
 
 	LuaScript* lua = context_->GetSubsystem<LuaScript>();
 	tolua_UrFelt_open (lua->GetState());
