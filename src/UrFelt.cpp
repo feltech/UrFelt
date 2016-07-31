@@ -133,20 +133,20 @@ void UrFelt::handle_update(
 		FLOAT frac_physics_inited = m_surface.init_physics_chunk();
 		if (frac_physics_inited == 1)
 		{
-			m_queue_script.push(UrQueue::Msg(UrQueue::Map{
-				{"type", UrQueue::Num(MsgType::PERCENT_TOP)},
+			m_queue_script.push(UrQueue::Map{
+				{"type", MsgType::PERCENT_TOP},
 				{"value", -1.0}
-			}));
-			m_queue_script.push(UrQueue::Msg(UrQueue::Num(MsgType::MAIN_INIT_DONE)));
+			});
+			m_queue_script.push(MsgType::MAIN_INIT_DONE);
 			m_state_main = INIT_DONE;
 		}
 		else
 		{
-			m_queue_script.push(UrQueue::Msg(UrQueue::Map{
-				{"type", UrQueue::Num(MsgType::PERCENT_TOP)},
+			m_queue_script.push(UrQueue::Map{
+				{"type", MsgType::PERCENT_TOP},
 				{"value", (FLOAT)(INT)(100.0 * frac_physics_inited)},
 				{"label", "Initialising physics"}
-			}));
+			});
 		}
 		break;
 	}
@@ -155,7 +155,7 @@ void UrFelt::handle_update(
 		while (UrQueue::Msg::Opt msg_exists = m_queue_main.pop())
 		{
 			const UrQueue::Msg& msg = *msg_exists;
-			const MsgType type = (MsgType)msg.get("type").as<UrQueue::Num>();
+			const MsgType type = (MsgType)msg.get("type").as<float>();
 
 			if (type == MsgType::STATE_RUNNING)
 				m_state_main = RUNNING;
@@ -167,7 +167,7 @@ void UrFelt::handle_update(
 		while (UrQueue::Msg::Opt msg_exists = m_queue_main.pop())
 		{
 			const UrQueue::Msg& msg = *msg_exists;
-			const MsgType type = (MsgType)msg.get("type").as<UrQueue::Num>();
+			const MsgType type = (MsgType)msg.get("type").as<float>();
 			if (type == MsgType::ACTIVATE_SURFACE)
 			{
 				m_surface_body->Activate();
@@ -233,7 +233,7 @@ void UrFelt::updater()
 		while (const UrQueue::Msg::Opt& msg_exists = m_queue_worker.pop())
 		{
 			const UrQueue::Msg& msg = *msg_exists;
-			const MsgType type = (MsgType)msg.get("type").as<UrQueue::Num>();
+			const MsgType type = (MsgType)msg.get("type").as<float>();
 
 			if (type == MsgType::STOP_ZAP)
 			{
@@ -243,11 +243,11 @@ void UrFelt::updater()
 			{
 				is_zapping = true;
 				zap_ray = Ray(msg.get("ray").as<Urho3D::Ray>());
-				zap_amount = msg.get("amount").as<UrQueue::Num>();
+				zap_amount = msg.get("amount").as<float>();
 
-				m_queue_main.push(UrQueue::Msg(UrQueue::Map{
-					{ "type", UrQueue::Num(ACTIVATE_SURFACE) }
-				}));
+				m_queue_main.push(UrQueue::Map{
+					{ "type", ACTIVATE_SURFACE }
+				});
 			}
 			else if (type == MsgType::STATE_RUNNING)
 			{
@@ -277,19 +277,19 @@ void UrFelt::updater()
 
 				expand_count++;
 
-				m_queue_script.push(UrQueue::Msg(UrQueue::Map{
-					{"type", UrQueue::Num(MsgType::PERCENT_BOTTOM)},
+				m_queue_script.push(UrQueue::Map{
+					{"type", MsgType::PERCENT_BOTTOM},
 					{"value", (FLOAT)(INT)(100.0 * (FLOAT)expand_count / expand_max)},
 					{"label", "Initialising surface"}
-				}));
+				});
 			}
 			if (expand_count == expand_max)
 			{
-				m_queue_script.push(UrQueue::Msg(UrQueue::Map{
-					{"type", UrQueue::Num(MsgType::PERCENT_BOTTOM)},
+				m_queue_script.push(UrQueue::Map{
+					{"type", MsgType::PERCENT_BOTTOM},
 					{"value", -1.0}
-				}));
-				m_queue_script.push(UrQueue::Msg(UrQueue::Num(MsgType::WORKER_INIT_DONE)));
+				});
+				m_queue_script.push(MsgType::WORKER_INIT_DONE);
 				m_state_updater = INIT_DONE;
 			}
 			break;

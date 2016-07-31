@@ -61,7 +61,7 @@ namespace felt
 
 	protected:
 		using UrQueue = LuaCppMsg::Queue<
-			Urho3D::Ray, LuaCppMsg::CopyPtr<Urho3D::Ray>*
+			Urho3D::Ray, LuaCppMsg::CopyPtr<Urho3D::Ray>*, float
 		>;
 
 		UrSurface3D				m_surface;
