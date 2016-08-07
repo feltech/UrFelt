@@ -1,3 +1,6 @@
 [submodule "vendor/LuaCppMsg"]
 	path = vendor/LuaCppMsg
 	url = https://github.com/feltech/LuaCppMsg.git
+[submodule "vendor/msm-lite"]
+	path = vendor/msm-lite
+	url = https://github.com/boost-experimental/msm-lite.git

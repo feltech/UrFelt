@@ -22,6 +22,7 @@ set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules" "${FELT_HOME}")
 
 # Add common C++ definitions.
 add_definitions(-std=c++14 -fopenmp -Wfatal-errors)
+#set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
 # Find Urho3D library
 find_package (Urho3D REQUIRED)
@@ -34,10 +35,12 @@ include (Urho3D-CMake-common)
 
 # Set include folders
 set (LUACPPMSG_INCLUDE vendor/LuaCppMsg/include)
+set (MSM_INCLUDE vendor/msm-lite/include)
 set (LUAHPP_INCLUDE ${URHO3D_HOME}/Source/ThirdParty/LuaJIT/src)
 
 include_directories (
     ${FELT_INCLUDE_DIRS} ${URHO3D_INCLUDE_DIRS} include ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
+    ${MSM_INCLUDE}
 )
 
 # Define target name

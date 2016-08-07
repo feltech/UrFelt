@@ -8,6 +8,8 @@
 #include <omp.h>
 #include <GL/gl.h>
 
+#include <boost/msm-lite.hpp>
+
 #include <Urho3D/Core/CoreEvents.h>
 #include <Urho3D/Graphics/Graphics.h>
 #include <Urho3D/Graphics/Model.h>
@@ -31,6 +33,7 @@
 
 using namespace felt;
 
+
 const char* PHYSICS_CATEGORY = "Physics";
 const char* SUBSYSTEM_CATEGORY = "Subsystem";
 
@@ -46,7 +49,7 @@ UrFelt::~UrFelt ()
 
 UrFelt::UrFelt (Urho3D::Context* context) : Urho3D::Application(context),
 	m_surface(), m_time_since_update(0), m_state_main(INIT), m_state_updater(STOPPED),
-	m_quit(false)
+	m_quit(false), m_controller(new AppController(this))
 {
 	context_->RegisterSubsystem(new Urho3D::LuaScript(context_));
 }
@@ -84,10 +87,10 @@ void UrFelt::Setup()
 	);
 }
 
-
 void UrFelt::Start()
 {
 	using namespace Urho3D;
+
 	LuaScript* lua = context_->GetSubsystem<LuaScript>();
 	lua->ExecuteFile("Scripts/UrFelt.lua");
 	lua->ExecuteFunction("Init");
@@ -114,10 +117,62 @@ void UrFelt::Start()
 	m_surface_body->SetUseGravity(false);
 	m_surface_body->SetRestitution(0.0);
 
-	start_updater();
+	start_worker();
 
 	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(UrFelt, handle_update));
+
+	using namespace msm;
+	m_controller->process_event("load"_t);
 }
+
+void UrFelt::initialiser()
+{
+	using namespace Messages;
+	using namespace msm;
+	FLOAT frac_physics_inited = m_surface.init_physics_chunk();
+	if (frac_physics_inited == 1)
+	{
+		m_queue_script.push(UrQueue::Map{
+			{"type", MsgType::PERCENT_TOP},
+			{"value", -1.0}
+		});
+		m_queue_script.push(MsgType::MAIN_INIT_DONE);
+		m_controller->process_event("initialised"_t);
+	}
+	else
+	{
+		m_queue_script.push(UrQueue::Map{
+			{"type", MsgType::PERCENT_TOP},
+			{"value", (FLOAT)(INT)(100.0 * frac_physics_inited)},
+			{"label", "Initialising physics"}
+		});
+	}
+}
+
+
+void UrFelt::tick(float dt)
+{
+	// Take the frame time step, which is stored as a float
+	float time_step = dt;//event_data_[Update::P_TIMESTEP].GetFloat();
+	m_time_since_update += time_step;
+
+	if (m_time_since_update > 1.0f/30.0f)
+	{
+		switch (m_state_updater)
+		{
+		case RUNNING:
+			m_state_updater = PAUSE;
+			break;
+		case PAUSED:
+			m_time_since_update = 0;
+			m_surface.poly().update_gpu();
+			m_surface.poly().update_end();
+			m_cond_updater.notify_all();
+			break;
+		}
+	}
+}
+
 
 void UrFelt::handle_update(
 	Urho3D::StringHash event_type_, Urho3D::VariantMap& event_data_
@@ -125,88 +180,30 @@ void UrFelt::handle_update(
 	using namespace Urho3D;
 	using namespace LuaCppMsg;
 	using namespace Messages;
+	using namespace msm;
 
-	switch (m_state_main)
+	while (UrQueue::Msg::Opt msg_exists = m_queue_main.pop())
 	{
-	case INIT:
-	{
-		FLOAT frac_physics_inited = m_surface.init_physics_chunk();
-		if (frac_physics_inited == 1)
+		const UrQueue::Msg& msg = *msg_exists;
+		const MsgType type = (MsgType)msg.get("type").as<float>();
+
+		switch (type)
 		{
-			m_queue_script.push(UrQueue::Map{
-				{"type", MsgType::PERCENT_TOP},
-				{"value", -1.0}
-			});
-			m_queue_script.push(MsgType::MAIN_INIT_DONE);
-			m_state_main = INIT_DONE;
+		case MsgType::STATE_RUNNING:
+			m_controller->process_event("worker_initialised"_t);
+			break;
+		case MsgType::ACTIVATE_SURFACE:
+			m_controller->process_event("activate_surface"_t);
+			break;
 		}
-		else
-		{
-			m_queue_script.push(UrQueue::Map{
-				{"type", MsgType::PERCENT_TOP},
-				{"value", (FLOAT)(INT)(100.0 * frac_physics_inited)},
-				{"label", "Initialising physics"}
-			});
-		}
-		break;
 	}
 
-	case INIT_DONE:
-		while (UrQueue::Msg::Opt msg_exists = m_queue_main.pop())
-		{
-			const UrQueue::Msg& msg = *msg_exists;
-			const MsgType type = (MsgType)msg.get("type").as<float>();
-
-			if (type == MsgType::STATE_RUNNING)
-				m_state_main = RUNNING;
-		}
-		break;
-
-	case RUNNING:
-	{
-		while (UrQueue::Msg::Opt msg_exists = m_queue_main.pop())
-		{
-			const UrQueue::Msg& msg = *msg_exists;
-			const MsgType type = (MsgType)msg.get("type").as<float>();
-			if (type == MsgType::ACTIVATE_SURFACE)
-			{
-				m_surface_body->Activate();
-			}
-			else
-			{
-				std::ostringstream str;
-				str << "Invalid message type: " << type;
-				throw std::runtime_error(str.str());
-			}
-		}
-
-		// Take the frame time step, which is stored as a float
-		float time_step = event_data_[Update::P_TIMESTEP].GetFloat();
-		m_time_since_update += time_step;
-
-		if (m_time_since_update > 1.0f/30.0f)
-		{
-			switch (m_state_updater)
-			{
-			case RUNNING:
-				m_state_updater = PAUSE;
-				break;
-			case PAUSED:
-				m_time_since_update = 0;
-				m_surface.poly().update_gpu();
-				m_surface.poly().update_end();
-				m_cond_updater.notify_all();
-				break;
-			}
-		}
-		break;
-	}
-	}
-
+	const float dt = event_data_[Update::P_TIMESTEP].GetFloat();
+	m_controller->process_event(Tick{dt});
 }
 
 
-void UrFelt::updater()
+void UrFelt::worker()
 {
 	using namespace Urho3D;
 	using namespace Messages;
@@ -331,10 +328,10 @@ void UrFelt::updater()
 }
 
 
-void UrFelt::start_updater ()
+void UrFelt::start_worker ()
 {
 	m_state_updater = INIT;
-	m_thread_updater = std::thread(&UrFelt::updater, this);
+	m_thread_updater = std::thread(&UrFelt::worker, this);
 }
 
 
@@ -346,5 +343,24 @@ void UrFelt::repoly ()
 	else
 		URHO3D_LOGWARNING("Failed to repoly - busy");
 }
+
+//	return msm::make_transition_table(
+//		*"BOOTSTRAP"_s		+ "load"_t 					= "INIT"_s,
+//		"INIT"_s			+ msm::event<Tick> /
+//			[](UrFelt* pthis) {
+//				pthis->initialiser();
+//			},
+//		"INIT"_s			+ "initialised"_t 			= "AWAIT_WORKER"_s,
+//		"AWAIT_WORKER"_s 	+ "worker_initialised"_t 	= "RUNNING",
+//		"RUNNING"_s 		+ msm::event<Tick> /
+//			[](UrFelt* pthis, const msm::event<Tick>& evt) {
+//				pthis->tick(evt.dt);
+//			},
+//		"RUNNING"_s 		+ "activate_surface"_t /
+//			[](UrFelt* pthis, const msm::event<Tick>& evt) {
+//				pthis->m_surface_body->Activate();
+//			},
+//		"RUNNING"_s			+ "stopped"					= X
+//	);
 
 URHO3D_DEFINE_APPLICATION_MAIN(felt::UrFelt)
