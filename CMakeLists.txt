@@ -14,15 +14,17 @@ if (COMMAND cmake_policy)
 endif ()
 
 # Set CMake modules search path
-set (URHO3D_HOME ../Urho3D CACHE PATH "Path to Urho3D")
-set (FELT_HOME ../Felt CACHE PATH "Path to Felt")
+
+get_filename_component(PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
+
+set (URHO3D_HOME ${PARENT_DIR}/Urho3D CACHE PATH "Path to Urho3D")
+set (FELT_HOME ${PARENT_DIR}/Felt CACHE PATH "Path to Felt")
 
 set(Felt_DIR ${FELT_HOME})
 set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules" "${FELT_HOME}")
 
 # Add common C++ definitions.
 add_definitions(-std=c++14 -fopenmp -Wfatal-errors)
-#set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
 # Find Urho3D library
 find_package (Urho3D REQUIRED)
@@ -40,7 +42,7 @@ set (LUAHPP_INCLUDE ${URHO3D_HOME}/Source/ThirdParty/LuaJIT/src)
 
 include_directories (
     ${FELT_INCLUDE_DIRS} ${URHO3D_INCLUDE_DIRS} include ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
-    ${MSM_INCLUDE}
+    ${MSM_INCLUDE} /usr/include/x86_64-linux-gnu/c++/5
 )
 
 # Define target name
