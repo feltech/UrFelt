@@ -48,6 +48,9 @@ namespace felt
 
 	struct AppSM;
 	class AppController;
+	class WorkerController;
+	template <class StateType> struct WorkerState {};
+
 
 	class UrFelt : public Urho3D::Application
 	{
@@ -67,7 +70,6 @@ namespace felt
 			Urho3D::StringHash eventType, Urho3D::VariantMap& eventData
 		);
 		void initialiser();
-		void init_surface_task(boost::coroutines::coroutine<FLOAT>::push_type& sink);
 		void tick(float dt);
 		void worker();
 		void start_worker();
@@ -78,6 +80,8 @@ namespace felt
 		>;
 
 		std::unique_ptr<AppController>		m_controller;
+		std::unique_ptr<WorkerController>	m_worker_controller;
+		std::unique_ptr<WorkerState<void>>	m_worker_state;
 
 		UrSurface3D				m_surface;
 		Urho3D::RigidBody* 		m_surface_body;
@@ -101,10 +105,21 @@ namespace felt
 
 	namespace msm = boost::msm::lite;
 
-	struct Tick
+
+	namespace States
 	{
-		float dt;
-	};
+		struct InitSurface{};
+		struct Zap{};
+	}
+
+	namespace Events
+	{
+		struct StartZap
+		{
+			const float amt;
+		};
+		struct StopZap {};
+	}
 
 	struct AppSM
 	{
@@ -112,25 +127,18 @@ namespace felt
 		{
 			using namespace msm;
 			return msm::make_transition_table(
-				*"BOOTSTRAP"_s			+ "load"_t 						= "INIT"_s,
-				"INIT"_s				+ msm::event<Tick> /
+				*"BOOTSTRAP"_s			+ "load"_t 					= "INIT"_s,
+				"INIT"_s				+ "initialised"_t 			= "AWAIT_WORKER_INIT"_s,
+				"AWAIT_WORKER_INIT"_s 	+ "worker_initialised"_t 	= "RUNNING"_s,
+				"RUNNING"_s 			+ "activate_surface"_t 		/
 				[](UrFelt* papp) {
-					papp->initialiser();
-				},
-				"INIT"_s				+ "initialised"_t 				= "AWAIT_WORKER_INIT"_s,
-				"AWAIT_WORKER_INIT"_s 	+ "worker_initialised"_t 		= "RUNNING"_s,
-				"RUNNING"_s 			+ msm::event<Tick> /
-				[](UrFelt* papp, const Tick& evt) {
-					papp->tick(evt.dt);
-				},
-				"RUNNING"_s 			+ "activate_surface"_t /
-				[](UrFelt* papp, const Tick& evt) {
 					papp->m_surface_body->Activate();
 				},
 				"RUNNING"_s				+ "stopped"_t				= X
 			);
 		}
 	};
+
 
 	class AppController : public msm::sm<AppSM>
 	{
@@ -139,44 +147,67 @@ namespace felt
 	};
 
 
-	struct SurfaceInitState
+	template<>
+	class WorkerState<void>
 	{
+	protected:
+		UrFelt* m_papp;
+	public:
+		virtual void tick(const float dt) {};
+	};
+
+
+	template<>
+	class WorkerState<States::Zap> : public WorkerState<void>
+	{
+	public:
+		const FLOAT amt;
+	public:
+		void tick(const float dt);
+	};
+
+
+	template<>
+	class WorkerState<States::InitSurface> : public WorkerState<void>
+	{
+	protected:
 		boost::coroutines::coroutine<>::pull_type initialiser;
+		void init_surface_task(boost::coroutines::coroutine<FLOAT>::push_type& sink);
+	public:
+		void tick(const float dt);
 	};
 
-	struct Zap
-	{
-		float amt;
-	};
-
-	struct StartZap
-	{
-		const float amt;
-	};
 
 	struct WorkerRunningSM
 	{
 		auto configure() const noexcept
 		{
 			using namespace msm;
+
+			state<States::Zap> ZAP;
+
 			return msm::make_transition_table(
 
-				*"IDLE"_s(H)	+ event<StartZap>	/
-				[](const StartZap& evt, Zap& target){
-					target.amt = evt.amt;
-				}										=	state<Zap>,
+				"IDLE"_s(H)	+ event<Events::StartZap>	/
+				[](const Events::StartZap& evt) {
+					papp->m_worker_state = std::unique_ptr<WorkerState<States::Zap>>(
+						new WorkerState<States::Zap>{papp, evt.amt}
+					);
+				}										=	ZAP,
 
-				state<Zap>	+ event<StartZap>		/
-				[](const StartZap& evt, Zap& target){
-					target.amt = evt.amt;
-				}										=	state<Zap>,
+				ZAP			+ event<StartZap>			/
+				[](const Events::StartZap& evt){
+					papp->m_worker_state = std::unique_ptr<WorkerState<States::Zap>>(
+						new WorkerState<States::Zap>{papp, evt.amt}
+					);
+				}										=	ZAP,
 
-				state<Zap>	+ "end_zap"_t				=	"IDLE"_s,
-
-				state<Zap>	+ event<Tick> 			/
-				[](UrFelt* papp, const Zap& state, const Tick& evt) {
-					papp->zap(evt.dt, state.amt);
-				}
+				ZAP			+ event<StopZap>			/
+				[](const Events::StartZap& evt){
+					papp->m_worker_state = std::unique_ptr<WorkerState<void>>(
+						new WorkerState<void>{}
+					);
+				}										=	"IDLE"_s,
 			);
 		}
 	};
@@ -187,28 +218,27 @@ namespace felt
 		{
 			using namespace msm;
 			state<sm<WorkerRunningSM>> WORKER_RUNNING;
+			state<States::InitSurface> INIT_SURFACE;
 
 			return make_transition_table(
+				*"INIT"_s 													/
+				[](UrFelt* papp){
+					papp->m_worker_state = std::unique_ptr<WorkerState<States::InitSurface>>(
+						new WorkerState<States::InitSurface>{papp}
+					);
+				}															= INIT_SURFACE,
 
-				"INIT"_s /	[](UrFelt* papp, SurfaceInitState& target){
-					target = SurfaceInitState{std::bind(&UrFelt::init_surface_task, papp)};
-				}	=
-				state<SurfaceInitState>,
-
-				state<SurfaceInitState>			+ event<Tick> /
-				[](UrFelt* papp, SurfaceInitState& state) {
-					if (!state.initialiser)
-						process_event("surface_initialised"_t);
-					else
-						state.initialiser();
-				},
-
-				state<SurfaceInitState>			+ "surface_initialised"_t	= "AWAIT_MAIN_INIT"_s,
+				INIT_SURFACE					+ "surface_initialised"_t	/
+				[](UrFelt* papp, const Events::StartZap& evt){
+					papp->m_worker_state = std::unique_ptr<WorkerState<void>>(
+						new WorkerState<void>{}
+					);
+				}															= "AWAIT_MAIN_INIT"_s,
 
 				"AWAIT_MAIN_INIT"_s 			+ "initialised"_t 			= WORKER_RUNNING,
 
 				WORKER_RUNNING 					+ "repoly"_t	 			/
-				[](UrFelt* papp, const Tick& evt) {
+				[](UrFelt* papp, const Events::Tick& evt) {
 					papp->m_surface.poly.surf()
 				},
 
@@ -216,7 +246,7 @@ namespace felt
 				"WORKER_PAUSED"_s				+ "resume"_t				= WORKER_RUNNING,
 
 				WORKER_RUNNING					+ "stop"_t					= X,
-				"WORKER_PAUSED"_				+ "stop"_t					= X
+				"WORKER_PAUSED"_s				+ "stop"_t					= X
 			);
 		}
 	};
@@ -226,27 +256,5 @@ namespace felt
 	public:
 		WorkerController(UrFelt* app_) : msm::sm<WorkerSM>(std::move(app_)) {}
 	};
-
-
-	template <class SM, class TEvent>
-	void log_process_event(const TEvent&) {
-	  printf("[%s][process_event] %s\n", typeid(SM).name(), typeid(TEvent).name());
-	}
-
-	template <class SM, class TGuard, class TEvent>
-	void log_guard(const TGuard&, const TEvent&, bool result) {
-	  printf("[%s][guard] %s %s %s\n", typeid(SM).name(), typeid(TGuard).name(), typeid(TEvent).name(),
-	         (result ? "[OK]" : "[Reject]"));
-	}
-
-	template <class SM, class TAction, class TEvent>
-	void log_action(const TAction&, const TEvent&) {
-	  printf("[%s][action] %s %s\n", typeid(SM).name(), typeid(TAction).name(), typeid(TEvent).name());
-	}
-
-	template <class SM, class TSrcState, class TDstState>
-	void log_state_change(const TSrcState& src, const TDstState& dst) {
-	  printf("[%s][transition] %s -> %s\n", typeid(SM).name(), src.c_str(), dst.c_str());
-	}
 }
 #endif /* INCLUDE_URFELT_HPP_ */
