@@ -59,6 +59,13 @@ void UrSurface3D::init_physics_task(boost::coroutines::coroutine<FLOAT>::push_ty
 	}
 }
 
+void UrSurface3D::init_physics(const UINT child_idx)
+{
+	const Vec3i& pos_child = this->m_grid_isogrid.children().index(child_idx);
+	FeltCollisionShape* shape = m_pnode->CreateComponent<FeltCollisionShape>();
+	shape->SetSurface(this, pos_child);
+}
+
 const UrPolyGrid3D& UrSurface3D::poly() const
 {
 	return m_poly;

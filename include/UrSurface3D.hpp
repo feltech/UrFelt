@@ -64,6 +64,7 @@ public:
 	 * @param fn_ (pos, phi) -> float
 	 */
 	void update(std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_);
+	void init_physics(const UINT child_idx);
 
 protected:
 	boost::coroutines::coroutine<FLOAT>::pull_type m_initWatcher;

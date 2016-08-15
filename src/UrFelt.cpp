@@ -38,6 +38,88 @@ const char* PHYSICS_CATEGORY = "Physics";
 const char* SUBSYSTEM_CATEGORY = "Subsystem";
 
 
+void WorkerState<State::InitApp>::tick(const float dt)
+{
+	if (m_co)
+	{
+		using namespace Messages;
+		const FLOAT frac_done = m_co().get();
+		this->m_papp->m_queue_script.push(UrQueue::Map{
+			{"type", PERCENT_TOP},
+			{"value", (FLOAT)(INT)(100.0 * frac_done)},
+			{"label", "Initialising physics"}
+		});
+	}
+	else
+	{
+		using namespace msm;
+		m_papp->m_controller->process_event("app_initialised"_t);
+	}
+}
+
+void WorkerState<State::InitSurface>::tick(const float dt)
+{
+	if (m_co)
+	{
+		using namespace Messages;
+		const FLOAT frac_done = m_co().get();
+		m_papp->m_queue_script.push(UrQueue::Map{
+			{"type", PERCENT_TOP},
+			{"value", (FLOAT)(INT)(100.0 * frac_done)},
+			{"label", "Initialising surface"}
+		});
+	}
+	else
+	{
+		using namespace msm;
+		m_papp->m_controller->process_event("surface_initialised"_t);
+	}
+}
+
+template <class StateType>
+std::function<bool (UrFelt*)> AppSM::is(StateTypeApp state_app_, StateTypeWorker state_worker_)
+{
+	return [state_](UrFelt* papp) {
+		return papp->m_controller->is(state_app_, state_worker_);
+	};
+}
+
+template <class StateType>
+std::function<bool (UrFelt*)> AppSM::is_not(StateTypeApp state_app_, StateTypeWorker state_worker_)
+{
+	using namespace msm;
+	return [state_](UrFelt* papp) {
+		return !papp->m_controller->is(state_app_, state_worker_);
+	};
+}
+
+template <class EventType>
+std::function<void (UrFelt*)> AppSM::trigger(EventType event_)
+{
+	using namespace msm;
+	return [event_](UrFelt* papp) {
+		papp->m_controller->process_event(event_);;
+	};
+}
+
+std::function<void (UrFelt*)> AppSM::worker_idleing()
+{
+	using namespace msm;
+	return [](UrFelt* papp) {
+		papp->m_worker_state.reset(nullptr);
+	};
+}
+
+std::function<void (UrFelt*)> AppSM::app_idleing()
+{
+	using namespace msm;
+	return [](UrFelt* papp) {
+		papp->m_app_state.reset(nullptr);
+	};
+}
+
+
+
 UrFelt::~UrFelt ()
 {
 	m_quit = true;
@@ -103,14 +185,6 @@ void UrFelt::Start()
 	Node* node = scene->CreateChild("PolyGrid");
 	node->SetPosition(Vector3(0, 0, 0));
 
-	m_surface.init(context_, node, Vec3u(100,100,100), Vec3u(16,16,16));
-	m_surface.seed(Vec3i(0,0,0));
-
-	for (UINT i = 0; i < 2; i++)
-		m_surface.update([](auto& pos, auto& phi)->FLOAT {
-			return -1.0f;
-		});
-
 	m_surface_body = node->CreateComponent<RigidBody>();
 	m_surface_body->SetKinematic(true);
 	m_surface_body->SetMass(10000000.0f);
@@ -124,31 +198,6 @@ void UrFelt::Start()
 
 	using namespace msm;
 	m_controller->process_event("load"_t);
-}
-
-
-void UrFelt::initialiser()
-{
-	using namespace Messages;
-	using namespace msm;
-	FLOAT frac_physics_inited = m_surface.init_physics_chunk();
-	if (frac_physics_inited == 1)
-	{
-		m_queue_script.push(UrQueue::Map{
-			{"type", MsgType::PERCENT_TOP},
-			{"value", -1.0}
-		});
-		m_queue_script.push(MsgType::MAIN_INIT_DONE);
-		m_controller->process_event("initialised"_t);
-	}
-	else
-	{
-		m_queue_script.push(UrQueue::Map{
-			{"type", MsgType::PERCENT_TOP},
-			{"value", (FLOAT)(INT)(100.0 * frac_physics_inited)},
-			{"label", "Initialising physics"}
-		});
-	}
 }
 
 
@@ -201,7 +250,6 @@ void UrFelt::handle_update(
 	}
 
 	const float dt = event_data_[Update::P_TIMESTEP].GetFloat();
-	m_controller->process_event(Tick{dt});
 }
 
 
@@ -269,9 +317,9 @@ void UrFelt::worker()
 				m_surface.update([](auto& pos, auto& phi)->FLOAT {
 					using namespace felt;
 					if (std::abs(pos(1)) > 1)
-						return 0;
+						return 0.0f;
 					else
-						return -1;
+						return -1.0f;
 				});
 
 				expand_count++;
