@@ -76,19 +76,19 @@ void WorkerState<State::InitSurface>::tick(const float dt)
 	}
 }
 
-template <class StateType>
+template <class StateTypeApp, class StateTypeWorker>
 std::function<bool (UrFelt*)> AppSM::is(StateTypeApp state_app_, StateTypeWorker state_worker_)
 {
-	return [state_](UrFelt* papp) {
+	return [state_app_, state_worker_](UrFelt* papp) {
 		return papp->m_controller->is(state_app_, state_worker_);
 	};
 }
 
-template <class StateType>
+template <class StateTypeApp, class StateTypeWorker>
 std::function<bool (UrFelt*)> AppSM::is_not(StateTypeApp state_app_, StateTypeWorker state_worker_)
 {
 	using namespace msm;
-	return [state_](UrFelt* papp) {
+	return [state_app_, state_worker_](UrFelt* papp) {
 		return !papp->m_controller->is(state_app_, state_worker_);
 	};
 }

@@ -34,7 +34,7 @@
 
 extern int tolua_UrFelt_open (lua_State* tolua_S);
 
-#define BOOST_MSM_LITE_THREAD_SAFE
+//#define BOOST_MSM_LITE_THREAD_SAFE
 #include <boost/msm-lite.hpp>
 
 
@@ -302,8 +302,10 @@ namespace felt
 		static std::function<bool (UrFelt*)> is(
 			StateTypeApp state_app_, StateTypeWorker state_worker_
 		);
-		template <class StateType, class StateTypeWorker>
-		static std::function<bool (UrFelt*)> is_not(StateTypeApp state_);
+		template <class StateTypeApp, class StateTypeWorker>
+		static std::function<bool (UrFelt*)> is_not(
+			StateTypeApp state_app_, StateTypeWorker state_worker_
+		);
 		static std::function<void (UrFelt*)> worker_initialised();
 		static std::function<void (UrFelt*)> worker_idleing();
 
@@ -328,7 +330,7 @@ INIT_APP				+ "app_initialised"_t		[is(INIT_APP, "WORKER_IDLE"_s)]
 / trigger("initialised"_t)							= "APP_RUNNING"_s,
 
 INIT_APP				+ "app_initialised"_t		[is_not(INIT_APP, "WORKER_IDLE"_s)]
-/ app_idling()										= "APP_IDLE"_s,
+/ app_idleing()										= "APP_IDLE"_s,
 
 "APP_IDLE"_s			+ "initialised"_t			= "APP_RUNNING"_s,
 
@@ -371,15 +373,15 @@ WORKER_RUNNING			+ "pause"_t					= "WORKER_PAUSED"_s,
 	};
 
 
-	class AppController : public msm::sm<WorkerSM>
+	class AppController : public msm::sm<AppSM>
 	{
 	public:
 		AppController(UrFelt* app_)
-		: m_sm_conf(), m_sm_running_conf(), m_sm_running{m_sm_running_conf},
-		  msm::sm<AppSM>{m_sm_conf, m_sm_running}
+		: m_sm_running_conf(), m_sm_running{m_sm_running_conf},
+		  msm::sm<AppSM>{std::move(app_), m_sm_running}
 		{}
 	private:
-		AppSM m_sm_conf;
+//		AppSM m_sm_conf;
 		WorkerRunningSM m_sm_running_conf;
 		msm::sm<WorkerRunningSM> m_sm_running;
 	};
