@@ -76,6 +76,25 @@ void WorkerState<State::InitSurface>::tick(const float dt)
 	}
 }
 
+WorkerState<State::Running>::tick(const float dt)
+{
+	m_time_since_update += dt;
+	if (m_time_since_update > 1.0f/30.0f)
+	{
+		m_papp->m_controller->process_event("update_gpu"_t);
+	}
+}
+
+WorkerState<State::UpdateGPU>::tick(const float dt)
+{
+	using namespace msm;
+	m_papp->m_time_since_update = 0;
+	m_papp->m_surface.poly().update_gpu();
+	m_papp->m_surface.poly().update_end();
+	m_papp->m_controller->process_event("resume"_t);
+}
+
+
 template <class StateTypeApp, class StateTypeWorker>
 std::function<bool (UrFelt*)> AppSM::is(StateTypeApp state_app_, StateTypeWorker state_worker_)
 {

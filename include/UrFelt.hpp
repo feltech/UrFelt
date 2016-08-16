@@ -181,16 +181,18 @@ namespace felt
 	{
 	public:
 		WorkerState(UrFelt* papp) :	WorkerState<void>(papp), m_time_since_update(0) {}
-		void tick(const float dt)
-		{
-			m_time_since_update += dt;
-			if (m_time_since_update > 1.0f/30.0f)
-			{
-				m_papp->m_controller->process_event("pause"_t);
-			}
-		}
+		void tick(const float dt);
 	private:
 		FLOAT m_time_since_update;
+	};
+
+
+	template<>
+	class WorkerState<State::UpdateGPU> :	public WorkerState<void>
+	{
+	public:
+		WorkerState(UrFelt* papp) :	WorkerState<void>(papp) {}
+		void tick(const float dt);
 	};
 
 
@@ -351,14 +353,13 @@ INIT_APP				+ "app_initialised"_t		[is_not(INIT_APP, "WORKER_IDLE"_s)]
 "APP_RUNNING"_s			+ "update_gpu"_t
 / app_idleing()										= "APP_AWAIT_WORKER"_s,
 
-"APP_AWAIT_WORKER"_s	+ "worker_paused"_t			= "APP_PAUSED"_s,
-
 "APP_AWAIT_WORKER"_s								[is("APP_AWAIT_WORKER"_s, "WORKER_PAUSED"_s)]
 / [](UrFelt* papp) {
 	papp->m_app_state = std::unique_ptr<WorkerState<void>>(
 		new WorkerState<State::UpdateGPU>{papp}
 	);
 }													= "APP_UPDATE_GPU"_s,
+
 "APP_UPDATE_GPU"_s		+ "resume"_t				= "APP_RUNNING"_s
 
 
@@ -383,7 +384,7 @@ WORKER_RUNNING 			+ "repoly"_t
 	papp->m_surface.poly().surf(papp->m_surface);
 },
 
-WORKER_RUNNING			+ "pause"_t					= "WORKER_PAUSING"_s,
+WORKER_RUNNING			+ "update_gpu"_t			= "WORKER_PAUSING"_s,
 
 "WORKER_PAUSING"_s		+ "worker_paused"_t			= "WORKER_PAUSED"_s,
 
