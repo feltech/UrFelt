@@ -119,7 +119,6 @@ std::function<void (UrFelt*)> AppSM::app_idleing()
 }
 
 
-
 UrFelt::~UrFelt ()
 {
 	m_quit = true;
@@ -198,6 +197,15 @@ void UrFelt::Start()
 
 	using namespace msm;
 	m_controller->process_event("load"_t);
+}
+
+void UrFelt::update_gpu()
+{
+	using namespace msm;
+	m_time_since_update = 0;
+	m_surface.poly().update_gpu();
+	m_surface.poly().update_end();
+	m_controller->process_event("resume"_t);
 }
 
 

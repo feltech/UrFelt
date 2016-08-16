@@ -45,7 +45,7 @@ namespace felt
 		enum MsgType
 		{
 			STATE_RUNNING = 1, ACTIVATE_SURFACE, START_ZAP, STOP_ZAP, PERCENT_TOP, PERCENT_BOTTOM,
-			MAIN_INIT_DONE, WORKER_INIT_DONE
+			MAIN_INIT_DONE, WORKER_INIT_DONE, APP_PAUSE, WORKER_PAUSE
 		};
 	}
 
@@ -84,14 +84,16 @@ namespace felt
 		void tick(float dt);
 		void worker();
 		void start_worker();
-
-	private:
-
+		void update_gpu();
 
 	private:
 		std::unique_ptr<AppController>		m_controller;
 		std::unique_ptr<WorkerState<void>>	m_app_state;
 		std::unique_ptr<WorkerState<void>>	m_worker_state;
+		std::mutex					m_mutex_app_statechange;
+		std::condition_variable		m_cond_app_statechange;
+		std::mutex					m_mutex_worker_statechange;
+		std::condition_variable		m_cond_worker_statechange;
 
 		UrSurface3D				m_surface;
 		Urho3D::RigidBody* 		m_surface_body;
@@ -184,7 +186,7 @@ namespace felt
 			m_time_since_update += dt;
 			if (m_time_since_update > 1.0f/30.0f)
 			{
-//				m_papp->m_controller->process_event("pause"_t);
+				m_papp->m_controller->process_event("pause"_t);
 			}
 		}
 	private:
@@ -309,6 +311,8 @@ namespace felt
 		static std::function<void (UrFelt*)> worker_initialised();
 		static std::function<void (UrFelt*)> worker_idleing();
 
+		static std::function<void (UrFelt*)> update_gpu();
+
 		auto configure() const noexcept
 		{
 			using namespace msm;
@@ -332,20 +336,35 @@ INIT_APP				+ "app_initialised"_t		[is(INIT_APP, "WORKER_IDLE"_s)]
 INIT_APP				+ "app_initialised"_t		[is_not(INIT_APP, "WORKER_IDLE"_s)]
 / app_idleing()										= "APP_IDLE"_s,
 
-"APP_IDLE"_s			+ "initialised"_t			= "APP_RUNNING"_s,
+"APP_IDLE"_s			+ "initialised"_t
+/ [](UrFelt* papp) {
+	papp->m_app_state = std::unique_ptr<WorkerState<void>>(
+		new WorkerState<State::Running>{papp}
+	);
+}													= "APP_RUNNING"_s,
 
 "APP_RUNNING"_s 		+ "activate_surface"_t
 / [](UrFelt* papp) {
 	papp->m_surface_body->Activate();
 },
 
-"APP_RUNNING"_s			+ "pause"_t					= "APP_PAUSED"_s,
+"APP_RUNNING"_s			+ "update_gpu"_t
+/ app_idleing()										= "APP_AWAIT_WORKER"_s,
 
-"APP_PAUSED"_s			+ "resume"_t				= "APP_RUNNING"_s,
+"APP_AWAIT_WORKER"_s	+ "worker_paused"_t			= "APP_PAUSED"_s,
+
+"APP_AWAIT_WORKER"_s								[is("APP_AWAIT_WORKER"_s, "WORKER_PAUSED"_s)]
+/ [](UrFelt* papp) {
+	papp->m_app_state = std::unique_ptr<WorkerState<void>>(
+		new WorkerState<State::UpdateGPU>{papp}
+	);
+}													= "APP_UPDATE_GPU"_s,
+"APP_UPDATE_GPU"_s		+ "resume"_t				= "APP_RUNNING"_s
+
 
 
 *"WORKER_BOOTSTRAP"_s	+ "load"_t
-/ [](UrFelt* papp){
+/ [](UrFelt* papp) {
 	papp->m_worker_state = std::unique_ptr<WorkerState<State::InitSurface>>(
 		new WorkerState<State::InitSurface>{papp}
 	);
@@ -364,7 +383,9 @@ WORKER_RUNNING 			+ "repoly"_t
 	papp->m_surface.poly().surf(papp->m_surface);
 },
 
-WORKER_RUNNING			+ "pause"_t					= "WORKER_PAUSED"_s,
+WORKER_RUNNING			+ "pause"_t					= "WORKER_PAUSING"_s,
+
+"WORKER_PAUSING"_s		+ "worker_paused"_t			= "WORKER_PAUSED"_s,
 
 "WORKER_PAUSED"_s		+ "resume"_t				= WORKER_RUNNING
 
