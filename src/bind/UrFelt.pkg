@@ -14,7 +14,6 @@ module MsgType
 class UrFelt : public Urho3D::Application
 {
 public:
-	void repoly ();
 };
 
 tolua_readonly tolua_property__get_set UrFelt* felt;

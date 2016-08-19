@@ -34,7 +34,30 @@
 
 extern int tolua_UrFelt_open (lua_State* tolua_S);
 
-//#define BOOST_MSM_LITE_THREAD_SAFE
+
+template <class SM, class TEvent>
+void log_process_event(const TEvent&) {
+  printf("[%s][process_event] %s\n", typeid(SM).name(), typeid(TEvent).name());
+}
+
+template <class SM, class TGuard, class TEvent>
+void log_guard(const TGuard&, const TEvent&, bool result) {
+  printf("[%s][guard] %s %s %s\n", typeid(SM).name(), typeid(TGuard).name(), typeid(TEvent).name(),
+         (result ? "[OK]" : "[Reject]"));
+}
+
+template <class SM, class TAction, class TEvent>
+void log_action(const TAction&, const TEvent&) {
+  printf("[%s][action] %s %s\n", typeid(SM).name(), typeid(TAction).name(), typeid(TEvent).name());
+}
+
+template <class SM, class TSrcState, class TDstState>
+void log_state_change(const TSrcState& src, const TDstState& dst) {
+  printf("[%s][transition] %s -> %s\n", typeid(SM).name(), src.c_str(), dst.c_str());
+}
+
+#define BOOST_MSM_LITE_LOG(T, SM, ...) log_##T<SM>(__VA_ARGS__)
+#define BOOST_MSM_LITE_THREAD_SAFE
 #include <boost/msm-lite.hpp>
 
 
@@ -73,8 +96,6 @@ namespace felt
 
 		static Urho3D::String GetTypeNameStatic();
 
-		void repoly();
-
 	private:
 		void Setup();
 		void Start();
@@ -84,7 +105,6 @@ namespace felt
 		void tick(float dt);
 		void worker();
 		void start_worker();
-		void update_gpu();
 
 	private:
 		std::unique_ptr<AppController>		m_controller;
@@ -97,18 +117,9 @@ namespace felt
 
 		UrSurface3D				m_surface;
 		Urho3D::RigidBody* 		m_surface_body;
-		float					m_time_since_update;
-		enum State {
-			INIT, INIT_DONE, RUNNING,
-			STOPPED, STOP, PAUSE, PAUSED, ZAP, REPOLY
-		};
 
 		std::thread 				m_thread_updater;
-		State						m_state_main;
-		std::atomic<State>			m_state_updater;
 		std::atomic<bool>			m_quit;
-		std::mutex					m_mutex_updater;
-		std::condition_variable		m_cond_updater;
 
 		UrQueue	m_queue_script;
 		UrQueue	m_queue_worker;
@@ -124,6 +135,7 @@ namespace felt
 		struct InitSurface{};
 		struct Zap{};
 		struct Running{};
+		struct UpdateGPU{};
 	}
 
 	namespace Event
@@ -173,6 +185,7 @@ namespace felt
 				this->m_papp->m_surface.init_physics(child_idx);
 				sink((FLOAT)child_idx / num_children);
 			}
+			sink(1.0f);
 		}
 	};
 
@@ -335,7 +348,7 @@ namespace felt
 INIT_APP				+ "app_initialised"_t		[is(INIT_APP, "WORKER_IDLE"_s)]
 / trigger("initialised"_t)							= "APP_RUNNING"_s,
 
-INIT_APP				+ "app_initialised"_t		[is_not(INIT_APP, "WORKER_IDLE"_s)]
+INIT_APP				+ "app_initialised"_t		[!is(INIT_APP, "WORKER_IDLE"_s)]
 / app_idleing()										= "APP_IDLE"_s,
 
 "APP_IDLE"_s			+ "initialised"_t
@@ -360,7 +373,7 @@ INIT_APP				+ "app_initialised"_t		[is_not(INIT_APP, "WORKER_IDLE"_s)]
 	);
 }													= "APP_UPDATE_GPU"_s,
 
-"APP_UPDATE_GPU"_s		+ "resume"_t				= "APP_RUNNING"_s
+"APP_UPDATE_GPU"_s		+ "resume"_t				= "APP_RUNNING"_s,
 
 
 
@@ -374,7 +387,7 @@ INIT_APP				+ "app_initialised"_t		[is_not(INIT_APP, "WORKER_IDLE"_s)]
 WORKER_INIT				+ "worker_initialised"_t	[is("APP_IDLE"_s, WORKER_INIT)]
 / trigger("initialised"_t)							= WORKER_RUNNING,
 
-WORKER_INIT				+ "worker_initialised"_t	[is_not("APP_IDLE"_s, WORKER_INIT)]
+WORKER_INIT				+ "worker_initialised"_t	[!is("APP_IDLE"_s, WORKER_INIT)]
 / worker_idleing()									= "WORKER_IDLE"_s,
 
 "WORKER_IDLE"_s			+ "initialised"_t			= WORKER_RUNNING,

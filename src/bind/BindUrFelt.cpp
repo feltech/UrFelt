@@ -1,6 +1,6 @@
 /*
 ** Lua binding: UrFelt
-** Generated automatically by tolua++-1.0.93 on Thu Jul 28 20:28:11 2016.
+** Generated automatically by tolua++-1.0.93 on Fri Aug 19 13:25:40 2016.
 */
 
 //
@@ -58,37 +58,6 @@ static void tolua_reg_types (lua_State* tolua_S)
  tolua_usertype(tolua_S,"UrFelt");
  tolua_usertype(tolua_S,"Urho3D::Application");
 }
-
-/* method: repoly of class  UrFelt */
-#ifndef TOLUA_DISABLE_tolua_UrFelt_UrFelt_repoly00
-static int tolua_UrFelt_UrFelt_repoly00(lua_State* tolua_S)
-{
-#ifndef TOLUA_RELEASE
- tolua_Error tolua_err;
- if (
- !tolua_isusertype(tolua_S,1,"UrFelt",0,&tolua_err) ||
- !tolua_isnoobj(tolua_S,2,&tolua_err)
- )
- goto tolua_lerror;
- else
-#endif
- {
-  UrFelt* self = (UrFelt*)  tolua_tousertype(tolua_S,1,0);
-#ifndef TOLUA_RELEASE
- if (!self) tolua_error(tolua_S,"invalid 'self' in function 'repoly'", NULL);
-#endif
- {
-  self->repoly();
- }
- }
- return 0;
-#ifndef TOLUA_RELEASE
- tolua_lerror:
- tolua_error(tolua_S,"#ferror in function 'repoly'.",&tolua_err);
- return 0;
-#endif
-}
-#endif //#ifndef TOLUA_DISABLE
 
 /* get function: felt */
 #ifndef TOLUA_DISABLE_tolua_get_felt_ptr
@@ -155,7 +124,6 @@ TOLUA_API int tolua_UrFelt_open (lua_State* tolua_S)
  tolua_endmodule(tolua_S);
  tolua_cclass(tolua_S,"UrFelt","UrFelt","Urho3D::Application",NULL);
  tolua_beginmodule(tolua_S,"UrFelt");
-  tolua_function(tolua_S,"repoly",tolua_UrFelt_UrFelt_repoly00);
  tolua_endmodule(tolua_S);
  tolua_variable(tolua_S,"felt",tolua_get_felt_ptr,NULL);
  tolua_function(tolua_S,"GetFelt",tolua_UrFelt_GetFelt00);

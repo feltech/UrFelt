@@ -76,19 +76,19 @@ void WorkerState<State::InitSurface>::tick(const float dt)
 	}
 }
 
-WorkerState<State::Running>::tick(const float dt)
+void WorkerState<State::Running>::tick(const float dt)
 {
 	m_time_since_update += dt;
 	if (m_time_since_update > 1.0f/30.0f)
 	{
+		using namespace msm;
 		m_papp->m_controller->process_event("update_gpu"_t);
 	}
 }
 
-WorkerState<State::UpdateGPU>::tick(const float dt)
+void WorkerState<State::UpdateGPU>::tick(const float dt)
 {
 	using namespace msm;
-	m_papp->m_time_since_update = 0;
 	m_papp->m_surface.poly().update_gpu();
 	m_papp->m_surface.poly().update_end();
 	m_papp->m_controller->process_event("resume"_t);
@@ -141,15 +141,13 @@ std::function<void (UrFelt*)> AppSM::app_idleing()
 UrFelt::~UrFelt ()
 {
 	m_quit = true;
-	m_cond_updater.notify_all();
 	if (m_thread_updater.joinable())
 		m_thread_updater.join();
 }
 
 
 UrFelt::UrFelt (Urho3D::Context* context) : Urho3D::Application(context),
-	m_surface(), m_time_since_update(0), m_state_main(INIT), m_state_updater(STOPPED),
-	m_quit(false), m_controller(new AppController(this))
+	m_surface(), m_quit(false), m_controller(new AppController(this))
 {
 	context_->RegisterSubsystem(new Urho3D::LuaScript(context_));
 }
@@ -203,6 +201,8 @@ void UrFelt::Start()
 	Node* node = scene->CreateChild("PolyGrid");
 	node->SetPosition(Vector3(0, 0, 0));
 
+	m_surface.init(context_, node, Vec3u(100,100,100), Vec3u(16,16,16));
+
 	m_surface_body = node->CreateComponent<RigidBody>();
 	m_surface_body->SetKinematic(true);
 	m_surface_body->SetMass(10000000.0f);
@@ -216,39 +216,6 @@ void UrFelt::Start()
 
 	using namespace msm;
 	m_controller->process_event("load"_t);
-}
-
-void UrFelt::update_gpu()
-{
-	using namespace msm;
-	m_time_since_update = 0;
-	m_surface.poly().update_gpu();
-	m_surface.poly().update_end();
-	m_controller->process_event("resume"_t);
-}
-
-
-void UrFelt::tick(float dt)
-{
-	// Take the frame time step, which is stored as a float
-	float time_step = dt;//event_data_[Update::P_TIMESTEP].GetFloat();
-	m_time_since_update += time_step;
-
-	if (m_time_since_update > 1.0f/30.0f)
-	{
-		switch (m_state_updater)
-		{
-		case RUNNING:
-			m_state_updater = PAUSE;
-			break;
-		case PAUSED:
-			m_time_since_update = 0;
-			m_surface.poly().update_gpu();
-			m_surface.poly().update_end();
-			m_cond_updater.notify_all();
-			break;
-		}
-	}
 }
 
 
@@ -277,6 +244,9 @@ void UrFelt::handle_update(
 	}
 
 	const float dt = event_data_[Update::P_TIMESTEP].GetFloat();
+
+	if (this->m_app_state)
+		this->m_app_state->tick(dt);
 }
 
 
@@ -288,22 +258,16 @@ void UrFelt::worker()
 	typedef std::chrono::high_resolution_clock Clock;
 	typedef std::chrono::duration<float> Seconds;
 
-	std::unique_lock<std::mutex> lock(m_mutex_updater);
-
 	auto time_last = Clock::now();
 	Seconds time_step;
 
 	UINT expand_count = 0;
 	const UINT expand_max = 100;
 
-	bool is_physics_done = false;
-
-	bool is_zapping = false;
-	Ray zap_ray;
-	float zap_amount;
-
 	while (!m_quit)
 	{
+		Seconds time_step = Clock::now() - time_last;
+		time_last = Clock::now();
 		while (const UrQueue::Msg::Opt& msg_exists = m_queue_worker.pop())
 		{
 			const UrQueue::Msg& msg = *msg_exists;
@@ -311,21 +275,15 @@ void UrFelt::worker()
 
 			if (type == MsgType::STOP_ZAP)
 			{
-				is_zapping = false;
+				this->m_controller->process_event(Event::StopZap{});
 			}
 			else if (type == MsgType::START_ZAP)
 			{
-				is_zapping = true;
-				zap_ray = Ray(msg.get("ray").as<Urho3D::Ray>());
-				zap_amount = msg.get("amount").as<float>();
-
-				m_queue_main.push(UrQueue::Map{
-					{ "type", ACTIVATE_SURFACE }
-				});
+				const float zap_amount = msg.get("amount").as<float>();
+				this->m_controller->process_event(Event::StartZap{zap_amount});
 			}
 			else if (type == MsgType::STATE_RUNNING)
 			{
-				m_state_updater = RUNNING;
 			}
 			else
 			{
@@ -335,109 +293,16 @@ void UrFelt::worker()
 			}
 		}
 
-		switch (m_state_updater)
-		{
+		if (this->m_worker_state)
+			this->m_worker_state->tick(time_step.count());
 
-		case INIT:
-			if (expand_count < expand_max)
-			{
-				m_surface.update([](auto& pos, auto& phi)->FLOAT {
-					using namespace felt;
-					if (std::abs(pos(1)) > 1)
-						return 0.0f;
-					else
-						return -1.0f;
-				});
-
-				expand_count++;
-
-				m_queue_script.push(UrQueue::Map{
-					{"type", MsgType::PERCENT_BOTTOM},
-					{"value", (FLOAT)(INT)(100.0 * (FLOAT)expand_count / expand_max)},
-					{"label", "Initialising surface"}
-				});
-			}
-			if (expand_count == expand_max)
-			{
-				m_queue_script.push(UrQueue::Map{
-					{"type", MsgType::PERCENT_BOTTOM},
-					{"value", -1.0}
-				});
-				m_queue_script.push(MsgType::WORKER_INIT_DONE);
-				m_state_updater = INIT_DONE;
-			}
-			break;
-
-		case INIT_DONE:
-			break;
-
-		case RUNNING:
-			if (is_zapping)
-			{
-				m_surface.update_start();
-				FLOAT leftover = m_surface.delta_gauss<4>(
-					reinterpret_cast<Vec3f&>(zap_ray.origin_),
-					reinterpret_cast<Vec3f&>(zap_ray.direction_),
-					zap_amount, 2.0f
-				);
-				m_surface.update_end_local();
-				m_surface.poly().notify(m_surface);
-			}
-
-			break;
-
-		case REPOLY:
-			m_surface.poly().surf(m_surface);
-			URHO3D_LOGINFO("Repolyed");
-			m_state_updater = RUNNING;
-			break;
-		case PAUSE:
-			m_surface.poly().poly_cubes(m_surface);
-			m_state_updater = PAUSED;
-			m_cond_updater.wait(lock);
-			m_state_updater = RUNNING;
-			break;
-		}
 	}
-
-	lock.unlock();
-	m_state_updater = STOPPED;
 }
 
 
 void UrFelt::start_worker ()
 {
-	m_state_updater = INIT;
 	m_thread_updater = std::thread(&UrFelt::worker, this);
 }
-
-
-void UrFelt::repoly ()
-{
-	URHO3D_LOGINFO("Repolying");
-	if (m_state_updater == RUNNING)
-		m_state_updater = REPOLY;
-	else
-		URHO3D_LOGWARNING("Failed to repoly - busy");
-}
-
-//	return msm::make_transition_table(
-//		*"BOOTSTRAP"_s		+ "load"_t 					= "INIT"_s,
-//		"INIT"_s			+ msm::event<Tick> /
-//			[](UrFelt* pthis) {
-//				pthis->initialiser();
-//			},
-//		"INIT"_s			+ "initialised"_t 			= "AWAIT_WORKER"_s,
-//		"AWAIT_WORKER"_s 	+ "worker_initialised"_t 	= "RUNNING",
-//		"RUNNING"_s 		+ msm::event<Tick> /
-//			[](UrFelt* pthis, const msm::event<Tick>& evt) {
-//				pthis->tick(evt.dt);
-//			},
-//		"RUNNING"_s 		+ "activate_surface"_t /
-//			[](UrFelt* pthis, const msm::event<Tick>& evt) {
-//				pthis->m_surface_body->Activate();
-//			},
-//		"RUNNING"_s			+ "stopped"					= X
-//	);
 
 URHO3D_DEFINE_APPLICATION_MAIN(felt::UrFelt)
