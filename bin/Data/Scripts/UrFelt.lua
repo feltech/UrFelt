@@ -172,21 +172,7 @@ function HandleUpdate(eventType, eventData)
  	local msg = queue_in:pop()	
 	while msg do
 			
-		if msg == MsgType.MAIN_INIT_DONE then 
-			main_initialised = true
-			if worker_initialised then
-				queue_main:push({type=MsgType.STATE_RUNNING})
-				queue_worker:push({type=MsgType.STATE_RUNNING})
-			end
-				
-		elseif msg == MsgType.WORKER_INIT_DONE then 
-			worker_initialised = true
-			if main_initialised then
-				queue_main:push({type=MsgType.STATE_RUNNING})
-				queue_worker:push({type=MsgType.STATE_RUNNING})
-			end
-			
-		elseif msg.type == MsgType.PERCENT_TOP then 
+		if msg.type == MsgType.PERCENT_TOP then 
 			if msg.value < 0 then
 				percent_top_ui_txt:SetText("")
 			else
@@ -205,9 +191,6 @@ function HandleUpdate(eventType, eventData)
 		msg = queue_in:pop()
 	end
 	
-	if not main_initialised or not worker_initialised then 
-		return 
-	end
 	
 	-- Do not move if the UI has a focused element (the console)
 	if ui.focusElement ~= nil then
@@ -223,7 +206,9 @@ function HandleUpdate(eventType, eventData)
 		if input:GetMouseButtonDown(MOUSEB_LEFT) then
 --		   	Log:Write(
 --		   		LOG_INFO, "+'ve zap (" .. mousePos.x .. ", " .. mousePos.y ..") -> ("
---		   		..  screenCoordX .. ", " .. screenCoordY .. ")"
+--		   		..  screenCoordX .. ", " .. screenCoordY .. ") -> " .. 
+--		   		"(" .. ray.origin.x .. ", " .. ray.origin.y .. ", " .. ray.origin.z .. ") " ..
+--		   		"(" .. ray.direction.x .. ", " .. ray.direction.y .. ", " .. ray.direction.z ..  ")"
 --		   	)
 			zapping.amount = 1
 			queue_worker:push({

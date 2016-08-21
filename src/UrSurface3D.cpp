@@ -33,30 +33,6 @@ void UrSurface3D::init(
 	m_pnode = pnode_root_;
 	Base::init(dims_, dims_partition_);
 	m_poly.init(*this, pcontext_, pnode_root_);
-	m_initWatcher = boost::coroutines::coroutine<FLOAT>::pull_type{
-		std::bind(&UrSurface3D::init_physics_task, this, std::placeholders::_1)
-	};
-}
-
-FLOAT UrSurface3D::init_physics_chunk()
-{
-	m_initWatcher();
-	if (!m_initWatcher)
-		return 1;
-	return m_initWatcher.get();
-}
-
-void UrSurface3D::init_physics_task(boost::coroutines::coroutine<FLOAT>::push_type& sink)
-{
-	const UINT num_children = this->m_grid_isogrid.children().data().size();
-	for (UINT child_idx = 0; child_idx < num_children; child_idx++)
-	{
-		const Vec3i& pos_child = this->m_grid_isogrid.children().index(child_idx);
-		FeltCollisionShape* shape = m_pnode->CreateComponent<FeltCollisionShape>();
-		shape->SetSurface(this, pos_child);
-
-		sink((FLOAT)child_idx / num_children);
-	}
 }
 
 void UrSurface3D::init_physics(const UINT child_idx)

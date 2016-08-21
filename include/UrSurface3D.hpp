@@ -48,8 +48,6 @@ public:
 		const VecDu& dims_partition_ = VecDu::Constant(8)
 	);
 
-	FLOAT init_physics_chunk();
-
 	const UrPolyGrid3D& poly() const;
 	UrPolyGrid3D& poly();
 
@@ -65,11 +63,6 @@ public:
 	 */
 	void update(std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_);
 	void init_physics(const UINT child_idx);
-
-protected:
-	boost::coroutines::coroutine<FLOAT>::pull_type m_initWatcher;
-
-	void init_physics_task(boost::coroutines::coroutine<FLOAT>::push_type& sink);
 };
 
 } /* namespace felt */
