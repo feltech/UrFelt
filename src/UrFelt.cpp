@@ -8,8 +8,6 @@
 #include <omp.h>
 #include <GL/gl.h>
 
-#include <boost/msm-lite.hpp>
-
 #include <Urho3D/Core/CoreEvents.h>
 #include <Urho3D/Graphics/Graphics.h>
 #include <Urho3D/Graphics/Model.h>
@@ -28,6 +26,7 @@
 #include <Urho3D/Physics/RigidBody.h>
 #include <Urho3D/Physics/PhysicsWorld.h>
 
+#include "AppState.hpp"
 #include "FeltCollisionShape.hpp"
 #include "btFeltCollisionConfiguration.hpp"
 
@@ -38,134 +37,6 @@ const char* PHYSICS_CATEGORY = "Physics";
 const char* SUBSYSTEM_CATEGORY = "Subsystem";
 
 
-void WorkerState<State::InitApp>::tick(const float dt)
-{
-	if (m_co)
-	{
-		using namespace Messages;
-		const FLOAT frac_done = m_co.get();
-		this->m_papp->m_queue_script.push(UrQueue::Map{
-			{"type", PERCENT_TOP},
-			{"value", (FLOAT)(INT)(100.0 * frac_done)},
-			{"label", "Initialising physics"}
-		});
-		m_co();
-	}
-	else
-	{
-		using namespace msm;
-		m_papp->m_controller->process_event("app_initialised"_t);
-	}
-}
-
-void WorkerState<State::InitSurface>::tick(const float dt)
-{
-	if (m_co)
-	{
-		using namespace Messages;
-		const FLOAT frac_done = m_co.get();
-		m_papp->m_queue_script.push(UrQueue::Map{
-			{"type", PERCENT_BOTTOM},
-			{"value", (FLOAT)(INT)(100.0 * frac_done)},
-			{"label", "Initialising surface"}
-		});
-		m_co();
-	}
-	else
-	{
-
-		using namespace msm;
-		m_papp->m_controller->process_event("worker_initialised"_t);
-	}
-}
-
-void WorkerState<State::Zap>::tick(const float dt)
-{
-	using namespace Urho3D;
-	const IntVector2& pos_mouse = m_papp->GetSubsystem<Input>()->GetMousePosition();
-	const FLOAT screen_width = m_papp->GetSubsystem<Graphics>()->GetWidth();
-	const FLOAT screen_height = m_papp->GetSubsystem<Graphics>()->GetHeight();
-	const Vector2 screen_coord{
-		FLOAT(pos_mouse.x_) / screen_width,
-		FLOAT(pos_mouse.y_) / screen_height
-	};
-
-	const Ray& zap_ray = m_papp->GetSubsystem<Renderer>()->GetViewport(0)->GetScene()->
-		GetComponent<Camera>("Camera")->GetScreenRay(screen_coord.x_, screen_coord.y_);
-
-	URHO3D_LOGINFO(Urho3D::String(zap_ray.origin_));
-	URHO3D_LOGINFO(Urho3D::String(zap_ray.direction_));
-
-	m_papp->m_surface.update_start();
-	FLOAT leftover = m_papp->m_surface.delta_gauss<4>(
-		reinterpret_cast<const Vec3f&>(zap_ray.origin_),
-		reinterpret_cast<const Vec3f&>(zap_ray.direction_),
-		m_amt, 2.0f
-	);
-	URHO3D_LOGINFO(Urho3D::String(leftover));
-	m_papp->m_surface.update_end_local();
-	m_papp->m_surface.poly().notify(m_papp->m_surface);
-}
-
-
-void WorkerState<State::Running>::tick(const float dt)
-{
-	m_time_since_update += dt;
-	if (m_time_since_update > 1.0f/30.0f)
-	{
-		using namespace msm;
-		m_papp->m_controller->process_event("update_gpu"_t);
-	}
-}
-
-void WorkerState<State::UpdateGPU>::tick(const float dt)
-{
-	using namespace msm;
-	m_papp->m_surface.poly().update_gpu();
-	m_papp->m_surface.poly().update_end();
-	m_papp->m_controller->process_event("resume"_t);
-}
-
-void WorkerState<State::UpdatePoly>::tick(const float dt)
-{
-	using namespace msm;
-	m_papp->m_surface.poly().poly_cubes(m_papp->m_surface);
-	m_papp->m_controller->process_event("worker_pause"_t);
-}
-
-
-template <class StateTypeApp, class StateTypeWorker>
-std::function<bool (UrFelt*)> AppSM::is(StateTypeApp state_app_, StateTypeWorker state_worker_)
-{
-	return [state_app_, state_worker_](UrFelt* papp) {
-		return papp->m_controller->is(state_app_, state_worker_);
-	};
-}
-
-template <class StateType>
-std::function<void (UrFelt*)> BaseSM::app_set()
-{
-	using namespace msm;
-
-	return [](UrFelt* papp) {
-		papp->m_app_state_next = std::unique_ptr<WorkerState<State::Idle>>(
-			new WorkerState<StateType>{papp}
-		);
-	};
-}
-
-template <class StateType>
-std::function<void (UrFelt*)> BaseSM::worker_set()
-{
-	using namespace msm;
-
-	return [](UrFelt* papp) {
-		papp->m_worker_state_next = std::unique_ptr<WorkerState<State::Idle>>(
-			new WorkerState<StateType>{papp}
-		);
-	};
-}
-
 UrFelt::~UrFelt ()
 {
 	m_quit = true;
@@ -175,7 +46,7 @@ UrFelt::~UrFelt ()
 
 
 UrFelt::UrFelt (Urho3D::Context* context) : Urho3D::Application(context),
-	m_surface(), m_quit(false), m_controller(new AppController(this))
+	m_surface(), m_quit(false), m_controller(new State::AppController(this))
 {
 	context_->RegisterSubsystem(new Urho3D::LuaScript(context_));
 }
@@ -240,14 +111,14 @@ void UrFelt::Start()
 
 	start_worker();
 
-	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(UrFelt, handle_update));
+	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(UrFelt, tick));
 
 	using namespace msm;
 	m_controller->process_event("load"_t);
 }
 
 
-void UrFelt::handle_update(
+void UrFelt::tick(
 	Urho3D::StringHash event_type_, Urho3D::VariantMap& event_data_
 ) {
 	using namespace Urho3D;
@@ -262,12 +133,13 @@ void UrFelt::handle_update(
 
 		switch (type)
 		{
-		case MsgType::STATE_RUNNING:
-			m_controller->process_event("worker_initialised"_t);
-			break;
 		case MsgType::ACTIVATE_SURFACE:
 			m_controller->process_event("activate_surface"_t);
 			break;
+		default:
+			std::ostringstream str;
+			str << "Invalid message type: " << type;
+			throw std::runtime_error(str.str());
 		}
 	}
 
@@ -301,26 +173,31 @@ void UrFelt::worker()
 		Seconds time_step = Clock::now() - time_last;
 		time_last = Clock::now();
 
-		if (this->m_controller->is(AppController::WORKER_RUNNING))
+		if (this->m_controller->is(State::AppController::WORKER_RUNNING))
 			while (const UrQueue::Msg::Opt& msg_exists = m_queue_worker.pop())
 			{
+				using namespace felt::State::Event;
 				const UrQueue::Msg& msg = *msg_exists;
 				const MsgType type = (MsgType)msg.get("type").as<float>();
-
-				if (type == MsgType::STOP_ZAP)
+				switch (type)
 				{
-					this->m_controller->process_event(Event::StopZap{});
+				case MsgType::STOP_ZAP:
+				{
+					this->m_controller->process_event(StopZap{});
+					break;
 				}
-				else if (type == MsgType::START_ZAP)
+				case MsgType::START_ZAP:
 				{
 					const float zap_amount = msg.get("amount").as<float>();
-					this->m_controller->process_event(Event::StartZap{zap_amount});
+					this->m_controller->process_event(StartZap{zap_amount});
+					break;
 				}
-				else
+				default:
 				{
 					std::ostringstream str;
 					str << "Invalid message type: " << type;
 					throw std::runtime_error(str.str());
+				}
 				}
 			}
 
