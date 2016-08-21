@@ -310,42 +310,33 @@ namespace felt
 
 		auto remember()
 		{
-			return [this](UrFelt* papp, std::shared_ptr<WorkerState<State::Idle>>* worker_state) {
-				volatile int i = 0;
-				*worker_state = papp->m_worker_state_next;
+			return [this](UrFelt* papp) {
+				m_worker_state = papp->m_worker_state_next;
 			};
 		}
 
 		auto forget()
 		{
-			return [](std::shared_ptr<WorkerState<State::Idle>>* worker_state) {
-				volatile int i = 0;
-				worker_state->reset();
+			return [this]() {
+				m_worker_state.reset();
 			};
 		}
 
 		auto restore()
 		{
-			return [](UrFelt* papp, std::shared_ptr<WorkerState<State::Idle>>* worker_state) {
-				volatile int i = 0;
-				if (*worker_state)
-					papp->m_worker_state_next = *worker_state;
+			return [this](UrFelt* papp) {
+				if (m_worker_state)
+					papp->m_worker_state_next = m_worker_state;
 			};
 		}
 
 		auto has_state()
 		{
-			return [](std::shared_ptr<WorkerState<State::Idle>>* worker_state) {
-				return !!*worker_state;
+			return [this]() {
+				return !!m_worker_state;
 			};
 		}
 
-		auto tmp()
-		{
-			return [this](UrFelt* papp) {
-				volatile int i = 0;
-			};
-		}
 		auto configure() noexcept
 		{
 			using namespace msm;
@@ -458,12 +449,11 @@ WORKER_RUNNING			+ msm::on_entry
 	public:
 		WorkerRunningController(UrFelt* app_)
 		:	msm::sm<WorkerRunningSM>(
-				std::move(app_), &m_worker_state, conf
+				std::move(app_), conf
 			)
 		{}
 	private:
 		WorkerRunningSM conf;
-		std::shared_ptr<WorkerState<State::Idle>> m_worker_state;
 	};
 
 	class AppController : public msm::sm<AppSM>
