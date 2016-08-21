@@ -140,7 +140,6 @@ void Tick<Label::Zap>::tick(const float dt)
 		reinterpret_cast<const Vec3f&>(zap_ray.direction_),
 		m_amt, 2.0f
 	);
-	URHO3D_LOGINFO(Urho3D::String(leftover));
 	m_papp->m_surface.update_end_local();
 	m_papp->m_surface.poly().notify(m_papp->m_surface);
 }

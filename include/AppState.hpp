@@ -11,7 +11,7 @@
 namespace boost { namespace msm { namespace lite { namespace v_1_0_1 { namespace detail \
 { \
 template <> \
-struct state_str<boost::msm::lite::state<felt::State::Label::StateClass>> { \
+struct state_str<felt::State::Label::StateClass> { \
   static auto c_str() BOOST_MSM_LITE_NOEXCEPT { return #StateClass; } \
 }; \
 }}}}}
@@ -27,14 +27,14 @@ namespace felt
 	{
 		namespace Label
 		{
-			struct Idle{};
-			struct WorkerIdle{};
-			struct InitApp{};
-			struct InitSurface{};
-			struct Zap{};
-			struct Running{};
-			struct UpdateGPU{};
-			struct UpdatePoly{};
+			using Idle = msm::state<class IdleLabel>;
+			using WorkerIdle = msm::state<class WorkerIdleLabel>;
+			using InitApp = msm::state<class InitAppLabel>;
+			using InitSurface = msm::state<class InitSurfaceLabel>;
+			using Zap = msm::state<class ZapLabel>;
+			using Running = msm::state<class RunningLabel>;
+			using UpdateGPU = msm::state<class UpdateGPULabel>;
+			using UpdatePoly = msm::state<class UpdatePolyLabel>;
 		}
 
 		namespace Event
@@ -249,60 +249,58 @@ ZAP			+ msm::on_entry 					[!has_state()]
 				using namespace msm;
 				using namespace State::Label;
 
-				state<State::Label::InitApp> INIT_APP;
 				state<sm<WorkerRunningSM>> WORKER_RUNNING;
-				state<State::Label::InitSurface> WORKER_INIT;
 
 				return msm::make_transition_table(
 
 *"BOOTSTRAP"_s			+ "load"_t
-/ app_set<InitApp>()								= INIT_APP,
+/ app_set<InitApp>()								= InitApp{},
 
-INIT_APP				+ "app_initialised"_t		[is(INIT_APP, "WORKER_IDLE"_s)]
+InitApp{}				+ "app_initialised"_t		[is(InitApp{}, WorkerIdle{})]
 / (process_event("initialised"_t), app_set<Running>())
-													= "APP_RUNNING"_s,
+													= Running{},
 
-INIT_APP				+ "app_initialised"_t		[!is(INIT_APP, "WORKER_IDLE"_s)]
-/ app_set<Idle>()									= "APP_IDLE"_s,
+InitApp{}				+ "app_initialised"_t		[!is(InitApp{}, WorkerIdle{})]
+/ app_set<Idle>()									= Idle{},
 
-"APP_IDLE"_s			+ "initialised"_t
-/ app_set<Running>()								= "APP_RUNNING"_s,
+Idle{}					+ "initialised"_t
+/ app_set<Running>()								= Running{},
 
-"APP_RUNNING"_s 		+ "activate_surface"_t
+Running{}		 		+ "activate_surface"_t
 / [](UrFelt* papp_) {
 	papp_->m_surface_body->Activate();
 },
 
-"APP_RUNNING"_s			+ "update_gpu"_t
+Running{}				+ "update_gpu"_t
 / app_set<Idle>()									= "APP_AWAIT_WORKER"_s,
 
 "APP_AWAIT_WORKER"_s	+ "worker_pause"_t
-/ app_set<UpdateGPU>()								= "APP_UPDATE_GPU"_s,
+/ app_set<UpdateGPU>()								= UpdateGPU{},
 
-"APP_UPDATE_GPU"_s		+ "resume"_t
-/ app_set<Running>()								= "APP_RUNNING"_s,
+UpdateGPU{}				+ "resume"_t
+/ app_set<Running>()								= Running{},
 
 
 
 *"WORKER_BOOTSTRAP"_s	+ "load"_t
-/ worker_set<InitSurface>()							= WORKER_INIT,
+/ worker_set<InitSurface>()							= InitSurface{},
 
-WORKER_INIT				+ "worker_initialised"_t	[is("APP_IDLE"_s, WORKER_INIT)]
+InitSurface{}			+ "worker_initialised"_t	[is(Idle{}, InitSurface{})]
 / (process_event("initialised"_t), worker_set<WorkerIdle>())
 													= WORKER_RUNNING,
 
-WORKER_INIT				+ "worker_initialised"_t	[!is("APP_IDLE"_s, WORKER_INIT)]
-/ worker_set<WorkerIdle>()							= "WORKER_IDLE"_s,
+InitSurface{}			+ "worker_initialised"_t	[!is(Idle{}, InitSurface{})]
+/ worker_set<WorkerIdle>()							= WorkerIdle{},
 
-"WORKER_IDLE"_s			+ "initialised"_t			= WORKER_RUNNING,
+WorkerIdle{}			+ "initialised"_t			= WORKER_RUNNING,
 
 WORKER_RUNNING			+ "update_gpu"_t
-/ worker_set<UpdatePoly>()							= "WORKER_UPDATE_POLY"_s,
+/ worker_set<UpdatePoly>()							= UpdatePoly{},
 
-"WORKER_UPDATE_POLY"_s	+ "worker_pause"_t
-/ worker_set<WorkerIdle>()							= "WORKER_PAUSED"_s,
+UpdatePoly{}			+ "worker_pause"_t
+/ worker_set<WorkerIdle>()							= WorkerIdle{},
 
-"WORKER_PAUSED"_s		+ "resume"_t				= WORKER_RUNNING,
+WorkerIdle{}			+ "resume"_t				= WORKER_RUNNING,
 
 WORKER_RUNNING			+ msm::on_entry
 / []{} // Workaround for https://github.com/boost-experimental/msm-lite/issues/53
