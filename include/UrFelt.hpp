@@ -57,7 +57,7 @@ void log_state_change(const TSrcState& src, const TDstState& dst) {
 	printf("[%s][transition] %s -> %s\n", typeid(SM).name(), src.c_str(), dst.c_str());
 }
 
-//#define BOOST_MSM_LITE_LOG(T, SM, ...) log_##T<SM>(__VA_ARGS__)
+#define BOOST_MSM_LITE_LOG(T, SM, ...) log_##T<SM>(__VA_ARGS__)
 #define BOOST_MSM_LITE_THREAD_SAFE
 #include <boost/msm-lite.hpp>
 
@@ -145,7 +145,7 @@ namespace felt
 		std::unique_ptr<WorkerState<State::Idle>>	m_app_state;
 		std::shared_ptr<WorkerState<State::Idle>>	m_worker_state;
 		std::unique_ptr<WorkerState<State::Idle>>	m_app_state_next;
-		std::unique_ptr<WorkerState<State::Idle>>	m_worker_state_next;
+		std::shared_ptr<WorkerState<State::Idle>>	m_worker_state_next;
 
 		UrSurface3D				m_surface;
 		Urho3D::RigidBody* 		m_surface_body;
@@ -312,7 +312,7 @@ namespace felt
 		{
 			return [this](UrFelt* papp, std::shared_ptr<WorkerState<State::Idle>>* worker_state) {
 				volatile int i = 0;
-				*worker_state = papp->m_worker_state;
+				*worker_state = papp->m_worker_state_next;
 			};
 		}
 
@@ -326,12 +326,20 @@ namespace felt
 
 		auto restore()
 		{
-			return [this](UrFelt* papp, std::shared_ptr<WorkerState<State::Idle>>* worker_state) {
+			return [](UrFelt* papp, std::shared_ptr<WorkerState<State::Idle>>* worker_state) {
 				volatile int i = 0;
-				if (worker_state)
-					papp->m_worker_state = *worker_state;
+				if (*worker_state)
+					papp->m_worker_state_next = *worker_state;
 			};
 		}
+
+		auto has_state()
+		{
+			return [](std::shared_ptr<WorkerState<State::Idle>>* worker_state) {
+				return !!*worker_state;
+			};
+		}
+
 		auto tmp()
 		{
 			return [this](UrFelt* papp) {
@@ -346,18 +354,21 @@ namespace felt
 
 			return msm::make_transition_table(
 
-				"IDLE"_s(H)	+ event<Event::StartZap>
-				/ ([](UrFelt* papp, const Event::StartZap& evt) {
-					papp->m_worker_state = std::unique_ptr<WorkerState<State::Idle>>(
-						new WorkerState<State::Zap>{papp, evt.amt}
-					);
-				}, remember())									=	ZAP,
+"IDLE"_s(H)	+ event<Event::StartZap>
+/ [](UrFelt* papp, const Event::StartZap& evt) {
+	papp->m_worker_state_next = std::unique_ptr<WorkerState<State::Idle>>(
+		new WorkerState<State::Zap>{papp, evt.amt}
+	);
+}												=	ZAP,
 
-				ZAP			+ event<Event::StopZap>
-				/ (worker_set<State::WorkerIdle>(), forget())	=	"IDLE"_s,
+ZAP			+ event<Event::StopZap>
+/ (worker_set<State::WorkerIdle>(), forget())	=	"IDLE"_s,
 
-				ZAP			+ "ENTRY"_t
-				/ restore()
+ZAP			+ msm::on_entry 					[has_state()]
+/ restore(),
+ZAP			+ msm::on_entry 					[!has_state()]
+/ remember()
+
 			);
 		}
 	private:
@@ -435,7 +446,7 @@ WORKER_RUNNING			+ "update_gpu"_t
 "WORKER_PAUSED"_s		+ "resume"_t				= WORKER_RUNNING,
 
 WORKER_RUNNING			+ msm::on_entry
-/ process_event("ENTRY"_t)
+/ []{} // Workaround for https://github.com/boost-experimental/msm-lite/issues/53
 
 			);
 		}

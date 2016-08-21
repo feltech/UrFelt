@@ -324,8 +324,8 @@ void UrFelt::worker()
 				}
 			}
 
-		if (m_worker_state_next)
-			m_worker_state = std::move(m_worker_state_next);
+		if (m_worker_state_next.get() != m_worker_state.get())
+			m_worker_state = m_worker_state_next;
 
 		if (this->m_worker_state)
 			this->m_worker_state->tick(time_step.count());
