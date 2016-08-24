@@ -145,10 +145,13 @@ namespace felt
 		class Tick<State::Label::Zap> : public TickBase
 		{
 		public:
-			Tick(UrFelt* papp_, FLOAT amt) : TickBase(papp_), m_amt(amt) {}
+			Tick(UrFelt* papp_, FLOAT amt);
 			void tick(const float dt);
 		protected:
 			const FLOAT m_amt;
+			const FLOAT m_screen_width;
+			const FLOAT m_screen_height;
+			const Urho3D::Camera*	m_pcamera;
 		};
 
 

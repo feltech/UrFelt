@@ -26,7 +26,7 @@ void log_state_change(const TSrcState& src, const TDstState& dst) {
 }
 
 
-//#define BOOST_MSM_LITE_LOG(T, SM, ...) log_##T<SM>(__VA_ARGS__)
+#define BOOST_MSM_LITE_LOG(T, SM, ...) log_##T<SM>(__VA_ARGS__)
 
 #include "UrFelt.hpp"
 #include "AppState.hpp"
@@ -120,19 +120,29 @@ void Tick<Label::InitSurface>::execute(co::coroutine<FLOAT>::push_type& sink)
 }
 
 
+Tick<Label::Zap>::Tick(UrFelt* papp_, FLOAT amt)
+: TickBase(papp_), m_amt(amt),
+  m_screen_width(papp_->GetSubsystem<Urho3D::Graphics>()->GetWidth()),
+  m_screen_height(papp_->GetSubsystem<Urho3D::Graphics>()->GetHeight()),
+  m_pcamera(
+	  papp_->GetSubsystem<Urho3D::Renderer>()->GetViewport(0)->GetScene()->
+	  	  GetComponent<Urho3D::Camera>("Camera")
+  )
+{
+
+}
+
+
 void Tick<Label::Zap>::tick(const float dt)
 {
 	using namespace Urho3D;
 	const IntVector2& pos_mouse = m_papp->GetSubsystem<Input>()->GetMousePosition();
-	const FLOAT screen_width = m_papp->GetSubsystem<Graphics>()->GetWidth();
-	const FLOAT screen_height = m_papp->GetSubsystem<Graphics>()->GetHeight();
 	const Vector2 screen_coord{
-		FLOAT(pos_mouse.x_) / screen_width,
-		FLOAT(pos_mouse.y_) / screen_height
+		FLOAT(pos_mouse.x_) / m_screen_width,
+		FLOAT(pos_mouse.y_) / m_screen_height
 	};
 
-	const Ray& zap_ray = m_papp->GetSubsystem<Renderer>()->GetViewport(0)->GetScene()->
-		GetComponent<Camera>("Camera")->GetScreenRay(screen_coord.x_, screen_coord.y_);
+	const Ray& zap_ray = m_pcamera->GetScreenRay(screen_coord.x_, screen_coord.y_);
 
 	m_papp->m_surface.update_start();
 	FLOAT leftover = m_papp->m_surface.delta_gauss<4>(
