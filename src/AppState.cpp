@@ -1,80 +1,9 @@
 #include <typeinfo>
 #include <stdio.h>
-
-template <class SM, class TEvent>
-void log_process_event(const TEvent& evt) {
-	printf("[%s][process_event] %s\n", typeid(SM).name(), evt.c_str());
-}
-
-
-template <class SM, class TGuard, class TEvent>
-void log_guard(const TGuard&, const TEvent& evt, bool result) {
-	printf("[%s][guard] %s %s %s\n", typeid(SM).name(), typeid(TGuard).name(), evt.c_str(),
-		(result ? "[OK]" : "[Reject]"));
-}
-
-
-template <class SM, class TAction, class TEvent>
-void log_action(const TAction&, const TEvent& evt) {
-	printf("[%s][action] %s %s\n", typeid(SM).name(), typeid(TAction).name(), evt.c_str());
-}
-
-
-template <class SM, class TSrcState, class TDstState>
-void log_state_change(const TSrcState& src, const TDstState& dst) {
-	printf("[%s][transition] %s -> %s\n", typeid(SM).name(), src.c_str(), dst.c_str());
-}
-
-
-#define BOOST_MSM_LITE_LOG(T, SM, ...) log_##T<SM>(__VA_ARGS__)
-
 #include "UrFelt.hpp"
 #include "AppState.hpp"
 
 using namespace felt::State;
-
-
-void Tick<Label::InitApp>::tick(const float dt)
-{
-	using namespace Messages;
-	if (m_co)
-	{
-		const FLOAT frac_done = m_co.get();
-		this->m_papp->m_queue_script.push(UrQueue::Map{
-			{"type", PERCENT_TOP},
-			{"value", (FLOAT)(INT)(100.0 * frac_done)},
-			{"label", "Initialising physics"}
-		});
-		m_co();
-	}
-	else
-	{
-		m_papp->m_queue_script.push(UrQueue::Map{
-			{"type", PERCENT_TOP},
-			{"value", -1}
-		});
-		using namespace msm;
-		m_papp->m_controller->process_event("app_initialised"_t);
-	}
-}
-
-
-void Tick<Label::InitApp>::execute(co::coroutine<FLOAT>::push_type& sink)
-{
-	this->m_papp->m_surface.seed(Vec3i(0,0,0));
-
-	for (UINT i = 0; i < 2; i++)
-		this->m_papp->m_surface.update([](auto& pos, auto& phi)->FLOAT {
-			return -1.0f;
-		});
-
-	const UINT num_children = this->m_papp->m_surface.isogrid().children().data().size();
-	for (UINT child_idx = 0; child_idx < num_children; child_idx++)
-	{
-		this->m_papp->m_surface.init_physics(child_idx);
-		sink((FLOAT)child_idx / num_children);
-	}
-}
 
 
 void Tick<Label::InitSurface>::tick(const float dt)
@@ -97,13 +26,20 @@ void Tick<Label::InitSurface>::tick(const float dt)
 			{"value", -1}
 		});
 		using namespace msm;
-		m_papp->m_controller->process_event("worker_initialised"_t);
+		m_papp->m_controller->process_event("initialised"_t);
 	}
 }
 
 
 void Tick<Label::InitSurface>::execute(co::coroutine<FLOAT>::push_type& sink)
 {
+	m_papp->m_surface.seed(Vec3i(0,0,0));
+
+	for (UINT i = 0; i < 2; i++)
+		m_papp->m_surface.update([](auto& pos, auto& phi)->FLOAT {
+			return -1.0f;
+		});
+
 	const UINT num_children = this->m_papp->m_surface.isogrid().children().data().size();
 	for (UINT expand = 0; expand < 100; expand++)
 	{
@@ -116,7 +52,6 @@ void Tick<Label::InitSurface>::execute(co::coroutine<FLOAT>::push_type& sink)
 		});
 		sink(FLOAT(expand)/100);
 	}
-	m_papp->m_surface.poly().surf(m_papp->m_surface);
 }
 
 
@@ -169,8 +104,7 @@ void Tick<Label::Running>::tick(const float dt)
 void Tick<Label::UpdateGPU>::tick(const float dt)
 {
 	using namespace msm;
-	m_papp->m_surface.poly().update_gpu();
-	m_papp->m_surface.poly().update_end();
+	m_papp->m_surface.flush();
 	m_papp->m_controller->process_event("resume"_t);
 }
 
@@ -181,4 +115,19 @@ void Tick<Label::UpdatePoly>::tick(const float dt)
 	m_papp->m_surface.poly().poly_cubes(m_papp->m_surface);
 	m_papp->m_controller->process_event("worker_pause"_t);
 }
+const msm::state<msm::sm<WorkerRunningSM>> AppController::WORKER_RUNNING =
+	msm::state<msm::sm<WorkerRunningSM>>{};
 
+
+std::function<void(WorkerRunningController*, felt::UrFelt*)> BaseSM::worker_restore() const
+{
+	return [](WorkerRunningController* pworker, UrFelt* papp_) {
+		pworker->restore(papp_);
+	};
+}
+WorkerRunningSM::ZapAction WorkerRunningSM::worker_remember_zap() const
+{
+	return [](WorkerRunningController* pworker, UrFelt* papp_, const Event::StartZap& evt) {
+		pworker->remember(papp_, new Tick<State::Label::Zap>{papp_, evt.amt});
+	};
+}

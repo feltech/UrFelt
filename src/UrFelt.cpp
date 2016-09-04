@@ -100,7 +100,7 @@ void UrFelt::Start()
 	Node* node = scene->CreateChild("PolyGrid");
 	node->SetPosition(Vector3(0, 0, 0));
 
-	m_surface.init(context_, node, Vec3u(100,100,100), Vec3u(16,16,16));
+	m_surface.init(context_, node, Vec3u(200,100,200), Vec3u(16,16,16));
 
 	m_surface_body = node->CreateComponent<RigidBody>();
 	m_surface_body->SetKinematic(true);

@@ -12,10 +12,13 @@
 #include <boost/coroutine/all.hpp>
 
 #include <Felt/Surface.hpp>
+#include <Felt/SingleTrackedGrid.hpp>
 #include "UrPolyGrid3D.hpp"
 
 namespace felt
 {
+
+class FeltCollisionShape;
 
 class UrSurface3D : public Surface<3, 3>
 {
@@ -24,11 +27,11 @@ public:
 	using Base::VecDu;
 	using Base::VecDi;
 	using Base::VecDf;
+	using CollShapeGrid = SingleTrackedGrid<FeltCollisionShape*, 3>;
 protected:
+	CollShapeGrid	m_grid_coll_shapes;
 	UrPolyGrid3D	m_poly;
 	Urho3D::Node* 	m_pnode;
-
-	UINT	m_physics_init;
 
 public:
 	UrSurface3D () = default;
@@ -51,6 +54,7 @@ public:
 	const UrPolyGrid3D& poly() const;
 	UrPolyGrid3D& poly();
 
+	void flush();
 
 	/**
 	 * Perform a a full (parallelised) update of the narrow band.
@@ -62,7 +66,6 @@ public:
 	 * @param fn_ (pos, phi) -> float
 	 */
 	void update(std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_);
-	void init_physics(const UINT child_idx);
 };
 
 } /* namespace felt */

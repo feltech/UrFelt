@@ -1,5 +1,31 @@
 #ifndef INCLUDE_APPSTATE_HPP_
 #define INCLUDE_APPSTATE_HPP_
+template <class SM, class TEvent>
+void log_process_event(const TEvent& evt) {
+	printf("[%s][process_event] %s\n", typeid(SM).name(), evt.c_str());
+}
+
+
+template <class SM, class TGuard, class TEvent>
+void log_guard(const TGuard&, const TEvent& evt, bool result) {
+	printf("[%s][guard] %s %s %s\n", typeid(SM).name(), typeid(TGuard).name(), evt.c_str(),
+		(result ? "[OK]" : "[Reject]"));
+}
+
+
+template <class SM, class TAction, class TEvent>
+void log_action(const TAction&, const TEvent& evt) {
+	printf("[%s][action] %s %s\n", typeid(SM).name(), typeid(TAction).name(), evt.c_str());
+}
+
+
+template <class SM, class TSrcState, class TDstState>
+void log_state_change(const TSrcState& src, const TDstState& dst) {
+	printf("[%s][transition] %s -> %s\n", typeid(SM).name(), src.c_str(), dst.c_str());
+}
+
+
+//#define BOOST_MSM_LITE_LOG(T, SM, ...) log_##T<SM>(__VA_ARGS__)
 
 #define BOOST_MSM_LITE_THREAD_SAFE
 #include <boost/msm-lite.hpp>
@@ -7,19 +33,22 @@
 #include <boost/coroutine/all.hpp>
 #include "UrFelt.hpp"
 
-#define STATE_STR(StateClass) \
-namespace boost { namespace msm { namespace lite { namespace v_1_0_1 { namespace detail \
-{ \
-template <> \
-struct state_str<felt::State::Label::StateClass> { \
-  static auto c_str() BOOST_MSM_LITE_NOEXCEPT { return #StateClass; } \
-}; \
-}}}}}
+//#define STATE_STR(StateClass) \
+//namespace boost { namespace msm { namespace lite { namespace v_1_0_1 { namespace detail \
+//{ \
+//template <> \
+//struct state_str<felt::State::Label::StateClass> { \
+//  static auto c_str() BOOST_MSM_LITE_NOEXCEPT { return #StateClass; } \
+//}; \
+//}}}}}
 
 
 namespace msm = boost::msm::lite;
 namespace co = boost::coroutines;
 
+#define MAKE_STATE_TYPE(Name) \
+	struct Name##Label { static auto c_str() BOOST_MSM_LITE_NOEXCEPT { return #Name; } }; \
+	using Name = msm::state<Name##Label>;
 
 namespace felt
 {
@@ -27,14 +56,22 @@ namespace felt
 	{
 		namespace Label
 		{
-			using Idle = msm::state<class IdleLabel>;
-			using WorkerIdle = msm::state<class WorkerIdleLabel>;
-			using InitApp = msm::state<class InitAppLabel>;
-			using InitSurface = msm::state<class InitSurfaceLabel>;
-			using Zap = msm::state<class ZapLabel>;
-			using Running = msm::state<class RunningLabel>;
-			using UpdateGPU = msm::state<class UpdateGPULabel>;
-			using UpdatePoly = msm::state<class UpdatePolyLabel>;
+			MAKE_STATE_TYPE(Idle)
+			MAKE_STATE_TYPE(WorkerIdle)
+			MAKE_STATE_TYPE(InitApp)
+			MAKE_STATE_TYPE(InitSurface)
+			MAKE_STATE_TYPE(Zap)
+			MAKE_STATE_TYPE(Running)
+			MAKE_STATE_TYPE(UpdateGPU)
+			MAKE_STATE_TYPE(UpdatePoly)
+//			using Idle = msm::state<class IdleLabel>;
+//			using WorkerIdle = msm::state<class WorkerIdleLabel>;
+//			using InitApp = msm::state<class InitAppLabel>;
+//			using InitSurface = msm::state<class InitSurfaceLabel>;
+//			using Zap = msm::state<class ZapLabel>;
+//			using Running = msm::state<class RunningLabel>;
+//			using UpdateGPU = msm::state<class UpdateGPULabel>;
+//			using UpdatePoly = msm::state<class UpdatePolyLabel>;
 		}
 
 		namespace Event
@@ -57,14 +94,14 @@ namespace felt
 	}
 }
 
-STATE_STR(Idle)
-STATE_STR(WorkerIdle)
-STATE_STR(InitApp)
-STATE_STR(InitSurface)
-STATE_STR(Zap)
-STATE_STR(Running)
-STATE_STR(UpdateGPU)
-STATE_STR(UpdatePoly)
+//STATE_STR(Idle)
+//STATE_STR(WorkerIdle)
+//STATE_STR(InitApp)
+//STATE_STR(InitSurface)
+//STATE_STR(Zap)
+//STATE_STR(Running)
+//STATE_STR(UpdateGPU)
+//STATE_STR(UpdatePoly)
 
 
 
@@ -96,22 +133,6 @@ namespace felt
 			using TickBase::TickBase;
 			virtual void tick(const float dt) {};
 		};
-
-		template<>
-		class Tick<State::Label::InitApp> :	public TickBase
-		{
-		public:
-			using ThisType = Tick<State::Label::InitApp>;
-			Tick(UrFelt* papp_)
-			:	TickBase(papp_),
-				m_co{std::bind(&ThisType::execute, this, std::placeholders::_1)}
-			{}
-			void tick(const float dt);
-		private:
-			co::coroutine<FLOAT>::pull_type m_co;
-			void execute(co::coroutine<FLOAT>::push_type& sink);
-		};
-
 
 		template<>
 		class Tick<State::Label::Running> :	public TickBase
@@ -170,6 +191,7 @@ namespace felt
 			void execute(co::coroutine<FLOAT>::push_type& sink);
 		};
 
+		class WorkerRunningController;
 
 		struct BaseSM
 		{
@@ -178,6 +200,8 @@ namespace felt
 
 			template <class StateType>
 			static std::function<void (UrFelt*)> worker_set();
+
+			std::function<void(WorkerRunningController*, UrFelt*)> worker_restore() const;
 		};
 
 
@@ -185,62 +209,37 @@ namespace felt
 		{
 			WorkerRunningSM() {}
 
-			auto remember()
-			{
-				return [this](UrFelt* papp_) {
-					m_worker_state = papp_->m_worker_state_next;
-				};
-			}
-
-			auto forget()
-			{
-				return [this]() {
-					m_worker_state.reset();
-				};
-			}
-
-			auto restore()
-			{
-				return [this](UrFelt* papp_) {
-					if (m_worker_state)
-						papp_->m_worker_state_next = m_worker_state;
-				};
-			}
-
-			auto has_state()
-			{
-				return [this]() {
-					return !!m_worker_state;
-				};
-			}
-
 			auto configure() noexcept
 			{
 				using namespace msm;
+				using namespace State::Label;
 
 				state<State::Label::Zap> ZAP;
 
 				return msm::make_transition_table(
+"WORKER_BOOTSTRAP"_s(H)		+ "load"_t
+/ worker_remember<InitSurface>()						= InitSurface{},
 
-"IDLE"_s(H)	+ event<Event::StartZap>
-/ [](UrFelt* papp_, const Event::StartZap& evt) {
-	papp_->m_worker_state_next.reset(
-		new Tick<Label::Zap>{papp_, evt.amt}
-	);
-}												=	ZAP,
+InitSurface{}				+ "initialised"_t
+/ worker_remember<WorkerIdle>()							= "IDLE"_s,
 
-ZAP			+ event<Event::StopZap>
-/ (worker_set<Label::WorkerIdle>(), forget())	=	"IDLE"_s,
+"IDLE"_s					+ event<Event::StartZap>
+/ worker_remember_zap()									=	ZAP,
 
-ZAP			+ msm::on_entry 					[has_state()]
-/ restore(),
-ZAP			+ msm::on_entry 					[!has_state()]
-/ remember()
+ZAP							+ event<Event::StopZap>
+/ (worker_remember<WorkerIdle>())						=	"IDLE"_s
 
 				);
 			}
+
 		private:
-			std::shared_ptr<TickBase>	m_worker_state;
+			using BaseAction = std::function<void(WorkerRunningController*, felt::UrFelt*)>;
+			using ZapAction =
+				std::function<void(WorkerRunningController*, UrFelt*, const Event::StartZap&)>;
+			ZapAction worker_remember_zap() const;
+
+			template <class StateType>
+			BaseAction worker_remember() const;
 		};
 
 
@@ -257,21 +256,11 @@ ZAP			+ msm::on_entry 					[!has_state()]
 				return msm::make_transition_table(
 
 *"BOOTSTRAP"_s			+ "load"_t
-/ app_set<InitApp>()								= InitApp{},
-
-InitApp{}				+ "app_initialised"_t		[is(InitApp{}, WorkerIdle{})]
-/ (process_event("initialised"_t), app_set<Running>())
-													= Running{},
-
-InitApp{}				+ "app_initialised"_t		[!is(InitApp{}, WorkerIdle{})]
-/ app_set<Idle>()									= Idle{},
-
-Idle{}					+ "initialised"_t
 / app_set<Running>()								= Running{},
 
 Running{}		 		+ "activate_surface"_t
 / [](UrFelt* papp_) {
-	papp_->m_surface_body->Activate();
+papp_->m_surface_body->Activate();
 },
 
 Running{}				+ "update_gpu"_t
@@ -284,20 +273,7 @@ UpdateGPU{}				+ "resume"_t
 / app_set<Running>()								= Running{},
 
 
-
-*"WORKER_BOOTSTRAP"_s	+ "load"_t
-/ worker_set<InitSurface>()							= InitSurface{},
-
-InitSurface{}			+ "worker_initialised"_t	[is(Idle{}, InitSurface{})]
-/ (process_event("initialised"_t), worker_set<WorkerIdle>())
-													= WORKER_RUNNING,
-
-InitSurface{}			+ "worker_initialised"_t	[!is(Idle{}, InitSurface{})]
-/ worker_set<WorkerIdle>()							= WorkerIdle{},
-
-WorkerIdle{}			+ "initialised"_t			= WORKER_RUNNING,
-
-WORKER_RUNNING			+ "update_gpu"_t
+*WORKER_RUNNING			+ "update_gpu"_t
 / worker_set<UpdatePoly>()							= UpdatePoly{},
 
 UpdatePoly{}			+ "worker_pause"_t
@@ -306,61 +282,69 @@ UpdatePoly{}			+ "worker_pause"_t
 WorkerIdle{}			+ "resume"_t				= WORKER_RUNNING,
 
 WORKER_RUNNING			+ msm::on_entry
-/ []{} // Workaround for https://github.com/boost-experimental/msm-lite/issues/53
-
+/ worker_restore()
 				);
 			}
 
 		private:
-			template <class StateTypeApp, class StateTypeWorker>
+			template <class StateType>
 			static std::function<bool (UrFelt*)> is(
-				StateTypeApp state_app_, StateTypeWorker state_worker_
+				StateType state_
 			);
-			static std::function<void (UrFelt*)> app_idleing();
-			static std::function<void (UrFelt*)> worker_idleing();
-
-			static std::function<void (UrFelt*)> update_gpu();
 		};
 
 
 		class WorkerRunningController : public msm::sm<WorkerRunningSM>
 		{
+			friend class AppSM;
 		public:
 			WorkerRunningController(UrFelt* app_)
-			:	msm::sm<WorkerRunningSM>(
-					std::move(app_), conf
-				)
+			:	msm::sm<WorkerRunningSM>{
+					std::move(app_),
+					std::move(this),
+					m_conf
+				}
 			{}
+			void remember(UrFelt* papp_, TickBase* ticker_)
+			{
+				m_worker_state.reset(ticker_);
+				papp_->m_worker_state_next = m_worker_state;
+			}
+
+			void restore(UrFelt* papp_)
+			{
+				papp_->m_worker_state_next = m_worker_state;
+			}
 		private:
-			WorkerRunningSM conf;
+			std::shared_ptr<TickBase>	m_worker_state;
+			WorkerRunningSM 			m_conf;
 		};
 
 
 		class AppController : public msm::sm<AppSM>
 		{
 		public:
-			AppController(UrFelt* app_)
-			:
-				m_sm_running(app_),
+			AppController(UrFelt* papp_)
+			:	m_worker_controller(papp_),
 				msm::sm<AppSM>{
-					std::move(app_),
-					static_cast<msm::sm<WorkerRunningSM>&>(m_sm_running)
+					std::move(papp_),
+					std::move(&m_worker_controller),
+					static_cast<msm::sm<WorkerRunningSM>&>(m_worker_controller)
 				}
 			{}
-
 			static const msm::state<msm::sm<WorkerRunningSM>> WORKER_RUNNING;
 		private:
-			WorkerRunningController m_sm_running;
+			WorkerRunningController m_worker_controller;
 		};
 
 
 
-		template <class StateTypeApp, class StateTypeWorker>
+		template <class StateType>
 		std::function<bool (felt::UrFelt*)> AppSM::is(
-			StateTypeApp state_app_, StateTypeWorker state_worker_
+			StateType state_
 		) {
-			return [state_app_, state_worker_](felt::UrFelt* papp_) {
-				return papp_->m_controller->is(state_app_, state_worker_);
+			return [state_](felt::UrFelt* papp_) {
+				return papp_->m_controller->is(state_);
 			};
 		}
 
@@ -385,6 +369,15 @@ WORKER_RUNNING			+ msm::on_entry
 				papp_->m_worker_state_next.reset(new Tick<StateType>{papp_});
 			};
 		}
+
+		template <class StateType>
+		WorkerRunningSM::BaseAction WorkerRunningSM::worker_remember() const
+		{
+			return [](WorkerRunningController* pworker, UrFelt* papp_) {
+				pworker->remember(papp_, new Tick<StateType>{papp_});
+			};
+		}
+
 	}
 }
 

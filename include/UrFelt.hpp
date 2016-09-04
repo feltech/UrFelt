@@ -1,10 +1,3 @@
-/*
- * UrFelt.hpp
- *
- *  Created on: 5 Jun 2015
- *      Author: dave
- */
-
 #ifndef INCLUDE_URFELT_HPP_
 #define INCLUDE_URFELT_HPP_
 
@@ -53,6 +46,7 @@ namespace felt
 		class BaseSM;
 		class AppSM;
 		class WorkerRunningSM;
+		class WorkerRunningController;
 		class TickBase;
 		template <class StateType> class Tick;
 	}
@@ -65,6 +59,7 @@ namespace felt
 		friend class felt::State::BaseSM;
 		friend class felt::State::AppSM;
 		friend class felt::State::WorkerRunningSM;
+		friend class felt::State::WorkerRunningController;
 		template <class StateType> friend class felt::State::Tick;
 	public:
 		~UrFelt();
