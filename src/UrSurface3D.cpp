@@ -1,10 +1,3 @@
-/*
- * UrSurface3D.cpp
- *
- *  Created on: 28 Jul 2015
- *      Author: dave
- */
-
 #include "UrSurface3D.hpp"
 
 #include <algorithm>
@@ -78,6 +71,14 @@ void UrSurface3D::flush()
 void UrSurface3D::update(std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_)
 {
 	Base::update(fn_);
+	m_poly.notify(*this);
+}
+
+void  UrSurface3D::update(
+	const VecDi& pos_leaf_lower_, const VecDi& pos_leaf_upper_,
+	std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_
+) {
+	Base::update(pos_leaf_lower_, pos_leaf_upper_, fn_);
 	m_poly.notify(*this);
 }
 

@@ -66,6 +66,20 @@ public:
 	 * @param fn_ (pos, phi) -> float
 	 */
 	void update(std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_);
+
+	/**
+	 * Perform a a full (parallelised) update of the narrow band.
+	 *
+	 * Lambda function passed will be given the position to process and
+	 * a reference to the phi grid, and is expected to return delta phi to
+	 * apply.
+	 *
+	 * @param fn_ (pos, phi) -> float
+	 */
+	void update(
+		const VecDi& pos_leaf_lower_, const VecDi& pos_leaf_upper_,
+		std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_
+	);
 };
 
 } /* namespace felt */

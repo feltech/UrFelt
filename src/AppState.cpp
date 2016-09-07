@@ -78,15 +78,33 @@ void Tick<Label::Zap>::tick(const float dt)
 	};
 
 	const Ray& zap_ray = m_pcamera->GetScreenRay(screen_coord.x_, screen_coord.y_);
+	const Vec3f& origin = reinterpret_cast<const Vec3f&>(zap_ray.origin_);
+	const Vec3f& direction = reinterpret_cast<const Vec3f&>(zap_ray.direction_);
 
-	m_papp->m_surface.update_start();
-	FLOAT leftover = m_papp->m_surface.delta_gauss<4>(
-		reinterpret_cast<const Vec3f&>(zap_ray.origin_),
-		reinterpret_cast<const Vec3f&>(zap_ray.direction_),
-		m_amt, 2.0f
+	constexpr float radius = 3.0f;
+
+
+	const Vec3f& pos_hit = m_papp->m_surface.ray(origin, direction);
+	const Vec3i& pos_lower = felt::floor(pos_hit) - Vec3i::Constant(UINT(radius));
+	const Vec3i& pos_upper = felt::ceil(pos_hit) + Vec3i::Constant(UINT(radius));
+
+	m_papp->m_surface.update(pos_lower, pos_upper,
+		[&pos_hit](const Vec3i& pos, const auto&) -> FLOAT {
+			const Vec3f& posf = pos.template cast<FLOAT>();
+			const Vec3f& pos_dist = posf - pos_hit;
+			const FLOAT dist = pos_dist.norm() - radius;
+			printf("%f, %f, %f", dist, radius, dist / radius);
+			return std::min(dist / radius, 0.0f);
+		}
 	);
-	m_papp->m_surface.update_end_local();
-	m_papp->m_surface.poly().notify(m_papp->m_surface);
+//	m_papp->m_surface.update_start();
+//	FLOAT leftover = m_papp->m_surface.delta_gauss<4>(
+//		reinterpret_cast<const Vec3f&>(zap_ray.origin_),
+//		reinterpret_cast<const Vec3f&>(zap_ray.direction_),
+//		m_amt, 2.0f
+//	);
+//	m_papp->m_surface.update_end_local();
+//	m_papp->m_surface.poly().notify(m_papp->m_surface);
 }
 
 
