@@ -33,16 +33,6 @@ void log_state_change(const TSrcState& src, const TDstState& dst) {
 #include <boost/coroutine/all.hpp>
 #include "UrFelt.hpp"
 
-//#define STATE_STR(StateClass) \
-//namespace boost { namespace msm { namespace lite { namespace v_1_0_1 { namespace detail \
-//{ \
-//template <> \
-//struct state_str<felt::State::Label::StateClass> { \
-//  static auto c_str() BOOST_MSM_LITE_NOEXCEPT { return #StateClass; } \
-//}; \
-//}}}}}
-
-
 namespace msm = boost::msm::lite;
 namespace co = boost::coroutines;
 
@@ -64,14 +54,6 @@ namespace felt
 			MAKE_STATE_TYPE(Running)
 			MAKE_STATE_TYPE(UpdateGPU)
 			MAKE_STATE_TYPE(UpdatePoly)
-//			using Idle = msm::state<class IdleLabel>;
-//			using WorkerIdle = msm::state<class WorkerIdleLabel>;
-//			using InitApp = msm::state<class InitAppLabel>;
-//			using InitSurface = msm::state<class InitSurfaceLabel>;
-//			using Zap = msm::state<class ZapLabel>;
-//			using Running = msm::state<class RunningLabel>;
-//			using UpdateGPU = msm::state<class UpdateGPULabel>;
-//			using UpdatePoly = msm::state<class UpdatePolyLabel>;
 		}
 
 		namespace Event
@@ -93,16 +75,6 @@ namespace felt
 
 	}
 }
-
-//STATE_STR(Idle)
-//STATE_STR(WorkerIdle)
-//STATE_STR(InitApp)
-//STATE_STR(InitSurface)
-//STATE_STR(Zap)
-//STATE_STR(Running)
-//STATE_STR(UpdateGPU)
-//STATE_STR(UpdatePoly)
-
 
 
 namespace felt
