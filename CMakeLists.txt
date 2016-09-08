@@ -24,7 +24,7 @@ set(Felt_DIR ${FELT_HOME})
 set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules" "${FELT_HOME}")
 
 # Add common C++ definitions.
-add_definitions(-std=c++14 -fopenmp -Wfatal-errors)
+add_definitions(-std=c++14 -fopenmp -Wfatal-errors -DFELT_EXCEPTIONS)
 
 # Find Urho3D library
 find_package (Urho3D REQUIRED)

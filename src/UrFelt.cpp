@@ -1,5 +1,3 @@
-//#define FELT_EXCEPTIONS
-
 #include "UrFelt.hpp"
 
 

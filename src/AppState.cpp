@@ -81,20 +81,24 @@ void Tick<Label::Zap>::tick(const float dt)
 	const Vec3f& origin = reinterpret_cast<const Vec3f&>(zap_ray.origin_);
 	const Vec3f& direction = reinterpret_cast<const Vec3f&>(zap_ray.direction_);
 
-	constexpr float radius = 3.0f;
-
+	constexpr float radius = 5.0f;
 
 	const Vec3f& pos_hit = m_papp->m_surface.ray(origin, direction);
+
+	if (pos_hit == UrSurface3D::NULL_POS<FLOAT>())
+		return;
+
 	const Vec3i& pos_lower = felt::floor(pos_hit) - Vec3i::Constant(UINT(radius));
 	const Vec3i& pos_upper = felt::ceil(pos_hit) + Vec3i::Constant(UINT(radius));
 
 	m_papp->m_surface.update(pos_lower, pos_upper,
-		[&pos_hit](const Vec3i& pos, const auto&) -> FLOAT {
+		[&pos_hit, this](const Vec3i& pos, const UrSurface3D::IsoGrid& isogrid) -> FLOAT {
 			const Vec3f& posf = pos.template cast<FLOAT>();
 			const Vec3f& pos_dist = posf - pos_hit;
 			const FLOAT dist = pos_dist.norm() - radius;
-			printf("%f, %f, %f", dist, radius, dist / radius);
-			return std::min(dist / radius, 0.0f);
+			const FLOAT speed = this->m_amt * std::min(dist / radius, 0.0f);
+			const FLOAT curv = isogrid.curv(pos);
+			return (0.8f*speed + 0.1f*curv);
 		}
 	);
 //	m_papp->m_surface.update_start();

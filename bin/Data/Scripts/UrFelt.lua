@@ -172,18 +172,11 @@ function HandleUpdate(eventType, eventData)
  	local msg = queue_in:pop()	
 	while msg do
 			
-		if msg.type == MsgType.PERCENT_TOP then 
-			if msg.value < 0 then
-				percent_top_ui_txt:SetText("")
-			else
-				percent_top_ui_txt:SetText("Loading physics " .. msg.value .. "%") 
-			end
-			
-		elseif msg.type == MsgType.PERCENT_BOTTOM then 
+		if msg.type == MsgType.PERCENT_BOTTOM then 
 			if msg.value < 0 then
 				percent_bottom_ui_txt:SetText("")
 			else
-				percent_bottom_ui_txt:SetText("Constructing surface " .. msg.value .. "%") 
+				percent_bottom_ui_txt:SetText(msg.label .. " " .. msg.value .. "%") 
 			end
 			
 		end

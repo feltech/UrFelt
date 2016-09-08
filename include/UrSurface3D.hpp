@@ -28,12 +28,9 @@ public:
 	using Base::VecDi;
 	using Base::VecDf;
 	using CollShapeGrid = SingleTrackedGrid<FeltCollisionShape*, 3>;
-protected:
-	CollShapeGrid	m_grid_coll_shapes;
-	UrPolyGrid3D	m_poly;
-	Urho3D::Node* 	m_pnode;
 
 public:
+
 	UrSurface3D () = default;
 
 
@@ -80,6 +77,11 @@ public:
 		const VecDi& pos_leaf_lower_, const VecDi& pos_leaf_upper_,
 		std::function<FLOAT(const VecDi&, const IsoGrid&)> fn_
 	);
+
+protected:
+	CollShapeGrid	m_grid_coll_shapes;
+	UrPolyGrid3D	m_poly;
+	Urho3D::Node* 	m_pnode;
 };
 
 } /* namespace felt */
