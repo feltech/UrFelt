@@ -178,6 +178,12 @@ function HandleUpdate(eventType, eventData)
 			else
 				percent_bottom_ui_txt:SetText(msg.label .. " " .. msg.value .. "%") 
 			end
+		elseif msg.type == MsgType.PERCENT_TOP then 
+			if msg.value < 0 then
+				percent_top_ui_txt:SetText("")
+			else
+				percent_top_ui_txt:SetText(msg.label .. " " .. msg.value) 
+			end
 			
 		end
 		
