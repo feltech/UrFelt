@@ -3,14 +3,14 @@ project (UrFelt)
 # Set minimum version
 cmake_minimum_required (VERSION 2.8.6)
 if (COMMAND cmake_policy)
-    cmake_policy (SET CMP0003 NEW)
-    if (CMAKE_VERSION VERSION_GREATER 2.8.12 OR CMAKE_VERSION VERSION_EQUAL 2.8.12)
-        cmake_policy (SET CMP0022 NEW) # INTERFACE_LINK_LIBRARIES defines the link interface
-    endif ()
-    if (CMAKE_VERSION VERSION_GREATER 3.0.0 OR CMAKE_VERSION VERSION_EQUAL 3.0.0)
-        cmake_policy (SET CMP0026 OLD) # Disallow use of the LOCATION target property - therefore we set to OLD as we still need it
-        cmake_policy (SET CMP0042 NEW) # MACOSX_RPATH is enabled by default
-    endif ()
+	cmake_policy (SET CMP0003 NEW)
+	if (CMAKE_VERSION VERSION_GREATER 2.8.12 OR CMAKE_VERSION VERSION_EQUAL 2.8.12)
+		cmake_policy (SET CMP0022 NEW) # INTERFACE_LINK_LIBRARIES defines the link interface
+	endif ()
+	if (CMAKE_VERSION VERSION_GREATER 3.0.0 OR CMAKE_VERSION VERSION_EQUAL 3.0.0)
+		cmake_policy (SET CMP0026 OLD) # Disallow use of the LOCATION target property - therefore we set to OLD as we still need it
+		cmake_policy (SET CMP0042 NEW) # MACOSX_RPATH is enabled by default
+	endif ()
 endif ()
 
 # Set CMake modules search path
@@ -41,9 +41,12 @@ set (MSM_INCLUDE vendor/msm-lite/include)
 set (LUAHPP_INCLUDE ${URHO3D_HOME}/Source/ThirdParty/LuaJIT/src)
 
 include_directories (
-    ${FELT_INCLUDE_DIRS} ${URHO3D_INCLUDE_DIRS} include ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
-    ${MSM_INCLUDE} /usr/include/x86_64-linux-gnu/c++/5
+	${FELT_INCLUDE_DIRS} ${URHO3D_INCLUDE_DIRS} include ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
+	${MSM_INCLUDE} /usr/include/x86_64-linux-gnu/c++/5
 )
+
+FILE(GLOB_RECURSE HPPS "include/*")
+add_custom_target(headers SOURCES ${HPPS})
 
 # Define target name
 set (TARGET_NAME UrFelt)
@@ -55,7 +58,7 @@ file (GLOB LUABIND_FILES src/bind/*.cpp)
 file (GLOB LUABIND_UTIL ${URHO3D_HOME}/Source/Urho3D/LuaScript/ToluaUtils.cpp)
 file (GLOB H_FILES include/*.h)
 set (
-    SOURCE_FILES ${CPP_FILES} ${LUABIND_UTIL} ${LUABIND_FILES} ${H_FILES}
+	SOURCE_FILES ${CPP_FILES} ${LUABIND_UTIL} ${LUABIND_FILES} ${H_FILES}
 )
 
 # Setup target with resource copying
