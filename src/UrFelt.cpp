@@ -1,6 +1,5 @@
 #include "UrFelt.hpp"
 
-
 #include <thread>
 #include <chrono>
 #include <omp.h>
@@ -162,9 +161,6 @@ void UrFelt::worker()
 
 	auto time_last = Clock::now();
 	Seconds time_step;
-
-	UINT expand_count = 0;
-	const UINT expand_max = 100;
 
 	while (!m_quit)
 	{
