@@ -1,5 +1,6 @@
 #include <typeinfo>
 #include <stdio.h>
+#include <chrono>
 #include "UrFelt.hpp"
 #include "AppState.hpp"
 
@@ -61,7 +62,7 @@ Tick<Label::Zap>::Tick(UrFelt* papp_, FLOAT amt)
   m_screen_height(papp_->GetSubsystem<Urho3D::Graphics>()->GetHeight()),
   m_pcamera(
 	  papp_->GetSubsystem<Urho3D::Renderer>()->GetViewport(0)->GetScene()->
-	  	  GetComponent<Urho3D::Camera>("Camera")
+		  GetComponent<Urho3D::Camera>("Camera")
   )
 {
 
@@ -91,21 +92,54 @@ void Tick<Label::Zap>::tick(const float dt)
 	const Vec3i& pos_lower = felt::floor(pos_hit) - Vec3i::Constant(UINT(radius));
 	const Vec3i& pos_upper = felt::ceil(pos_hit) + Vec3i::Constant(UINT(radius));
 
+	using Clock = std::chrono::high_resolution_clock;
+	using Seconds = std::chrono::duration<float>;
+	using Time = std::chrono::time_point<Clock, Seconds>;
+	using namespace Messages;
+
+	auto time_before = Clock::now();
+
 	m_papp->m_surface.update(pos_lower, pos_upper,
 		[&pos_hit, this](const Vec3i& pos, const UrSurface3D::IsoGrid& isogrid) -> FLOAT {
 			const Vec3f& posf = pos.template cast<FLOAT>();
 			const Vec3f& pos_dist = posf - pos_hit;
 			const FLOAT dist = pos_dist.norm() - radius;
 			const FLOAT speed = this->m_amt * std::min(dist / radius, 0.0f);
-			const FLOAT curv = isogrid.curv(pos);
-			return (0.8f*speed + 0.1f*curv);
+//			const FLOAT curv = isogrid.curv(pos);
+			if (speed != speed)
+			{
+				std::stringstream strs;
+				strs << "Invalid speed: " << speed;
+				std::string str = strs.str();
+				throw std::domain_error(str);
+			}
+			if (!(-1 < speed && speed < 1))
+			{
+				std::stringstream strs;
+				strs << "Invalid speed: " << speed;
+				std::string str = strs.str();
+				throw std::domain_error(str);
+			}
+			return 0.3f*speed;
 		}
 	);
+
+
+	auto time_after = Clock::now();
+	Seconds duration = time_after - time_before;
+
+	m_papp->m_queue_script.push(UrQueue::Map{
+		{"type", PERCENT_TOP},
+		{"value", duration.count() * 1000},
+		{"label", "Updating surface"}
+	});
+
+
 //	m_papp->m_surface.update_start();
 //	FLOAT leftover = m_papp->m_surface.delta_gauss<4>(
 //		reinterpret_cast<const Vec3f&>(zap_ray.origin_),
 //		reinterpret_cast<const Vec3f&>(zap_ray.direction_),
-//		m_amt, 2.0f
+//		m_amt, radius
 //	);
 //	m_papp->m_surface.update_end_local();
 //	m_papp->m_surface.poly().notify(m_papp->m_surface);
@@ -134,6 +168,7 @@ void Tick<Label::UpdateGPU>::tick(const float dt)
 void Tick<Label::UpdatePoly>::tick(const float dt)
 {
 	using namespace msm;
+
 	m_papp->m_surface.poly().poly_cubes(m_papp->m_surface);
 	m_papp->m_controller->process_event("worker_pause"_t);
 }
