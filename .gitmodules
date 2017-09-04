@@ -4,3 +4,6 @@
 [submodule "vendor/msm-lite"]
 	path = vendor/msm-lite
 	url = https://github.com/boost-experimental/msm-lite.git
+[submodule "vendor/Felt"]
+	path = vendor/Felt
+	url = https://github.com/feltech/Felt.git
