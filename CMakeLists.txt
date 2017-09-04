@@ -18,13 +18,12 @@ endif ()
 get_filename_component(PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
 
 set (URHO3D_HOME ${PARENT_DIR}/Urho3D CACHE PATH "Path to Urho3D")
-set (FELT_HOME ${PARENT_DIR}/Felt CACHE PATH "Path to Felt")
 
 set(Felt_DIR ${FELT_HOME})
-set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules" "${FELT_HOME}")
+set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules" "${URHO3D_HOME}/vendor/Felt")
 
 # Add common C++ definitions.
-add_definitions(-std=c++14 -fopenmp -Wfatal-errors -DFELT_EXCEPTIONS)
+add_definitions(-std=c++14 -fopenmp -Wfatal-errors)# -DFELT_EXCEPTIONS)
 
 # Find Urho3D library
 find_package (Urho3D REQUIRED)
@@ -36,13 +35,14 @@ find_package (Felt REQUIRED)
 include (Urho3D-CMake-common)
 
 # Set include folders
+set (FELT_INCLUDE vendor/Felt/include)
 set (LUACPPMSG_INCLUDE vendor/LuaCppMsg/include)
 set (MSM_INCLUDE vendor/msm-lite/include)
 set (LUAHPP_INCLUDE ${URHO3D_HOME}/Source/ThirdParty/LuaJIT/src)
 
 include_directories (
-	${FELT_INCLUDE_DIRS} ${URHO3D_INCLUDE_DIRS} include ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
-	${MSM_INCLUDE} /usr/include/x86_64-linux-gnu/c++/5
+	${URHO3D_INCLUDE_DIRS} include ${FELT_INCLUDE} ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
+	${MSM_INCLUDE}#/usr/include/x86_64-linux-gnu/c++/5
 )
 
 FILE(GLOB_RECURSE HPPS "include/*")
