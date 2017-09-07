@@ -13,23 +13,22 @@ if (COMMAND cmake_policy)
 	endif ()
 endif ()
 
-# Set CMake modules search path
-
-get_filename_component(PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
-
 set (URHO3D_HOME "vendor/Urho3D")
 
-set(Felt_DIR ${FELT_HOME})
-set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules" "${URHO3D_HOME}/vendor/Felt")
+set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules")
 
 # Add common C++ definitions.
 add_definitions(-std=c++14 -fopenmp -Wfatal-errors)# -DFELT_EXCEPTIONS)
 
-# Find Felt library
-find_package (Felt REQUIRED)
-
 # Include Urho3D Cmake common module
 include (UrhoCommon)
+
+find_package(Boost
+	1.62							# Minimum or EXACT version e.g. 1.36.0
+	REQUIRED						# Fail with error if Boost is not found
+	coroutine system	# Boost libraries by their canonical name
+) 
+
 
 # Set include folders
 set (FELT_INCLUDE vendor/Felt/include)
@@ -38,16 +37,15 @@ set (MSM_INCLUDE vendor/msm-lite/include)
 set (LUAHPP_INCLUDE ${URHO3D_HOME}/Source/ThirdParty/LuaJIT/src)
 
 include_directories (
-	${URHO3D_INCLUDE_DIRS} include ${FELT_INCLUDE} ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
-	${MSM_INCLUDE}#/usr/include/x86_64-linux-gnu/c++/5
+	include ${FELT_INCLUDE} ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
+	${MSM_INCLUDE} ${Boost_INCLUDE_DIRS} #/usr/include/x86_64-linux-gnu/c++/5
 )
 
-FILE(GLOB_RECURSE HPPS "include/*")
-add_custom_target(headers SOURCES ${HPPS})
+#FILE(GLOB_RECURSE HPPS "include/*")
+#add_custom_target(headers SOURCES ${HPPS})
 
 # Define target name
 set (TARGET_NAME UrFelt)
-
 
 # Define source files
 file (GLOB CPP_FILES src/*.cpp)
@@ -62,4 +60,4 @@ set (
 setup_main_executable ()
 
 # Link to external libraries.
-target_link_libraries(UrFelt gomp atomic boost_coroutine boost_system)
+target_link_libraries(UrFelt gomp atomic ${Boost_LIBRARIES})
