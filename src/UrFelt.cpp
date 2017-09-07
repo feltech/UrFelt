@@ -60,6 +60,7 @@ void UrFelt::Setup()
 	engineParameters_["WindowWidth"]=1280;
 	engineParameters_["WindowHeight"]=720;
 	engineParameters_["WindowResizable"]=true;
+	//engineParameters_["ResourcePaths"] = "Data;CoreData;vendor/share/lua/5.1";
 
 	context_->RegisterSubsystem(this);
 	context_->RegisterFactory<FeltCollisionShape>(PHYSICS_CATEGORY);
@@ -85,8 +86,10 @@ void UrFelt::Setup()
 void UrFelt::Start()
 {
 	using namespace Urho3D;
+	GetSubsystem<FileSystem>();
 
 	LuaScript* lua = context_->GetSubsystem<LuaScript>();
+	lua->ExecuteFile("Scripts/main.lua");
 	lua->ExecuteFile("Scripts/UrFelt.lua");
 	lua->ExecuteFunction("Init");
 
