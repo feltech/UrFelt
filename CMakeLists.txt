@@ -17,7 +17,7 @@ endif ()
 
 get_filename_component(PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
 
-set (URHO3D_HOME ${PARENT_DIR}/Urho3D CACHE PATH "Path to Urho3D")
+set (URHO3D_HOME "vendor/Urho3D")
 
 set(Felt_DIR ${FELT_HOME})
 set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules" "${URHO3D_HOME}/vendor/Felt")

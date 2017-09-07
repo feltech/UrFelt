@@ -7,3 +7,6 @@
 [submodule "vendor/Felt"]
 	path = vendor/Felt
 	url = https://github.com/feltech/Felt.git
+[submodule "vendor/Urho3D"]
+	path = vendor/Urho3D
+	url = https://github.com/urho3d/Urho3D.git
