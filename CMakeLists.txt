@@ -25,14 +25,11 @@ set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules" "${URHO3D_HOME}/vendor/Fel
 # Add common C++ definitions.
 add_definitions(-std=c++14 -fopenmp -Wfatal-errors)# -DFELT_EXCEPTIONS)
 
-# Find Urho3D library
-find_package (Urho3D REQUIRED)
-
 # Find Felt library
 find_package (Felt REQUIRED)
 
 # Include Urho3D Cmake common module
-include (Urho3D-CMake-common)
+include (UrhoCommon)
 
 # Set include folders
 set (FELT_INCLUDE vendor/Felt/include)
