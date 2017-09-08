@@ -28,7 +28,7 @@ extern int tolua_UrFelt_open (lua_State* tolua_S);
 
 
 
-namespace felt
+namespace Felt
 {
 	namespace Messages
 	{
@@ -56,11 +56,11 @@ namespace felt
 
 	class UrFelt : public Urho3D::Application
 	{
-		friend class felt::State::BaseSM;
-		friend class felt::State::AppSM;
-		friend class felt::State::WorkerRunningSM;
-		friend class felt::State::WorkerRunningController;
-		template <class StateType> friend class felt::State::Tick;
+		friend class Felt::State::BaseSM;
+		friend class Felt::State::AppSM;
+		friend class Felt::State::WorkerRunningSM;
+		friend class Felt::State::WorkerRunningController;
+		template <class StateType> friend class Felt::State::Tick;
 	public:
 		~UrFelt();
 		UrFelt(Urho3D::Context* context);
@@ -75,11 +75,11 @@ namespace felt
 		void start_worker();
 
 	private:
-		std::unique_ptr<felt::State::AppController>	m_controller;
-		std::unique_ptr<felt::State::TickBase>		m_app_state;
-		std::unique_ptr<felt::State::TickBase>		m_app_state_next;
-		std::shared_ptr<felt::State::TickBase>		m_worker_state;
-		std::shared_ptr<felt::State::TickBase>		m_worker_state_next;
+		std::unique_ptr<Felt::State::AppController>	m_controller;
+		std::unique_ptr<Felt::State::TickBase>		m_app_state;
+		std::unique_ptr<Felt::State::TickBase>		m_app_state_next;
+		std::shared_ptr<Felt::State::TickBase>		m_worker_state;
+		std::shared_ptr<Felt::State::TickBase>		m_worker_state_next;
 
 		UrSurface3D				m_surface;
 		Urho3D::RigidBody* 		m_surface_body;

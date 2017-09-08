@@ -5,7 +5,7 @@
 
 #include "UrSurface3D.hpp"
 
-namespace felt
+namespace Felt
 {
 
 class URHO3D_API FeltCollisionShape : public Urho3D::CollisionShape
@@ -25,12 +25,12 @@ public:
 
 	using Base::CollisionShape;
 
-	void SetSurface(const UrSurface3D* psurface_, const felt::Vec3i& pos_child_);
+	void SetSurface(const UrSurface3D* psurface_, const Felt::Vec3i& pos_child_);
 
 protected:
 	btCollisionShape* UpdateDerivedShape(int shapeType, const Urho3D::Vector3& newWorldScale);
 };
 
-} /* namespace felt */
+} /* namespace Felt */
 
 #endif /* SRC_FELTCOLLISIONSHAPE_HPP_ */

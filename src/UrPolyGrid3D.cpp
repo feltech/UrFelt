@@ -1,6 +1,6 @@
 #include "UrPolyGrid3D.hpp"
 
-namespace felt
+namespace Felt
 {
 
 UrPolyGrid3D::UrPolyGrid3D ()  : Base(), m_pnode_root(NULL), m_pcontext(NULL)
@@ -8,27 +8,24 @@ UrPolyGrid3D::UrPolyGrid3D ()  : Base(), m_pnode_root(NULL), m_pcontext(NULL)
 
 
 UrPolyGrid3D::UrPolyGrid3D (
-	const Surface_t& surface_, Urho3D::Context* pcontext_,
+	const SurfaceType& surface_, Urho3D::Context* pcontext_,
 	Urho3D::Node* pnode_root_
-) : Base(), m_pnode_root(NULL), m_pcontext(NULL)
+) : Base(surface_), m_pnode_root(pnode_root_), m_pcontext(pcontext_)
 {
-	this->init(surface_, pcontext_, pnode_root_);
+	// Initial.
+	for (
+		PosIdx pos_idx_child = 0; pos_idx_child < this->children().data().size();
+		pos_idx_child++
+	) {
+		this->children().get(pos_idx_child).bind(
+			surface_.isogrid().children().get(pos_idx_child).lookup()
+		);
+	}
 }
 
 
 UrPolyGrid3D::~UrPolyGrid3D ()
 {}
-
-
-void UrPolyGrid3D::init (
-	const Surface_t& surface_, Urho3D::Context* pcontext_,
-	Urho3D::Node* pnode_root_
-)
-{
-	m_pnode_root = pnode_root_;
-	m_pcontext = pcontext_;
-	Base::init(surface_);
-}
 
 
 void UrPolyGrid3D::init_child (
@@ -46,4 +43,4 @@ void UrPolyGrid3D::update_gpu ()
 		this->get(pos_child).update_gpu();
 }
 
-} /* namespace felt */
+} /* namespace Felt */

@@ -24,7 +24,7 @@ add_definitions(-std=c++14 -fopenmp -Wfatal-errors)# -DFELT_EXCEPTIONS)
 include (UrhoCommon)
 
 find_package(Boost
-	1.62							# Minimum or EXACT version e.g. 1.36.0
+	1.58							# Minimum or EXACT version e.g. 1.36.0
 	REQUIRED						# Fail with error if Boost is not found
 	coroutine system	# Boost libraries by their canonical name
 ) 

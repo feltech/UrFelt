@@ -3,7 +3,7 @@
 #include "FeltCollisionShape.hpp"
 #include "btSurfaceShape.h"
 
-namespace felt
+namespace Felt
 {
 void FeltCollisionShape::SetSurface(const UrSurface3D* psurface_, const Vec3i& pos_child_)
 {
@@ -25,4 +25,4 @@ btCollisionShape* FeltCollisionShape::UpdateDerivedShape(
 	return pshape;
 }
 
-} /* namespace felt */
+} /* namespace Felt */

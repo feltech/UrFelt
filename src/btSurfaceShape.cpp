@@ -18,7 +18,7 @@ subject to the following restrictions:
 #include <Urho3D/ThirdParty/Bullet/LinearMath/btTransformUtil.h>
 
 
-btSurfaceShape::btSurfaceShape(const felt::UrSurface3D* psurface_, const felt::Vec3i& pos_child_)
+btSurfaceShape::btSurfaceShape(const Felt::UrSurface3D* psurface_, const Felt::Vec3i& pos_child_)
 : m_localScaling(btScalar(1.),btScalar(1.),btScalar(1.)), m_psurface(psurface_),
   m_pos_child(pos_child_)
 {
@@ -33,10 +33,10 @@ btSurfaceShape::~btSurfaceShape()
 
 void btSurfaceShape::getAabb(const btTransform& t,btVector3& aabbMin,btVector3& aabbMax) const
 {
-	const felt::UrSurface3D::IsoGrid::Child& child =
+	const Felt::UrSurface3D::IsoGrid::Child& child =
 		m_psurface->isogrid().children().get(m_pos_child);
-	felt::Vec3i pos_min = child.offset();
-	felt::Vec3i pos_max = pos_min + child.size().template cast<felt::INT>();
+	Felt::Vec3i pos_min = child.offset();
+	Felt::Vec3i pos_max = pos_min + child.size().template cast<Felt::INT>();
 
 	aabbMin.setValue(btScalar(pos_min(0)),btScalar(pos_min(1)),btScalar(pos_min(2)));
 	aabbMax.setValue(btScalar(pos_max(0)),btScalar(pos_max(1)),btScalar(pos_max(2)));
@@ -47,13 +47,13 @@ void btSurfaceShape::processAllTriangles(
 	btTriangleCallback* callback, const btVector3& aabbMin, const btVector3& aabbMax
 ) const {
 	
-	using Polys = felt::UrPolyGrid3D::PolyLeaf;
-	using Vertex = felt::UrPoly3D::Vertex;
+	using Polys = Felt::UrPolyGrid3D::PolyLeaf;
+	using Vertex = Felt::UrPoly3D::Vertex;
 	const Polys& polys = m_psurface->poly().get(m_pos_child);
 	
 	for (unsigned idx = 0; idx < polys.spx().size(); idx++)
 	{
-		const felt::UrPoly3D::Simplex& spx = polys.spx()[idx];
+		const Felt::UrPoly3D::Simplex& spx = polys.spx()[idx];
 
 		const Vertex& vtx0 =  polys.vtx()[spx.idxs[0]];
 		const Vertex& vtx1 =  polys.vtx()[spx.idxs[1]];

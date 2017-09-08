@@ -27,7 +27,7 @@
 #include "FeltCollisionShape.hpp"
 #include "btFeltCollisionConfiguration.hpp"
 
-using namespace felt;
+using namespace Felt;
 
 
 const char* PHYSICS_CATEGORY = "Physics";
@@ -173,7 +173,7 @@ void UrFelt::worker()
 		if (this->m_controller->is(State::AppController::WORKER_RUNNING))
 			while (const UrQueue::Msg::Opt& msg_exists = m_queue_worker.pop())
 			{
-				using namespace felt::State::Event;
+				using namespace Felt::State::Event;
 				const UrQueue::Msg& msg = *msg_exists;
 				const MsgType type = (MsgType)msg.get("type").as<float>();
 				switch (type)
@@ -212,4 +212,4 @@ void UrFelt::start_worker ()
 	m_thread_updater = std::thread(&UrFelt::worker, this);
 }
 
-URHO3D_DEFINE_APPLICATION_MAIN(felt::UrFelt)
+URHO3D_DEFINE_APPLICATION_MAIN(Felt::UrFelt)

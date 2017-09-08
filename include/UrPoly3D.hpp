@@ -15,7 +15,7 @@
 
 #include <GL/gl.h>
 
-namespace felt
+namespace Felt
 {
 
 class UrPoly3D : public Poly<3>

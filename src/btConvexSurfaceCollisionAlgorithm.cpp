@@ -93,13 +93,13 @@ void btConvexSurfaceCollisionAlgorithm::processCollision (
 
 	m_manifoldPtr->clearManifold();
 
-	for (const felt::Vec3i& pos_leaf : surfaceShape->layer(0))
+	for (const Felt::Vec3i& pos_leaf : surfaceShape->layer(0))
 	{
-		const felt::Vec3f& grad = surfaceShape->surface()->isogrid().grad(pos_leaf);
-		const felt::FLOAT& mag_grad_sq = grad.blueNorm();
+		const Felt::Vec3f& grad = surfaceShape->surface()->isogrid().grad(pos_leaf);
+		const Felt::FLOAT& mag_grad_sq = grad.blueNorm();
 		if (mag_grad_sq < 0.1f)
 			continue;
-		const felt::Vec3f& normal = grad.normalized();
+		const Felt::Vec3f& normal = grad.normalized();
 
 		btVector3 btnormal(normal(0), normal(1), normal(2));
 
@@ -113,7 +113,7 @@ void btConvexSurfaceCollisionAlgorithm::processCollision (
 
 		btVector3 vtxInSurface = convexInSurfaceTrans(vtx);
 
-		const felt::Vec3f pos_vtx(vtxInSurface.x(), vtxInSurface.y(), vtxInSurface.z());
+		const Felt::Vec3f pos_vtx(vtxInSurface.x(), vtxInSurface.y(), vtxInSurface.z());
 
 		if (!surfaceShape->surface()->isogrid().inside(pos_vtx))
 			continue;

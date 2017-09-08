@@ -40,7 +40,7 @@ namespace co = boost::coroutines;
 	struct Name##Label { static auto c_str() BOOST_MSM_LITE_NOEXCEPT { return #Name; } }; \
 	using Name = msm::state<Name##Label>;
 
-namespace felt
+namespace Felt
 {
 	namespace State
 	{
@@ -77,7 +77,7 @@ namespace felt
 }
 
 
-namespace felt
+namespace Felt
 {
 	namespace State
 	{
@@ -205,7 +205,7 @@ ZAP							+ event<Event::StopZap>
 			}
 
 		private:
-			using BaseAction = std::function<void(WorkerRunningController*, felt::UrFelt*)>;
+			using BaseAction = std::function<void(WorkerRunningController*, Felt::UrFelt*)>;
 			using ZapAction =
 				std::function<void(WorkerRunningController*, UrFelt*, const Event::StartZap&)>;
 			ZapAction worker_remember_zap() const;
@@ -312,32 +312,32 @@ WORKER_RUNNING			+ msm::on_entry
 
 
 		template <class StateType>
-		std::function<bool (felt::UrFelt*)> AppSM::is(
+		std::function<bool (Felt::UrFelt*)> AppSM::is(
 			StateType state_
 		) {
-			return [state_](felt::UrFelt* papp_) {
+			return [state_](Felt::UrFelt* papp_) {
 				return papp_->m_controller->is(state_);
 			};
 		}
 
 
 		template <class StateType>
-		std::function<void (felt::UrFelt*)> BaseSM::app_set()
+		std::function<void (Felt::UrFelt*)> BaseSM::app_set()
 		{
 			using namespace msm;
 
-			return [](felt::UrFelt* papp_) {
+			return [](Felt::UrFelt* papp_) {
 				papp_->m_app_state_next.reset(new Tick<StateType>{papp_});
 			};
 		}
 
 
 		template <class StateType>
-		std::function<void (felt::UrFelt*)> BaseSM::worker_set()
+		std::function<void (Felt::UrFelt*)> BaseSM::worker_set()
 		{
 			using namespace msm;
 
-			return [](felt::UrFelt* papp_) {
+			return [](Felt::UrFelt* papp_) {
 				papp_->m_worker_state_next.reset(new Tick<StateType>{papp_});
 			};
 		}

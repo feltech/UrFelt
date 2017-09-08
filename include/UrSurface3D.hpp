@@ -15,7 +15,7 @@
 #include <Felt/SingleTrackedGrid.hpp>
 #include "UrPolyGrid3D.hpp"
 
-namespace felt
+namespace Felt
 {
 
 class FeltCollisionShape;
@@ -84,6 +84,6 @@ protected:
 	Urho3D::Node* 	m_pnode;
 };
 
-} /* namespace felt */
+} /* namespace Felt */
 
 #endif /* INCLUDE_URSURFACE3D_HPP_ */

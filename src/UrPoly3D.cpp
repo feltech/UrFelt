@@ -3,7 +3,7 @@
 #include <Urho3D/Resource/ResourceCache.h>
 #include <Urho3D/IO/Log.h>
 
-namespace felt
+namespace Felt
 {
 
 
@@ -37,8 +37,8 @@ void UrPoly3D::init_gpu (
 	m_pnode = pnode_root_->CreateChild("Poly");
 	m_pstatic_model = m_pnode->CreateComponent<StaticModel>();
 
-	felt::Vec3f fdims = dims_.template cast<float>();
-	felt::Vec3f foffset = offset_.template cast<float>();
+	Felt::Vec3f fdims = dims_.template cast<float>();
+	Felt::Vec3f foffset = offset_.template cast<float>();
 	Vector3 pos_offset = reinterpret_cast<Vector3&>(foffset);
 	Vector3 pos_min = pos_offset;
 	Vector3 pos_max = (reinterpret_cast<Vector3&>(fdims) + pos_offset);

@@ -38,7 +38,7 @@
 TOLUA_API int tolua_UrFelt_open (lua_State* tolua_S);
 
 #include "UrFelt.hpp"
-using namespace felt;
+using namespace Felt;
 using namespace Messages;
 using namespace Urho3D;
 
@@ -59,7 +59,7 @@ static void tolua_reg_types (lua_State* tolua_S)
  tolua_usertype(tolua_S,"Urho3D::Application");
 }
 
-/* get function: felt */
+/* get function: Felt */
 #ifndef TOLUA_DISABLE_tolua_get_felt_ptr
 static int tolua_get_felt_ptr(lua_State* tolua_S)
 {
@@ -95,7 +95,7 @@ static int tolua_UrFelt_GetFelt00(lua_State* tolua_S)
 }
 #endif //#ifndef TOLUA_DISABLE
 
-/* get function: felt */
+/* get function: Felt */
 #ifndef TOLUA_DISABLE_tolua_get_felt_ptr
 static int tolua_get_felt_ptr(lua_State* tolua_S)
 {
@@ -125,9 +125,9 @@ TOLUA_API int tolua_UrFelt_open (lua_State* tolua_S)
  tolua_cclass(tolua_S,"UrFelt","UrFelt","Urho3D::Application",NULL);
  tolua_beginmodule(tolua_S,"UrFelt");
  tolua_endmodule(tolua_S);
- tolua_variable(tolua_S,"felt",tolua_get_felt_ptr,NULL);
+ tolua_variable(tolua_S,"Felt",tolua_get_felt_ptr,NULL);
  tolua_function(tolua_S,"GetFelt",tolua_UrFelt_GetFelt00);
- tolua_variable(tolua_S,"felt",tolua_get_felt_ptr,NULL);
+ tolua_variable(tolua_S,"Felt",tolua_get_felt_ptr,NULL);
  tolua_endmodule(tolua_S);
  return 1;
 }

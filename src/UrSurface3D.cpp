@@ -6,7 +6,7 @@
 #include "btFeltCollisionConfiguration.hpp"
 
 
-namespace felt
+namespace Felt
 {
 
 UrSurface3D::UrSurface3D(
@@ -82,4 +82,4 @@ void  UrSurface3D::update(
 	m_poly.notify(*this);
 }
 
-} /* namespace felt */
+} /* namespace Felt */

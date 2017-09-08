@@ -4,7 +4,7 @@
 #include <Urho3D/ThirdParty/Bullet/BulletCollision/CollisionShapes/btConcaveShape.h>
 #include "UrSurface3D.hpp"
 
-///The btSurfaceShape wraps a felt::Surface.
+///The btSurfaceShape wraps a Felt::Surface.
 ATTRIBUTE_ALIGNED16(class) btSurfaceShape : public btConcaveShape
 {
 protected:
@@ -12,13 +12,13 @@ protected:
 	btVector3	m_localAabbMin;
 	btVector3	m_localAabbMax;
 	btVector3	m_localScaling;
-	const felt::UrSurface3D*    m_psurface;
-	const felt::Vec3i         m_pos_child;
+	const Felt::UrSurface3D*    m_psurface;
+	const Felt::Vec3i         m_pos_child;
 
 public:
 	BT_DECLARE_ALIGNED_ALLOCATOR();
 
-	btSurfaceShape(const felt::UrSurface3D* psurface_, const felt::Vec3i& pos_child);
+	btSurfaceShape(const Felt::UrSurface3D* psurface_, const Felt::Vec3i& pos_child);
 
 	~btSurfaceShape();
 
@@ -42,17 +42,17 @@ public:
 	///fills the dataBuffer and returns the struct name (and 0 on failure)
 	const char* serialize(void* dataBuffer, btSerializer* serializer) const;
 
-	const felt::UrSurface3D* surface () const
+	const Felt::UrSurface3D* surface () const
 	{
 		return m_psurface;
 	}
 
-	const felt::UrSurface3D::PosArray& layer (const felt::UINT& layerID) const
+	const Felt::UrSurface3D::PosArray& layer (const Felt::UINT& layerID) const
 	{
 		return m_psurface->layer(m_pos_child, layerID);
 	}
 
-	const felt::UrSurface3D::IsoGrid::Child& child () const
+	const Felt::UrSurface3D::IsoGrid::Child& child () const
 	{
 		return m_psurface->isogrid().children().get(m_pos_child);
 	}

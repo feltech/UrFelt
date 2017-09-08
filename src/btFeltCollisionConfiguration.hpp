@@ -10,7 +10,7 @@
 
 #include <Urho3D/ThirdParty/Bullet/BulletCollision/CollisionDispatch/btDefaultCollisionConfiguration.h>
 
-namespace felt
+namespace Felt
 {
 
 class btFeltCollisionConfiguration : public btDefaultCollisionConfiguration
@@ -26,7 +26,7 @@ public:
 	btCollisionAlgorithmCreateFunc* getCollisionAlgorithmCreateFunc(int proxyType0, int proxyType1);
 };
 
-} /* namespace felt */
+} /* namespace Felt */
 
 #endif /* SRC_BTFELTCOLLISIONCONFIGURATION_HPP_ */
 

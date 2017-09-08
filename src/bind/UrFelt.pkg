@@ -1,5 +1,5 @@
 $#include "UrFelt.hpp"
-$using namespace felt;
+$using namespace Felt;
 
 module MsgType
 {
@@ -16,9 +16,9 @@ class UrFelt : public Urho3D::Application
 public:
 };
 
-tolua_readonly tolua_property__get_set UrFelt* felt;
+tolua_readonly tolua_property__get_set UrFelt* Felt;
 UrFelt* GetFelt();
-tolua_readonly tolua_property__get_set UrFelt* felt;
+tolua_readonly tolua_property__get_set UrFelt* Felt;
 
 ${
 #define TOLUA_DISABLE_tolua_UrFelt_GetFelt00

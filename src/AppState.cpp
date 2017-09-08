@@ -4,7 +4,7 @@
 #include "UrFelt.hpp"
 #include "AppState.hpp"
 
-using namespace felt::State;
+using namespace Felt::State;
 
 
 void Tick<Label::InitSurface>::tick(const float dt)
@@ -45,7 +45,7 @@ void Tick<Label::InitSurface>::execute(co::coroutine<FLOAT>::push_type& sink)
 	for (UINT expand = 0; expand < 100; expand++)
 	{
 		m_papp->m_surface.update([](auto& pos, auto& phi)->FLOAT {
-			using namespace felt;
+			using namespace Felt;
 			if (std::abs(pos(1)) > 1)
 				return 0;
 			else
@@ -89,8 +89,8 @@ void Tick<Label::Zap>::tick(const float dt)
 	if (pos_hit == UrSurface3D::NULL_POS<FLOAT>())
 		return;
 
-	const Vec3i& pos_lower = felt::floor(pos_hit) - Vec3i::Constant(UINT(radius));
-	const Vec3i& pos_upper = felt::ceil(pos_hit) + Vec3i::Constant(UINT(radius));
+	const Vec3i& pos_lower = Felt::floor(pos_hit) - Vec3i::Constant(UINT(radius));
+	const Vec3i& pos_upper = Felt::ceil(pos_hit) + Vec3i::Constant(UINT(radius));
 
 	using Clock = std::chrono::high_resolution_clock;
 	using Seconds = std::chrono::duration<float>;
@@ -176,7 +176,7 @@ const msm::state<msm::sm<WorkerRunningSM>> AppController::WORKER_RUNNING =
 	msm::state<msm::sm<WorkerRunningSM>>{};
 
 
-std::function<void(WorkerRunningController*, felt::UrFelt*)> BaseSM::worker_restore() const
+std::function<void(WorkerRunningController*, Felt::UrFelt*)> BaseSM::worker_restore() const
 {
 	return [](WorkerRunningController* pworker, UrFelt* papp_) {
 		pworker->restore(papp_);
