@@ -22,3 +22,8 @@
 /Rakefile
 /oprofile_data/
 /CMake/
+/.ninja_deps
+/.ninja_log
+/build.ninja
+/UrFelt.cbp
+/rules.ninja

@@ -1,5 +1,4 @@
-#include "UrFelt.hpp"
-
+#include <Application.hpp>
 #include <thread>
 #include <chrono>
 #include <omp.h>
@@ -24,17 +23,16 @@
 #include <Urho3D/Physics/PhysicsWorld.h>
 
 #include "AppState.hpp"
-#include "FeltCollisionShape.hpp"
 #include "btFeltCollisionConfiguration.hpp"
+#include "UrSurfaceCollisionShape.hpp"
 
-using namespace Felt;
-
+namespace UrFelt
+{
 
 const char* PHYSICS_CATEGORY = "Physics";
 const char* SUBSYSTEM_CATEGORY = "Subsystem";
 
-
-UrFelt::~UrFelt ()
+Application::~Application ()
 {
 	m_quit = true;
 	if (m_thread_updater.joinable())
@@ -42,18 +40,18 @@ UrFelt::~UrFelt ()
 }
 
 
-UrFelt::UrFelt (Urho3D::Context* context) : Urho3D::Application(context),
-	m_surface(), m_quit(false), m_controller(new State::AppController(this))
+Application::Application (Urho3D::Context* context) : Urho3D::Application(context),
+	m_psurface(), m_quit(false), m_controller(new State::AppController(this))
 {
 	context_->RegisterSubsystem(new Urho3D::LuaScript(context_));
 }
 
-Urho3D::String UrFelt::GetTypeNameStatic()
+Urho3D::String Application::GetTypeNameStatic()
 {
 	return "UrFelt";
 }
 
-void UrFelt::Setup()
+void Application::Setup()
 {
 	using namespace Urho3D;
 	engineParameters_["FullScreen"]=false;
@@ -63,7 +61,7 @@ void UrFelt::Setup()
 	//engineParameters_["ResourcePaths"] = "Data;CoreData;vendor/share/lua/5.1";
 
 	context_->RegisterSubsystem(this);
-	context_->RegisterFactory<FeltCollisionShape>(PHYSICS_CATEGORY);
+	context_->RegisterFactory<UrSurfaceCollisionShape>(PHYSICS_CATEGORY);
 
 	PhysicsWorld::config.collisionConfig_ = new btFeltCollisionConfiguration();
 
@@ -83,7 +81,7 @@ void UrFelt::Setup()
 }
 
 
-void UrFelt::Start()
+void Application::Start()
 {
 	using namespace Urho3D;
 	GetSubsystem<FileSystem>();
@@ -100,25 +98,27 @@ void UrFelt::Start()
 	Node* node = scene->CreateChild("PolyGrid");
 	node->SetPosition(Vector3(0, 0, 0));
 
-	m_surface.init(context_, node, Vec3u(200,100,200), Vec3u(16,16,16));
+	m_psurface = std::make_unique<UrSurface>(
+		Felt::Vec3i(200,100,200), Felt::Vec3i(16,16,16), context_, node
+	);
 
-	m_surface_body = node->CreateComponent<RigidBody>();
-	m_surface_body->SetKinematic(true);
-	m_surface_body->SetMass(10000000.0f);
-	m_surface_body->SetFriction(1.0f);
-	m_surface_body->SetUseGravity(false);
-	m_surface_body->SetRestitution(0.0);
+	m_psurface_body = node->CreateComponent<RigidBody>();
+	m_psurface_body->SetKinematic(true);
+	m_psurface_body->SetMass(10000000.0f);
+	m_psurface_body->SetFriction(1.0f);
+	m_psurface_body->SetUseGravity(false);
+	m_psurface_body->SetRestitution(0.0);
 
 	start_worker();
 
-	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(UrFelt, tick));
+	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(Application, tick));
 
 	using namespace msm;
 	m_controller->process_event("load"_t);
 }
 
 
-void UrFelt::tick(
+void Application::tick(
 	Urho3D::StringHash event_type_, Urho3D::VariantMap& event_data_
 ) {
 	using namespace Urho3D;
@@ -153,7 +153,7 @@ void UrFelt::tick(
 }
 
 
-void UrFelt::worker()
+void Application::worker()
 {
 	using namespace Urho3D;
 	using namespace Messages;
@@ -173,7 +173,7 @@ void UrFelt::worker()
 		if (this->m_controller->is(State::AppController::WORKER_RUNNING))
 			while (const UrQueue::Msg::Opt& msg_exists = m_queue_worker.pop())
 			{
-				using namespace Felt::State::Event;
+				using namespace UrFelt::State::Event;
 				const UrQueue::Msg& msg = *msg_exists;
 				const MsgType type = (MsgType)msg.get("type").as<float>();
 				switch (type)
@@ -207,9 +207,11 @@ void UrFelt::worker()
 }
 
 
-void UrFelt::start_worker ()
+void Application::start_worker ()
 {
-	m_thread_updater = std::thread(&UrFelt::worker, this);
+	m_thread_updater = std::thread(&Application::worker, this);
 }
 
-URHO3D_DEFINE_APPLICATION_MAIN(Felt::UrFelt)
+} // UrFelt.
+
+URHO3D_DEFINE_APPLICATION_MAIN(UrFelt::Application)

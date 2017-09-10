@@ -1,5 +1,6 @@
-#ifndef INCLUDE_URFELT_HPP_
-#define INCLUDE_URFELT_HPP_
+#ifndef INCLUDE_APPLICATION_HPP_
+#define INCLUDE_APPLICATION_HPP_
+#include <Common.hpp>
 
 #include <memory>
 #include <thread>
@@ -22,13 +23,13 @@
 #include <Felt/Surface.hpp>
 #include <LuaCppMsg.hpp>
 
-#include "UrSurface3D.hpp"
+#include "UrSurface.hpp"
 
 extern int tolua_UrFelt_open (lua_State* tolua_S);
 
 
 
-namespace Felt
+namespace UrFelt
 {
 	namespace Messages
 	{
@@ -54,16 +55,16 @@ namespace Felt
 		Urho3D::Ray, LuaCppMsg::CopyPtr<Urho3D::Ray>*, float
 	>;
 
-	class UrFelt : public Urho3D::Application
+	class Application : public Urho3D::Application
 	{
-		friend class Felt::State::BaseSM;
-		friend class Felt::State::AppSM;
-		friend class Felt::State::WorkerRunningSM;
-		friend class Felt::State::WorkerRunningController;
-		template <class StateType> friend class Felt::State::Tick;
+		friend class State::BaseSM;
+		friend class State::AppSM;
+		friend class State::WorkerRunningSM;
+		friend class State::WorkerRunningController;
+		template <class StateType> friend class State::Tick;
 	public:
-		~UrFelt();
-		UrFelt(Urho3D::Context* context);
+		~Application();
+		Application(Urho3D::Context* context);
 
 		static Urho3D::String GetTypeNameStatic();
 
@@ -75,14 +76,14 @@ namespace Felt
 		void start_worker();
 
 	private:
-		std::unique_ptr<Felt::State::AppController>	m_controller;
-		std::unique_ptr<Felt::State::TickBase>		m_app_state;
-		std::unique_ptr<Felt::State::TickBase>		m_app_state_next;
-		std::shared_ptr<Felt::State::TickBase>		m_worker_state;
-		std::shared_ptr<Felt::State::TickBase>		m_worker_state_next;
+		std::unique_ptr<State::AppController>	m_controller;
+		std::unique_ptr<State::TickBase>		m_app_state;
+		std::unique_ptr<State::TickBase>		m_app_state_next;
+		std::shared_ptr<State::TickBase>		m_worker_state;
+		std::shared_ptr<State::TickBase>		m_worker_state_next;
 
-		UrSurface3D				m_surface;
-		Urho3D::RigidBody* 		m_surface_body;
+		std::unique_ptr<UrSurface>				m_psurface;
+		Urho3D::RigidBody* 						m_psurface_body;
 
 		std::thread 				m_thread_updater;
 		std::atomic<bool>			m_quit;
@@ -92,4 +93,4 @@ namespace Felt
 		UrQueue	m_queue_main;
 	};
 }
-#endif /* INCLUDE_URFELT_HPP_ */
+#endif /* INCLUDE_APPLICATION_HPP_ */

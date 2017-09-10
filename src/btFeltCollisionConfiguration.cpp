@@ -8,7 +8,7 @@
 #include "btFeltCollisionConfiguration.hpp"
 #include "btConvexSurfaceCollisionAlgorithm.h"
 
-namespace Felt
+namespace UrFelt
 {
 
 btFeltCollisionConfiguration::btFeltCollisionConfiguration ()

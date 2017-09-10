@@ -37,16 +37,17 @@
 /* Exported function */
 TOLUA_API int tolua_UrFelt_open (lua_State* tolua_S);
 
-#include "UrFelt.hpp"
+#include <Application.hpp>
 using namespace Felt;
-using namespace Messages;
+using namespace UrFelt;
+using namespace UrFelt::Messages;
 using namespace Urho3D;
 
 #define TOLUA_DISABLE_tolua_UrFelt_GetFelt00
 static int tolua_UrFelt_GetFelt00(lua_State* tolua_S)
 {
 
-    return ToluaGetSubsystem<UrFelt>(tolua_S);
+    return ToluaGetSubsystem<UrFelt::Application>(tolua_S);
 }
 
 #define TOLUA_DISABLE_tolua_get_felt_ptr
@@ -82,7 +83,7 @@ static int tolua_UrFelt_GetFelt00(lua_State* tolua_S)
 #endif
  {
  {
-  UrFelt* tolua_ret = (UrFelt*)  GetFelt();
+  Application* tolua_ret = (Application*)  GetFelt();
   tolua_pushusertype(tolua_S,(void*)tolua_ret,"UrFelt");
  }
  }

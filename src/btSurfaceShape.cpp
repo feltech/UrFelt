@@ -18,46 +18,41 @@ subject to the following restrictions:
 #include <Urho3D/ThirdParty/Bullet/LinearMath/btTransformUtil.h>
 
 
-btSurfaceShape::btSurfaceShape(const Felt::UrSurface3D* psurface_, const Felt::Vec3i& pos_child_)
-: m_localScaling(btScalar(1.),btScalar(1.),btScalar(1.)), m_psurface(psurface_),
-  m_pos_child(pos_child_)
+btSurfaceShape::btSurfaceShape (
+	const UrFelt::IsoGrid *const pisogrid_, const UrFelt::IsoGrid::Child *const pisogrid_child_,
+	const UrFelt::Polys::Child *const ppoly_child_
+) :
+	m_localScaling{btScalar{1.}, btScalar{1.}, btScalar{1.}},
+	m_pisogrid{pisogrid_}, m_pisogrid_child{pisogrid_child_}, m_ppoly_child{ppoly_child_}
 {
-	m_shapeType = CUSTOM_CONCAVE_SHAPE_TYPE;
+	this->m_shapeType = CUSTOM_CONCAVE_SHAPE_TYPE;
 }
 
 
-btSurfaceShape::~btSurfaceShape()
+void btSurfaceShape::getAabb (const btTransform& t, btVector3& aabbMin, btVector3& aabbMax) const
 {
-}
-
-
-void btSurfaceShape::getAabb(const btTransform& t,btVector3& aabbMin,btVector3& aabbMax) const
-{
-	const Felt::UrSurface3D::IsoGrid::Child& child =
-		m_psurface->isogrid().children().get(m_pos_child);
-	Felt::Vec3i pos_min = child.offset();
-	Felt::Vec3i pos_max = pos_min + child.size().template cast<Felt::INT>();
+	const Felt::Vec3i& pos_min = m_pisogrid_child->offset();
+	const Felt::Vec3i& pos_max = pos_min + m_pisogrid_child->size();
 
 	aabbMin.setValue(btScalar(pos_min(0)),btScalar(pos_min(1)),btScalar(pos_min(2)));
 	aabbMax.setValue(btScalar(pos_max(0)),btScalar(pos_max(1)),btScalar(pos_max(2)));
 }
 
 
-void btSurfaceShape::processAllTriangles(
+void btSurfaceShape::processAllTriangles (
 	btTriangleCallback* callback, const btVector3& aabbMin, const btVector3& aabbMax
 ) const {
 	
-	using Polys = Felt::UrPolyGrid3D::PolyLeaf;
-	using Vertex = Felt::UrPoly3D::Vertex;
-	const Polys& polys = m_psurface->poly().get(m_pos_child);
+	using Vertex = UrFelt::Polys::Child::Vertex;
+	using Simplex = UrFelt::Polys::Child::Simplex;
 	
-	for (unsigned idx = 0; idx < polys.spx().size(); idx++)
+	for (unsigned idx = 0; idx < m_ppoly_child->spxs().size(); idx++)
 	{
-		const Felt::UrPoly3D::Simplex& spx = polys.spx()[idx];
+		const Simplex& spx = m_ppoly_child->spxs()[idx];
 
-		const Vertex& vtx0 =  polys.vtx()[spx.idxs[0]];
-		const Vertex& vtx1 =  polys.vtx()[spx.idxs[1]];
-		const Vertex& vtx2 =  polys.vtx()[spx.idxs[2]];
+		const Vertex& vtx0 =  m_ppoly_child->vtxs()[spx.idxs[0]];
+		const Vertex& vtx1 =  m_ppoly_child->vtxs()[spx.idxs[1]];
+		const Vertex& vtx2 =  m_ppoly_child->vtxs()[spx.idxs[2]];
 
 		btVector3 triangle[3];
 		triangle[0] = btVector3(vtx0.pos(0), vtx0.pos(1), vtx0.pos(2));

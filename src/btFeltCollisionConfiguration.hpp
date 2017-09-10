@@ -10,7 +10,7 @@
 
 #include <Urho3D/ThirdParty/Bullet/BulletCollision/CollisionDispatch/btDefaultCollisionConfiguration.h>
 
-namespace Felt
+namespace UrFelt
 {
 
 class btFeltCollisionConfiguration : public btDefaultCollisionConfiguration

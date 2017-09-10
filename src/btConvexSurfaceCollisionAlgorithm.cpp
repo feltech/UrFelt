@@ -1,19 +1,6 @@
-/*
-Bullet Continuous Collision Detection and Physics Library
-Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
-
-This software is provided 'as-is', without any express or implied warranty.
-In no event will the authors be held liable for any damages arising from the use of this software.
-Permission is granted to anyone to use this software for any purpose,
-including commercial applications, and to alter it and redistribute it freely,
-subject to the following restrictions:
-
-1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
-2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
-3. This notice may not be removed or altered from any source distribution.
-*/
-
 #include "btConvexSurfaceCollisionAlgorithm.h"
+
+#include <set>
 
 #include <Urho3D/ThirdParty/Bullet/BulletCollision/CollisionDispatch/btCollisionDispatcher.h>
 #include <Urho3D/ThirdParty/Bullet/BulletCollision/CollisionDispatch/btCollisionObject.h>
@@ -21,8 +8,6 @@ subject to the following restrictions:
 #include <Urho3D/ThirdParty/Bullet/BulletCollision/CollisionDispatch/btCollisionObjectWrapper.h>
 
 #include "btSurfaceShape.h"
-
-//#include <stdio.h>
 
 btConvexSurfaceCollisionAlgorithm::btConvexSurfaceCollisionAlgorithm(
 	btPersistentManifold* mf, const btCollisionAlgorithmConstructionInfo& ci,
@@ -86,16 +71,18 @@ void btConvexSurfaceCollisionAlgorithm::processCollision (
 
 	resultOut->setPersistentManifold(m_manifoldPtr);
 
-	const float X = (float)surfaceShape->surface()->isogrid().size()(0);
-	const float Y = (float)surfaceShape->surface()->isogrid().size()(1);
+	const float X = (float)surfaceShape->isogrid()->size()(0);
+	const float Y = (float)surfaceShape->isogrid()->size()(1);
 
 	std::set<float> vtx_hash_set;
 
 	m_manifoldPtr->clearManifold();
 
-	for (const Felt::Vec3i& pos_leaf : surfaceShape->layer(0))
+	for (const Felt::PosIdx pos_idx_leaf : surfaceShape->list())
 	{
-		const Felt::Vec3f& grad = surfaceShape->surface()->isogrid().grad(pos_leaf);
+		const Felt::Vec3f& grad = surfaceShape->isogrid()->grad(
+			surfaceShape->isogrid_child()->index(pos_idx_leaf)
+		);
 		const Felt::FLOAT& mag_grad_sq = grad.blueNorm();
 		if (mag_grad_sq < 0.1f)
 			continue;
@@ -115,10 +102,10 @@ void btConvexSurfaceCollisionAlgorithm::processCollision (
 
 		const Felt::Vec3f pos_vtx(vtxInSurface.x(), vtxInSurface.y(), vtxInSurface.z());
 
-		if (!surfaceShape->surface()->isogrid().inside(pos_vtx))
+		if (!surfaceShape->isogrid()->inside(pos_vtx))
 			continue;
 
-		btScalar distance = surfaceShape->surface()->isogrid().interp(pos_vtx);
+		btScalar distance = surfaceShape->isogrid()->interp(pos_vtx);
 
 		if (distance < m_manifoldPtr->getContactBreakingThreshold())
 		{

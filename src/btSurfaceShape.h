@@ -2,9 +2,9 @@
 #define BT_SURFACE_SHAPE_H
 
 #include <Urho3D/ThirdParty/Bullet/BulletCollision/CollisionShapes/btConcaveShape.h>
-#include "UrSurface3D.hpp"
+#include "Common.hpp"
 
-///The btSurfaceShape wraps a Felt::Surface.
+
 ATTRIBUTE_ALIGNED16(class) btSurfaceShape : public btConcaveShape
 {
 protected:
@@ -12,21 +12,22 @@ protected:
 	btVector3	m_localAabbMin;
 	btVector3	m_localAabbMax;
 	btVector3	m_localScaling;
-	const Felt::UrSurface3D*    m_psurface;
-	const Felt::Vec3i         m_pos_child;
+	const UrFelt::IsoGrid* const			m_pisogrid;
+	const UrFelt::IsoGrid::Child* const	m_pisogrid_child;
+	const UrFelt::Polys::Child* const		m_ppoly_child;
 
 public:
 	BT_DECLARE_ALIGNED_ALLOCATOR();
 
-	btSurfaceShape(const Felt::UrSurface3D* psurface_, const Felt::Vec3i& pos_child);
+	btSurfaceShape(
+		const UrFelt::IsoGrid *const pisogrid_, const UrFelt::IsoGrid::Child *const pisogrid_child_,
+		const UrFelt::Polys::Child *const ppoly_child_
+	);
 
-	~btSurfaceShape();
-
-
-	void getAabb(const btTransform& t,btVector3& aabbMin,btVector3& aabbMax) const;
+	void getAabb(const btTransform& t, btVector3& aabbMin, btVector3& aabbMax) const;
 
 	void processAllTriangles(
-		btTriangleCallback* callback,const btVector3& aabbMin,const btVector3& aabbMax
+		btTriangleCallback* callback, const btVector3& aabbMin, const btVector3& aabbMax
 ) const;
 
 	void calculateLocalInertia(btScalar mass,btVector3& inertia) const;
@@ -42,19 +43,19 @@ public:
 	///fills the dataBuffer and returns the struct name (and 0 on failure)
 	const char* serialize(void* dataBuffer, btSerializer* serializer) const;
 
-	const Felt::UrSurface3D* surface () const
+	const UrFelt::IsoGrid* isogrid () const
 	{
-		return m_psurface;
+		return m_pisogrid;
 	}
 
-	const Felt::UrSurface3D::PosArray& layer (const Felt::UINT& layerID) const
+	const Felt::PosIdxList& list () const
 	{
-		return m_psurface->layer(m_pos_child, layerID);
+		return m_pisogrid_child->list(UrFelt::Surface::layer_idx(0));
 	}
 
-	const Felt::UrSurface3D::IsoGrid::Child& child () const
+	const UrFelt::IsoGrid::Child* isogrid_child () const
 	{
-		return m_psurface->isogrid().children().get(m_pos_child);
+		return m_pisogrid_child;
 	}
 };
 

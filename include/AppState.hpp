@@ -1,5 +1,6 @@
 #ifndef INCLUDE_APPSTATE_HPP_
 #define INCLUDE_APPSTATE_HPP_
+
 template <class SM, class TEvent>
 void log_process_event(const TEvent& evt) {
 	printf("[%s][process_event] %s\n", typeid(SM).name(), evt.c_str());
@@ -31,7 +32,7 @@ void log_state_change(const TSrcState& src, const TDstState& dst) {
 #include <boost/msm-lite.hpp>
 
 #include <boost/coroutine/all.hpp>
-#include "UrFelt.hpp"
+#include "Application.hpp"
 
 namespace msm = boost::msm::lite;
 namespace co = boost::coroutines;
@@ -40,7 +41,7 @@ namespace co = boost::coroutines;
 	struct Name##Label { static auto c_str() BOOST_MSM_LITE_NOEXCEPT { return #Name; } }; \
 	using Name = msm::state<Name##Label>;
 
-namespace Felt
+namespace UrFelt
 {
 	namespace State
 	{
@@ -77,17 +78,17 @@ namespace Felt
 }
 
 
-namespace Felt
+namespace UrFelt
 {
 	namespace State
 	{
 		class TickBase
 		{
 		public:
-			TickBase(UrFelt* papp_) : m_papp(papp_) {}
+			TickBase(Application* papp_) : m_papp(papp_) {}
 			virtual void tick(const float dt) = 0;
 		protected:
-			UrFelt* m_papp;
+			Application* m_papp;
 		};
 
 
@@ -110,10 +111,10 @@ namespace Felt
 		class Tick<State::Label::Running> :	public TickBase
 		{
 		public:
-			Tick(UrFelt* papp_) :	TickBase(papp_), m_time_since_update(0) {}
+			Tick(Application* papp_) :	TickBase(papp_), m_time_since_update(0) {}
 			void tick(const float dt);
 		private:
-			FLOAT m_time_since_update;
+			float m_time_since_update;
 		};
 
 
@@ -121,7 +122,7 @@ namespace Felt
 		class Tick<State::Label::UpdateGPU> :	public TickBase
 		{
 		public:
-			Tick(UrFelt* papp_) :	TickBase(papp_) {}
+			Tick(Application* papp_) :	TickBase(papp_) {}
 			void tick(const float dt);
 		};
 
@@ -129,7 +130,7 @@ namespace Felt
 		class Tick<State::Label::UpdatePoly> :	public TickBase
 		{
 		public:
-			Tick(UrFelt* papp_) :	TickBase(papp_) {}
+			Tick(Application* papp_) :	TickBase(papp_) {}
 			void tick(const float dt);
 		};
 
@@ -138,12 +139,12 @@ namespace Felt
 		class Tick<State::Label::Zap> : public TickBase
 		{
 		public:
-			Tick(UrFelt* papp_, FLOAT amt);
+			Tick(Application* papp_, float amt);
 			void tick(const float dt);
 		protected:
-			const FLOAT m_amt;
-			const FLOAT m_screen_width;
-			const FLOAT m_screen_height;
+			const float m_amt;
+			const float m_screen_width;
+			const float m_screen_height;
 			const Urho3D::Camera*	m_pcamera;
 		};
 
@@ -153,14 +154,14 @@ namespace Felt
 		{
 		public:
 			using ThisType = Tick<State::Label::InitSurface>;
-			Tick(UrFelt* papp_)
+			Tick(Application* papp_)
 			:	TickBase(papp_),
 				m_co{std::bind(&ThisType::execute, this, std::placeholders::_1)}
 			{}
 			void tick(const float dt);
 		private:
-			co::coroutine<FLOAT>::pull_type m_co;
-			void execute(co::coroutine<FLOAT>::push_type& sink);
+			co::coroutine<float>::pull_type m_co;
+			void execute(co::coroutine<float>::push_type& sink);
 		};
 
 		class WorkerRunningController;
@@ -168,12 +169,12 @@ namespace Felt
 		struct BaseSM
 		{
 			template <class StateType>
-			static std::function<void (UrFelt*)> app_set();
+			static std::function<void (Application*)> app_set();
 
 			template <class StateType>
-			static std::function<void (UrFelt*)> worker_set();
+			static std::function<void (Application*)> worker_set();
 
-			std::function<void(WorkerRunningController*, UrFelt*)> worker_restore() const;
+			std::function<void(WorkerRunningController*, Application*)> worker_restore() const;
 		};
 
 
@@ -205,9 +206,9 @@ ZAP							+ event<Event::StopZap>
 			}
 
 		private:
-			using BaseAction = std::function<void(WorkerRunningController*, Felt::UrFelt*)>;
+			using BaseAction = std::function<void(WorkerRunningController*, Application*)>;
 			using ZapAction =
-				std::function<void(WorkerRunningController*, UrFelt*, const Event::StartZap&)>;
+				std::function<void(WorkerRunningController*, Application*, const Event::StartZap&)>;
 			ZapAction worker_remember_zap() const;
 
 			template <class StateType>
@@ -231,8 +232,8 @@ ZAP							+ event<Event::StopZap>
 / app_set<Running>()								= Running{},
 
 Running{}		 		+ "activate_surface"_t
-/ [](UrFelt* papp_) {
-papp_->m_surface_body->Activate();
+/ [](Application* papp_) {
+papp_->m_psurface_body->Activate();
 },
 
 Running{}				+ "update_gpu"_t
@@ -260,7 +261,7 @@ WORKER_RUNNING			+ msm::on_entry
 
 		private:
 			template <class StateType>
-			static std::function<bool (UrFelt*)> is(
+			static std::function<bool (Application*)> is(
 				StateType state_
 			);
 		};
@@ -270,20 +271,20 @@ WORKER_RUNNING			+ msm::on_entry
 		{
 			friend class AppSM;
 		public:
-			WorkerRunningController(UrFelt* app_)
+			WorkerRunningController(Application* app_)
 			:	msm::sm<WorkerRunningSM>{
 					std::move(app_),
 					std::move(this),
 					m_conf
 				}
 			{}
-			void remember(UrFelt* papp_, TickBase* ticker_)
+			void remember(Application* papp_, TickBase* ticker_)
 			{
 				m_worker_state.reset(ticker_);
 				papp_->m_worker_state_next = m_worker_state;
 			}
 
-			void restore(UrFelt* papp_)
+			void restore(Application* papp_)
 			{
 				papp_->m_worker_state_next = m_worker_state;
 			}
@@ -296,7 +297,7 @@ WORKER_RUNNING			+ msm::on_entry
 		class AppController : public msm::sm<AppSM>
 		{
 		public:
-			AppController(UrFelt* papp_)
+			AppController(Application* papp_)
 			:	m_worker_controller(papp_),
 				msm::sm<AppSM>{
 					std::move(papp_),
@@ -312,32 +313,32 @@ WORKER_RUNNING			+ msm::on_entry
 
 
 		template <class StateType>
-		std::function<bool (Felt::UrFelt*)> AppSM::is(
+		std::function<bool (UrFelt::Application*)> AppSM::is(
 			StateType state_
 		) {
-			return [state_](Felt::UrFelt* papp_) {
+			return [state_](UrFelt::Application* papp_) {
 				return papp_->m_controller->is(state_);
 			};
 		}
 
 
 		template <class StateType>
-		std::function<void (Felt::UrFelt*)> BaseSM::app_set()
+		std::function<void (UrFelt::Application*)> BaseSM::app_set()
 		{
 			using namespace msm;
 
-			return [](Felt::UrFelt* papp_) {
+			return [](UrFelt::Application* papp_) {
 				papp_->m_app_state_next.reset(new Tick<StateType>{papp_});
 			};
 		}
 
 
 		template <class StateType>
-		std::function<void (Felt::UrFelt*)> BaseSM::worker_set()
+		std::function<void (UrFelt::Application*)> BaseSM::worker_set()
 		{
 			using namespace msm;
 
-			return [](Felt::UrFelt* papp_) {
+			return [](UrFelt::Application* papp_) {
 				papp_->m_worker_state_next.reset(new Tick<StateType>{papp_});
 			};
 		}
@@ -345,7 +346,7 @@ WORKER_RUNNING			+ msm::on_entry
 		template <class StateType>
 		WorkerRunningSM::BaseAction WorkerRunningSM::worker_remember() const
 		{
-			return [](WorkerRunningController* pworker, UrFelt* papp_) {
+			return [](WorkerRunningController* pworker, Application* papp_) {
 				pworker->remember(papp_, new Tick<StateType>{papp_});
 			};
 		}

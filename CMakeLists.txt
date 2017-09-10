@@ -18,10 +18,15 @@ set (URHO3D_HOME "vendor/Urho3D")
 set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules")
 
 # Add common C++ definitions.
-add_definitions(-std=c++14 -fopenmp -Wfatal-errors)# -DFELT_EXCEPTIONS)
+add_definitions(
+	-std=c++14 -fopenmp -Wfatal-errors 
+	-DBOOST_COROUTINES_NO_DEPRECATION_WARNING -DBOOST_COROUTINE_NO_DEPRECATION_WARNING
+)
+# -DFELT_EXCEPTIONS)
 
 # Include Urho3D Cmake common module
 include (UrhoCommon)
+
 
 find_package(Boost
 	1.58							# Minimum or EXACT version e.g. 1.36.0

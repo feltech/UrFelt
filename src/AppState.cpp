@@ -1,11 +1,12 @@
+#include <Application.hpp>
 #include <typeinfo>
 #include <stdio.h>
 #include <chrono>
-#include "UrFelt.hpp"
+#include "Common.hpp"
 #include "AppState.hpp"
 
-using namespace Felt::State;
-
+using namespace UrFelt::State;
+using namespace Felt;
 
 void Tick<Label::InitSurface>::tick(const float dt)
 {
@@ -34,17 +35,16 @@ void Tick<Label::InitSurface>::tick(const float dt)
 
 void Tick<Label::InitSurface>::execute(co::coroutine<FLOAT>::push_type& sink)
 {
-	m_papp->m_surface.seed(Vec3i(0,0,0));
+	m_papp->m_psurface->seed(Vec3i(0,0,0));
 
 	for (UINT i = 0; i < 2; i++)
-		m_papp->m_surface.update([](auto& pos, auto& phi)->FLOAT {
+		m_papp->m_psurface->update([](const auto&, const auto&)->FLOAT {
 			return -1.0f;
 		});
 
-	const UINT num_children = this->m_papp->m_surface.isogrid().children().data().size();
 	for (UINT expand = 0; expand < 100; expand++)
 	{
-		m_papp->m_surface.update([](auto& pos, auto& phi)->FLOAT {
+		m_papp->m_psurface->update([](const auto& pos, const auto&)->FLOAT {
 			using namespace Felt;
 			if (std::abs(pos(1)) > 1)
 				return 0;
@@ -56,7 +56,7 @@ void Tick<Label::InitSurface>::execute(co::coroutine<FLOAT>::push_type& sink)
 }
 
 
-Tick<Label::Zap>::Tick(UrFelt* papp_, FLOAT amt)
+Tick<Label::Zap>::Tick(Application* papp_, FLOAT amt)
 : TickBase(papp_), m_amt(amt),
   m_screen_width(papp_->GetSubsystem<Urho3D::Graphics>()->GetWidth()),
   m_screen_height(papp_->GetSubsystem<Urho3D::Graphics>()->GetHeight()),
@@ -84,13 +84,15 @@ void Tick<Label::Zap>::tick(const float dt)
 
 	constexpr float radius = 5.0f;
 
-	const Vec3f& pos_hit = m_papp->m_surface.ray(origin, direction);
+	const Vec3f& pos_hit = m_papp->m_psurface->ray(origin, direction);
 
-	if (pos_hit == UrSurface3D::NULL_POS<FLOAT>())
+	if (pos_hit == UrSurface::ray_miss)
 		return;
 
-	const Vec3i& pos_lower = Felt::floor(pos_hit) - Vec3i::Constant(UINT(radius));
-	const Vec3i& pos_upper = Felt::ceil(pos_hit) + Vec3i::Constant(UINT(radius));
+	const Vec3i& pos_lower = pos_hit.array().floor().matrix().template cast<INT>() -
+		Vec3i::Constant(UINT(radius));
+	const Vec3i& pos_upper = pos_hit.array().ceil().matrix().template cast<INT>() +
+		Vec3i::Constant(UINT(radius));
 
 	using Clock = std::chrono::high_resolution_clock;
 	using Seconds = std::chrono::duration<float>;
@@ -99,8 +101,8 @@ void Tick<Label::Zap>::tick(const float dt)
 
 	auto time_before = Clock::now();
 
-	m_papp->m_surface.update(pos_lower, pos_upper,
-		[&pos_hit, this](const Vec3i& pos, const UrSurface3D::IsoGrid& isogrid) -> FLOAT {
+	m_papp->m_psurface->update(pos_lower, pos_upper,
+		[&pos_hit, this](const Vec3i& pos, const UrSurface::IsoGrid& isogrid) -> FLOAT {
 			const Vec3f& posf = pos.template cast<FLOAT>();
 			const Vec3f& pos_dist = posf - pos_hit;
 			const FLOAT dist = pos_dist.norm() - radius;
@@ -135,14 +137,14 @@ void Tick<Label::Zap>::tick(const float dt)
 	});
 
 
-//	m_papp->m_surface.update_start();
-//	FLOAT leftover = m_papp->m_surface.delta_gauss<4>(
+//	m_papp->m_psurface->update_start();
+//	FLOAT leftover = m_papp->m_psurface->delta_gauss<4>(
 //		reinterpret_cast<const Vec3f&>(zap_ray.origin_),
 //		reinterpret_cast<const Vec3f&>(zap_ray.direction_),
 //		m_amt, radius
 //	);
-//	m_papp->m_surface.update_end_local();
-//	m_papp->m_surface.poly().notify(m_papp->m_surface);
+//	m_papp->m_psurface->update_end_local();
+//	m_papp->m_psurface->poly().notify(m_papp->m_psurface);
 }
 
 
@@ -160,7 +162,7 @@ void Tick<Label::Running>::tick(const float dt)
 void Tick<Label::UpdateGPU>::tick(const float dt)
 {
 	using namespace msm;
-	m_papp->m_surface.flush();
+	m_papp->m_psurface->flush();
 	m_papp->m_controller->process_event("resume"_t);
 }
 
@@ -169,22 +171,22 @@ void Tick<Label::UpdatePoly>::tick(const float dt)
 {
 	using namespace msm;
 
-	m_papp->m_surface.poly().poly_cubes(m_papp->m_surface);
+	m_papp->m_psurface->polygonise();
 	m_papp->m_controller->process_event("worker_pause"_t);
 }
 const msm::state<msm::sm<WorkerRunningSM>> AppController::WORKER_RUNNING =
 	msm::state<msm::sm<WorkerRunningSM>>{};
 
 
-std::function<void(WorkerRunningController*, Felt::UrFelt*)> BaseSM::worker_restore() const
+std::function<void(WorkerRunningController*, UrFelt::Application*)> BaseSM::worker_restore() const
 {
-	return [](WorkerRunningController* pworker, UrFelt* papp_) {
+	return [](WorkerRunningController* pworker, Application* papp_) {
 		pworker->restore(papp_);
 	};
 }
 WorkerRunningSM::ZapAction WorkerRunningSM::worker_remember_zap() const
 {
-	return [](WorkerRunningController* pworker, UrFelt* papp_, const Event::StartZap& evt) {
+	return [](WorkerRunningController* pworker, Application* papp_, const Event::StartZap& evt) {
 		pworker->remember(papp_, new Tick<State::Label::Zap>{papp_, evt.amt});
 	};
 }
