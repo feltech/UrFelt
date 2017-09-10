@@ -19,10 +19,18 @@ set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules")
 
 # Add common C++ definitions.
 add_definitions(
-	-std=c++14 -fopenmp -Wfatal-errors 
+	-std=c++14 -Wfatal-errors
+	# Enable OpenMP 
+	-fopenmp 
+	# Cannot use coroutine2 on Ubuntu 16.04 by default.
 	-DBOOST_COROUTINES_NO_DEPRECATION_WARNING -DBOOST_COROUTINE_NO_DEPRECATION_WARNING
+	# Enable Felt library exceptions
+	-DFELT_EXCEPTIONS
+	# Enable profiling
+#	-g -fno-omit-frame-pointer -ggdb
+	# sudo perf record -g --call-graph dwarf -- ./UrhoFelt
+	# sudo perf report -g graph --no-children
 )
-# -DFELT_EXCEPTIONS)
 
 # Include Urho3D Cmake common module
 include (UrhoCommon)
@@ -50,7 +58,7 @@ include_directories (
 #add_custom_target(headers SOURCES ${HPPS})
 
 # Define target name
-set (TARGET_NAME UrFelt)
+set (TARGET_NAME UrhoFelt)
 
 # Define source files
 file (GLOB CPP_FILES src/*.cpp)
@@ -65,4 +73,9 @@ set (
 setup_main_executable ()
 
 # Link to external libraries.
-target_link_libraries(UrFelt gomp atomic ${Boost_LIBRARIES})
+target_link_libraries(
+	UrhoFelt 
+	# Enable profiling
+#	-g -fno-omit-frame-pointer -ggdb 
+	gomp atomic ${Boost_LIBRARIES}
+)
