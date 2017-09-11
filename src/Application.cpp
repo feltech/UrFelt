@@ -22,6 +22,7 @@
 #include <Urho3D/Physics/RigidBody.h>
 #include <Urho3D/Physics/PhysicsWorld.h>
 
+
 #include "AppState.hpp"
 #include "btFeltCollisionConfiguration.hpp"
 #include "UrSurfaceCollisionShape.hpp"
@@ -67,8 +68,10 @@ void Application::Setup()
 
 	LuaScript* lua = context_->GetSubsystem<LuaScript>();
 	tolua_UrFelt_open (lua->GetState());
-
 	m_queue_worker.bind(lua->GetState());
+	m_lua = sol::state_view(lua->GetState());
+	m_lua.open_libraries(sol::lib::base);
+
 	m_queue_worker.to_lua("queue_worker");
 	m_queue_main.bind(lua->GetState());
 	m_queue_main.to_lua("queue_main");

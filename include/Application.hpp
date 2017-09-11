@@ -20,6 +20,8 @@
 #include <Urho3D/Graphics/Camera.h>
 #include <Urho3D/IO/Log.h>
 
+#include <sol.hpp>
+
 #include <Felt/Surface.hpp>
 #include <LuaCppMsg.hpp>
 
@@ -91,6 +93,8 @@ namespace UrFelt
 		UrQueue	m_queue_script;
 		UrQueue	m_queue_worker;
 		UrQueue	m_queue_main;
+
+		sol::state_view	m_lua;
 	};
 }
 #endif /* INCLUDE_APPLICATION_HPP_ */

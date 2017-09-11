@@ -25,7 +25,7 @@ add_definitions(
 	# Cannot use coroutine2 on Ubuntu 16.04 by default.
 	-DBOOST_COROUTINES_NO_DEPRECATION_WARNING -DBOOST_COROUTINE_NO_DEPRECATION_WARNING
 	# Enable Felt library exceptions
-	-DFELT_EXCEPTIONS
+#	-DFELT_EXCEPTIONS
 	# Enable profiling
 #	-g -fno-omit-frame-pointer -ggdb
 	# sudo perf record -g --call-graph dwarf -- ./UrhoFelt
@@ -48,10 +48,11 @@ set (FELT_INCLUDE vendor/Felt/include)
 set (LUACPPMSG_INCLUDE vendor/LuaCppMsg/include)
 set (MSM_INCLUDE vendor/msm-lite/include)
 set (LUAHPP_INCLUDE ${URHO3D_HOME}/Source/ThirdParty/LuaJIT/src)
+set (VENDOR_INCLUDE vendor/include)
 
 include_directories (
 	include ${FELT_INCLUDE} ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
-	${MSM_INCLUDE} ${Boost_INCLUDE_DIRS} #/usr/include/x86_64-linux-gnu/c++/5
+	${MSM_INCLUDE} ${VENDOR_INCLUDE} ${Boost_INCLUDE_DIRS} #/usr/include/x86_64-linux-gnu/c++/5
 )
 
 #FILE(GLOB_RECURSE HPPS "include/*")
