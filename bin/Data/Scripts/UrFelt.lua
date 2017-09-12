@@ -39,10 +39,10 @@ function Init()
 	local zoneNode = scene_:CreateChild("Zone")
 	local zone = zoneNode:CreateComponent("Zone")
 	zone.boundingBox = BoundingBox(-1000.0, 1000.0)
-    zone.fogColor = Color(1.0, 1.0, 1.0)
-    zone.fogStart = 300.0
-    zone.fogEnd = 500.0
-    zone.ambientColor = Color(0.15, 0.15, 0.15)
+	zone.fogColor = Color(1.0, 1.0, 1.0)
+	zone.fogStart = 300.0
+	zone.fogEnd = 500.0
+	zone.ambientColor = Color(0.15, 0.15, 0.15)
 
 	-- Create the camera. Create it outside the scene so that we can clear the 
 	-- whole scene without affecting it
@@ -61,14 +61,14 @@ function Init()
 --	lightNode.position = Vector3(0.0, 0.0, 0.0)  
 	 -- The direction vector does not need to be normalized
 --	lightNode.direction = Vector3(-0.6, -1.0, 0.8)
-    local lightNode = scene_:CreateChild("DirectionalLight")
-    lightNode.direction = Vector3(0.6, -1.0, 0.8)
-    local light = lightNode:CreateComponent("Light")
-    light.lightType = LIGHT_DIRECTIONAL
-    light.castShadows = true
-    light.shadowBias = BiasParameters(0.00025, 0.5)
-    -- Set cascade splits at 10, 50 and 200 world units, fade shadows out at 80% of maximum shadow distance
-    light.shadowCascade = CascadeParameters(10.0, 50.0, 200.0, 0.0, 0.8)
+	local lightNode = scene_:CreateChild("DirectionalLight")
+	lightNode.direction = Vector3(0.6, -1.0, 0.8)
+	local light = lightNode:CreateComponent("Light")
+	light.lightType = LIGHT_DIRECTIONAL
+	light.castShadows = true
+	light.shadowBias = BiasParameters(0.00025, 0.5)
+	-- Set cascade splits at 10, 50 and 200 world units, fade shadows out at 80% of maximum shadow distance
+	light.shadowCascade = CascadeParameters(10.0, 50.0, 200.0, 0.0, 0.8)
 
 	local point_light = cameraNode:CreateComponent("Light")
 	point_light.lightType = LIGHT_POINT
@@ -78,11 +78,11 @@ function Init()
 	-- Set up a viewport to the Renderer subsystem so that the 3D scene can be 
 	-- seen
 	
-    local skyNode = scene_:CreateChild("Sky")
-    skyNode:SetScale(1000.0) -- The scale actually does not matter
-    local skybox = skyNode:CreateComponent("Skybox")
-    skybox.model = cache:GetResource("Model", "Models/Box.mdl")
-    skybox.material = cache:GetResource("Material", "Materials/Skybox.xml")
+	local skyNode = scene_:CreateChild("Sky")
+	skyNode:SetScale(1000.0) -- The scale actually does not matter
+	local skybox = skyNode:CreateComponent("Skybox")
+	skybox.model = cache:GetResource("Model", "Models/Box.mdl")
+	skybox.material = cache:GetResource("Material", "Materials/Skybox.xml")
 	
 	-- Construct new Text object, set string to display and font to use
 	coord_ui_txt = ui.root:CreateChild("Text")
@@ -116,22 +116,22 @@ function Init()
 end
 
 function InitPhysics()
-    -- Create a floor object, 1000 x 1000 world units. Adjust position so that the ground is at zero Y
-    local floorNode = scene_:CreateChild("Floor")
-    floorNode.position = Vector3(0.0, -100, 0.0)
-    floorNode.scale = Vector3(1000.0, 1.0, 1000.0)
-    local floorObject = floorNode:CreateComponent("StaticModel")
-    floorObject.model = cache:GetResource("Model", "Models/Box.mdl")
-    floorObject.material = cache:GetResource("Material", "Materials/StoneTiled.xml")
+	-- Create a floor object, 1000 x 1000 world units. Adjust position so that the ground is at zero Y
+	local floorNode = scene_:CreateChild("Floor")
+	floorNode.position = Vector3(0.0, -100, 0.0)
+	floorNode.scale = Vector3(1000.0, 1.0, 1000.0)
+	local floorObject = floorNode:CreateComponent("StaticModel")
+	floorObject.model = cache:GetResource("Model", "Models/Box.mdl")
+	floorObject.material = cache:GetResource("Material", "Materials/StoneTiled.xml")
 
-    -- Make the floor physical by adding RigidBody and CollisionShape components. The RigidBody's default
-    -- parameters make the object static (zero mass.) Note that a CollisionShape by itself will not participate
-    -- in the physics simulation
-    local body = floorNode:CreateComponent("RigidBody")
-    local shape = floorNode:CreateComponent("CollisionShape")
-    -- Set a box shape of size 1 x 1 x 1 for collision. The shape will be scaled with the scene node scale, so the
-    -- rendering and physics representation sizes should match (the box model is also 1 x 1 x 1.)
-    shape:SetBox(Vector3(1.0, 1.0, 1.0))
+	-- Make the floor physical by adding RigidBody and CollisionShape components. The RigidBody's default
+	-- parameters make the object static (zero mass.) Note that a CollisionShape by itself will not participate
+	-- in the physics simulation
+	local body = floorNode:CreateComponent("RigidBody")
+	local shape = floorNode:CreateComponent("CollisionShape")
+	-- Set a box shape of size 1 x 1 x 1 for collision. The shape will be scaled with the scene node scale, so the
+	-- rendering and physics representation sizes should match (the box model is also 1 x 1 x 1.)
+	shape:SetBox(Vector3(1.0, 1.0, 1.0))
 end
 
 function HandleKeyDown(eventType, eventData)
@@ -286,9 +286,9 @@ function HandleUpdate(eventType, eventData)
 		cameraNode:Translate(Vector3(0.0, 0.0, -1.0) * MOVE_SPEED * timeStep)
 	end  
 	
-    if input:GetKeyPress(KEY_P) then
-        SpawnObject()
-    end	
+	if input:GetKeyPress(KEY_P) then
+		SpawnObject()
+	end	
 	
 	coord_ui_txt:SetText(
 		"(" .. cameraNode:GetWorldPosition():ToString() 
@@ -298,27 +298,27 @@ end
 
 
 function SpawnObject()
-    -- Create a smaller box at camera position
-    local boxNode = scene_:CreateChild("SmallBox")
-    boxNode.position = cameraNode.position
-    boxNode.rotation = cameraNode.rotation
-    boxNode:SetScale(1)
-    local boxObject = boxNode:CreateComponent("StaticModel")
-    boxObject.model = cache:GetResource("Model", "Models/Box.mdl")
-    boxObject.material = cache:GetResource("Material", "Materials/StoneTiled.xml")
-    boxObject.castShadows = true
+	-- Create a smaller box at camera position
+	local boxNode = scene_:CreateChild("SmallBox")
+	boxNode.position = cameraNode.position
+	boxNode.rotation = cameraNode.rotation
+	boxNode:SetScale(1)
+	local boxObject = boxNode:CreateComponent("StaticModel")
+	boxObject.model = cache:GetResource("Model", "Models/Box.mdl")
+	boxObject.material = cache:GetResource("Material", "Materials/StoneTiled.xml")
+	boxObject.castShadows = true
 
-    -- Create physics components, use a smaller mass also
-    local body = boxNode:CreateComponent("RigidBody")
-    body.mass = 0.25
-    body.friction = 0.75
-    body.restitution = 0
-    local shape = boxNode:CreateComponent("CollisionShape")
-    shape:SetBox(Vector3(1.0, 1.0, 1.0))
+	-- Create physics components, use a smaller mass also
+	local body = boxNode:CreateComponent("RigidBody")
+	body.mass = 0.25
+	body.friction = 0.75
+	body.restitution = 0
+	local shape = boxNode:CreateComponent("CollisionShape")
+	shape:SetBox(Vector3(1.0, 1.0, 1.0))
 
-    local OBJECT_VELOCITY = 10.0
+	local OBJECT_VELOCITY = 10.0
 
-    -- Set initial velocity for the RigidBody based on camera forward vector. Add also a slight up component
-    -- to overcome gravity better
-    body.linearVelocity = cameraNode.rotation * Vector3(0.0, 0.25, 1.0) * OBJECT_VELOCITY
+	-- Set initial velocity for the RigidBody based on camera forward vector. Add also a slight up component
+	-- to overcome gravity better
+	body.linearVelocity = cameraNode.rotation * Vector3(0.0, 0.25, 1.0) * OBJECT_VELOCITY
 end

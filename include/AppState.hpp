@@ -231,10 +231,10 @@ ZAP							+ event<Event::StopZap>
 *"BOOTSTRAP"_s			+ "load"_t
 / app_set<Running>()								= Running{},
 
-Running{}		 		+ "activate_surface"_t
-/ [](Application* papp_) {
-papp_->m_psurface_body->Activate();
-},
+//Running{}		 		+ "activate_surface"_t,
+/// [](Application* papp_) {
+//papp_->m_psurface_body->Activate();
+//},
 
 Running{}				+ "update_gpu"_t
 / app_set<Idle>()									= "APP_AWAIT_WORKER"_s,

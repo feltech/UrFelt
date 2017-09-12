@@ -8,6 +8,12 @@
 #include <Felt/Surface.hpp>
 #include "GPUPoly.hpp"
 
+namespace Urho3D
+{
+class RigidBody;
+class Node;
+}
+
 namespace UrFelt
 {
 
@@ -30,7 +36,7 @@ public:
 	UrSurface(
 		const Felt::Vec3i& size_,
 		const Felt::Vec3i& size_partition_,
-		Urho3D::Context* pcontext_, Urho3D::Node* pnode_root_
+		Urho3D::Context* pcontext_, Urho3D::Node* pnode_
 	);
 
 	/**
@@ -94,11 +100,13 @@ public:
 	void flush();
 
 private:
-	UrFelt::Surface	m_surface;
-	UrFelt::Polys	m_polys;
-	CollShapes		m_coll_shapes;
-	GPUPolys		m_gpu_polys;
-	Urho3D::Node* 	m_pnode;
+	UrFelt::Surface		m_surface;
+	UrFelt::Polys		m_polys;
+	CollShapes			m_coll_shapes;
+	GPUPolys			m_gpu_polys;
+	Urho3D::Node* 		m_pnode;
+	Urho3D::RigidBody* 	m_psurface_body;
+
 };
 
 } /* namespace UrFelt */

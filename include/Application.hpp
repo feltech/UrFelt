@@ -85,7 +85,6 @@ namespace UrFelt
 		std::shared_ptr<State::TickBase>		m_worker_state_next;
 
 		std::unique_ptr<UrSurface>				m_psurface;
-		Urho3D::RigidBody* 						m_psurface_body;
 
 		std::thread 				m_thread_updater;
 		std::atomic<bool>			m_quit;
@@ -94,7 +93,7 @@ namespace UrFelt
 		UrQueue	m_queue_worker;
 		UrQueue	m_queue_main;
 
-		sol::state_view	m_lua;
+		std::unique_ptr<sol::state_view>	m_plua;
 	};
 }
 #endif /* INCLUDE_APPLICATION_HPP_ */

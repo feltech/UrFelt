@@ -1,6 +1,7 @@
 #include "UrSurface.hpp"
 
 #include <algorithm>
+#include <Urho3D/Physics/RigidBody.h>
 
 #include "btFeltCollisionConfiguration.hpp"
 #include "UrSurfaceCollisionShape.hpp"
@@ -15,7 +16,7 @@ const Felt::Vec3f UrSurface::ray_miss = UrSurface::Surface::ray_miss;
 
 UrSurface::UrSurface(
 	const Felt::Vec3i& size_, const Felt::Vec3i& size_partition_,
-	Urho3D::Context* pcontext_, Urho3D::Node* pnode_root_
+	Urho3D::Context* pcontext_, Urho3D::Node* pnode_
 ) :
 	m_surface{size_, size_partition_},
 	m_coll_shapes{
@@ -25,16 +26,24 @@ UrSurface::UrSurface(
 	m_gpu_polys{
 		m_surface.isogrid().children().size(), m_surface.isogrid().children().offset(), GPUPoly{}
 	},
-	m_pnode{pnode_root_}
+	m_pnode{pnode_}
 {
 	for (
 		Felt::PosIdx pos_idx_child = 0; pos_idx_child < m_polys.children().data().size();
 		pos_idx_child++
 	) {
 		m_gpu_polys.get(pos_idx_child).bind(
-			&m_polys.children().get(pos_idx_child), pcontext_, pnode_root_
+			&m_polys.children().get(pos_idx_child), pcontext_, pnode_
 		);
 	}
+
+	m_psurface_body = pnode_->CreateComponent<Urho3D::RigidBody>();
+	m_psurface_body->SetKinematic(true);
+	m_psurface_body->SetMass(10000000.0f);
+	m_psurface_body->SetFriction(1.0f);
+	m_psurface_body->SetUseGravity(false);
+	m_psurface_body->SetRestitution(0.0);
+	m_psurface_body->Activate();
 }
 
 

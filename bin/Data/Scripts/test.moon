@@ -1,30 +1,30 @@
 test = require 'u-test'
+mach = require 'mach'
+assert = require 'luassert'
+match = require 'luassert.match'
+spy = require 'luassert.spy'
+stub = require 'luassert.stub'
+mock = require 'luassert.mock'
+  
+test.start_up = ()->
+	print("start")
 
-test.string.find = () ->
-	test.is_nil(string.find("u-test", "banana"))
-	test.is_not_nil(string.find("u-test", "u"))
+test.tear_down = ()->
+	print("end")
+	
+test.mouse.start_up = ()->
+	print("start mouse")
 
+test.mouse.tear_down = ()->
+	print("end mouse")
+	
+test.other.start_up = ()->
+	print("start other")
 
--- You can declare test case with parameters
-test.string.starts_with = (str, prefix) ->
-	test.equal(string.find(str, prefix), 1)
-
-
-test.string.starts_with("Lua rocks", "Lua")
-test.string.starts_with("Wow", "Wow")
-
-global_table = {}
-
--- Each test suite can be customized by start_up and tear_down
-test.table.start_up = () ->
-	global_table = { 1, 2, "three", 4, "five" }
-
-test.table.tear_down = () -> 
-	global_table = {}
-
-
-test.table.concat = () ->
-	test.equal(table.concat(global_table, ", "), "1, 2, three, 4, five")
-
+test.other.tear_down = ()->
+	print("end other")
+	
+test.mouse.concat = () ->
+	test.is_userdata(input)
 
 test.summary()

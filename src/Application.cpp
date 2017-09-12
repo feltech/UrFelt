@@ -19,7 +19,6 @@
 #include <Urho3D/Resource/ResourceCache.h>
 #include <Urho3D/Scene/Scene.h>
 #include <Urho3D/Graphics/Camera.h>
-#include <Urho3D/Physics/RigidBody.h>
 #include <Urho3D/Physics/PhysicsWorld.h>
 
 
@@ -67,57 +66,48 @@ void Application::Setup()
 	PhysicsWorld::config.collisionConfig_ = new btFeltCollisionConfiguration();
 
 	LuaScript* lua = context_->GetSubsystem<LuaScript>();
-	tolua_UrFelt_open (lua->GetState());
-	m_queue_worker.bind(lua->GetState());
-	m_lua = sol::state_view(lua->GetState());
-	m_lua.open_libraries(sol::lib::base);
+	m_plua = std::make_unique<sol::state_view>(lua->GetState());
+	m_plua->open_libraries(sol::lib::base);
 
-	m_queue_worker.to_lua("queue_worker");
-	m_queue_main.bind(lua->GetState());
-	m_queue_main.to_lua("queue_main");
-	m_queue_script.bind(lua->GetState());
-	m_queue_script.to_lua("queue_in");
-
-	m_queue_script.lua()->writeVariable(
-		"Ray", "_typeid", &typeid(LuaCppMsg::CopyPtr<Urho3D::Ray>*)
-	);
+//	tolua_UrFelt_open (lua->GetState());
+//	m_queue_worker.bind(lua->GetState());
+//	m_queue_worker.to_lua("queue_worker");
+//	m_queue_main.bind(lua->GetState());
+//	m_queue_main.to_lua("queue_main");
+//	m_queue_script.bind(lua->GetState());
+//	m_queue_script.to_lua("queue_in");
+//
+//	m_queue_script.lua()->writeVariable(
+//		"Ray", "_typeid", &typeid(LuaCppMsg::CopyPtr<Urho3D::Ray>*)
+//	);
 }
 
 
 void Application::Start()
 {
 	using namespace Urho3D;
-	GetSubsystem<FileSystem>();
+//	GetSubsystem<FileSystem>();
+//	Scene* scene = GetSubsystem<Renderer>()->GetViewport(0)->GetScene();
+//	Node* node = scene->CreateChild("PolyGrid");
+//	node->SetPosition(Vector3(0, 0, 0));
+//	m_psurface = std::make_unique<UrSurface>(
+//		Felt::Vec3i(200,100,200), Felt::Vec3i(16,16,16), context_, node
+//	);
+
+//	start_worker();
+
+//	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(Application, tick));
 
 	LuaScript* lua = context_->GetSubsystem<LuaScript>();
 	lua->ExecuteFile("Scripts/main.lua");
-	lua->ExecuteFile("Scripts/UrFelt.lua");
-	lua->ExecuteFunction("Init");
 
-	Scene* scene = GetSubsystem<Renderer>()->GetViewport(0)->GetScene();
+//	lua->ExecuteFile("Scripts/UrFelt.lua");
+//	lua->ExecuteFunction("Init");
+//	lua->ExecuteFunction("InitPhysics");
 
-	lua->ExecuteFunction("InitPhysics");
+//	using namespace msm;
+//	m_controller->process_event("load"_t);
 
-	Node* node = scene->CreateChild("PolyGrid");
-	node->SetPosition(Vector3(0, 0, 0));
-
-	m_psurface = std::make_unique<UrSurface>(
-		Felt::Vec3i(200,100,200), Felt::Vec3i(16,16,16), context_, node
-	);
-
-	m_psurface_body = node->CreateComponent<RigidBody>();
-	m_psurface_body->SetKinematic(true);
-	m_psurface_body->SetMass(10000000.0f);
-	m_psurface_body->SetFriction(1.0f);
-	m_psurface_body->SetUseGravity(false);
-	m_psurface_body->SetRestitution(0.0);
-
-	start_worker();
-
-	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(Application, tick));
-
-	using namespace msm;
-	m_controller->process_event("load"_t);
 }
 
 
