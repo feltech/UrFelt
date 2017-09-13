@@ -1,34 +1,39 @@
-test = require 'u-test'
-mach = require 'mach'
 assert = require 'luassert'
-match = require 'luassert.match'
-spy = require 'luassert.spy'
 stub = require 'luassert.stub'
-mock = require 'luassert.mock'
+bdd = require 'Test.bdd'
+describe = require 'Test.bdd.describe'
 
 snapshot = nil
 
-test.start_up = () ->
-	snapshot = assert\snapshot()
+print("v2")
 
-test.tear_down = () ->
+describe(
+	'stubbing userdata'
+		
+)\beforeEach( () ->
+	snapshot = assert\snapshot()
+	
+)\afterEach( () ->
 	snapshot\revert()
 	
-test.stub.start_up = ()->
-	test.start_up()
-
-test.stub.tear_down = ()->
-	test.tear_down()
+)\it('successfully stubs userdata', () ->
 	
-test.stub.create = () ->
 	s = stub(getmetatable(input), "SetMouseVisible")
 	
 	input\SetMouseVisible(true)
 
 	assert.is_not_nil(getmetatable(input.SetMouseVisible))
 	assert.stub(s).was.called_with(input, true)
+		
+)\it('removes the stub when done', () ->
 	
-test.stub.torn_down = () ->
 	assert.is_nil(getmetatable(input.SetMouseVisible))
+)
 
-test.summary()
+success = bdd.runTests()
+os.exit(success and 0 or 1)
+
+
+
+
+
