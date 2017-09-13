@@ -46,13 +46,13 @@ find_package(Boost
 # Set include folders
 set (FELT_INCLUDE vendor/Felt/include)
 set (LUACPPMSG_INCLUDE vendor/LuaCppMsg/include)
-set (MSM_INCLUDE vendor/msm-lite/include)
+set (SML_INCLUDE vendor/sml/include)
 set (LUAHPP_INCLUDE ${URHO3D_HOME}/Source/ThirdParty/LuaJIT/src)
 set (VENDOR_INCLUDE vendor/include)
 
 include_directories (
 	include ${FELT_INCLUDE} ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
-	${MSM_INCLUDE} ${VENDOR_INCLUDE} ${Boost_INCLUDE_DIRS} #/usr/include/x86_64-linux-gnu/c++/5
+	${SML_INCLUDE} ${VENDOR_INCLUDE} ${Boost_INCLUDE_DIRS} #/usr/include/x86_64-linux-gnu/c++/5
 )
 
 #FILE(GLOB_RECURSE HPPS "include/*")
