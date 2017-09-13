@@ -27,8 +27,6 @@ void Tick<Label::InitSurface>::tick(const float dt)
 			{"type", PERCENT_BOTTOM},
 			{"value", -1}
 		});
-		using namespace msm;
-		m_papp->m_controller->process_event("initialised"_t);
 	}
 }
 
@@ -153,40 +151,18 @@ void Tick<Label::Running>::tick(const float dt)
 	m_time_since_update += dt;
 	if (m_time_since_update > 1.0f/30.0f)
 	{
-		using namespace msm;
-		m_papp->m_controller->process_event("update_gpu"_t);
 	}
 }
 
 
 void Tick<Label::UpdateGPU>::tick(const float dt)
 {
-	using namespace msm;
 	m_papp->m_psurface->flush();
-	m_papp->m_controller->process_event("resume"_t);
 }
 
 
 void Tick<Label::UpdatePoly>::tick(const float dt)
 {
-	using namespace msm;
-
 	m_papp->m_psurface->polygonise();
-	m_papp->m_controller->process_event("worker_pause"_t);
 }
-const msm::state<msm::sm<WorkerRunningSM>> AppController::WORKER_RUNNING =
-	msm::state<msm::sm<WorkerRunningSM>>{};
 
-
-std::function<void(WorkerRunningController*, UrFelt::Application*)> BaseSM::worker_restore() const
-{
-	return [](WorkerRunningController* pworker, Application* papp_) {
-		pworker->restore(papp_);
-	};
-}
-WorkerRunningSM::ZapAction WorkerRunningSM::worker_remember_zap() const
-{
-	return [](WorkerRunningController* pworker, Application* papp_, const Event::StartZap& evt) {
-		pworker->remember(papp_, new Tick<State::Label::Zap>{papp_, evt.amt});
-	};
-}

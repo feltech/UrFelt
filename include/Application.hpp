@@ -45,7 +45,6 @@ namespace UrFelt
 
 	namespace State
 	{
-		class AppController;
 		class BaseSM;
 		class AppSM;
 		class WorkerRunningSM;
@@ -78,7 +77,6 @@ namespace UrFelt
 		void start_worker();
 
 	private:
-		std::unique_ptr<State::AppController>	m_controller;
 		std::unique_ptr<State::TickBase>		m_app_state;
 		std::unique_ptr<State::TickBase>		m_app_state_next;
 		std::shared_ptr<State::TickBase>		m_worker_state;

@@ -41,7 +41,7 @@ Application::~Application ()
 
 
 Application::Application (Urho3D::Context* context) : Urho3D::Application(context),
-	m_psurface(), m_quit(false), m_controller(new State::AppController(this))
+	m_psurface(), m_quit(false)
 {
 	context_->RegisterSubsystem(new Urho3D::LuaScript(context_));
 }
@@ -117,24 +117,6 @@ void Application::tick(
 	using namespace Urho3D;
 	using namespace LuaCppMsg;
 	using namespace Messages;
-	using namespace msm;
-
-	while (UrQueue::Msg::Opt msg_exists = m_queue_main.pop())
-	{
-		const UrQueue::Msg& msg = *msg_exists;
-		const MsgType type = (MsgType)msg.get("type").as<float>();
-
-		switch (type)
-		{
-		case MsgType::ACTIVATE_SURFACE:
-			m_controller->process_event("activate_surface"_t);
-			break;
-		default:
-			std::ostringstream str;
-			str << "Invalid message type: " << type;
-			throw std::runtime_error(str.str());
-		}
-	}
 
 	const float dt = event_data_[Update::P_TIMESTEP].GetFloat();
 
@@ -150,7 +132,6 @@ void Application::worker()
 {
 	using namespace Urho3D;
 	using namespace Messages;
-	using namespace msm;
 
 	typedef std::chrono::high_resolution_clock Clock;
 	typedef std::chrono::duration<float> Seconds;
@@ -163,33 +144,13 @@ void Application::worker()
 		Seconds time_step = Clock::now() - time_last;
 		time_last = Clock::now();
 
-		if (this->m_controller->is(State::AppController::WORKER_RUNNING))
-			while (const UrQueue::Msg::Opt& msg_exists = m_queue_worker.pop())
-			{
-				using namespace UrFelt::State::Event;
-				const UrQueue::Msg& msg = *msg_exists;
-				const MsgType type = (MsgType)msg.get("type").as<float>();
-				switch (type)
-				{
-				case MsgType::STOP_ZAP:
-				{
-					this->m_controller->process_event(StopZap{});
-					break;
-				}
-				case MsgType::START_ZAP:
-				{
-					const float zap_amount = msg.get("amount").as<float>();
-					this->m_controller->process_event(StartZap{zap_amount});
-					break;
-				}
-				default:
-				{
-					std::ostringstream str;
-					str << "Invalid message type: " << type;
-					throw std::runtime_error(str.str());
-				}
-				}
-			}
+		while (const UrQueue::Msg::Opt& msg_exists = m_queue_worker.pop())
+		{
+			using namespace UrFelt::State::Event;
+			const UrQueue::Msg& msg = *msg_exists;
+			const MsgType type = (MsgType)msg.get("type").as<float>();
+
+		}
 
 		if (m_worker_state_next.get() != m_worker_state.get())
 			m_worker_state = m_worker_state_next;
