@@ -5,26 +5,30 @@ match = require 'luassert.match'
 spy = require 'luassert.spy'
 stub = require 'luassert.stub'
 mock = require 'luassert.mock'
-  
-test.start_up = ()->
-	print("start")
 
-test.tear_down = ()->
-	print("end")
-	
-test.mouse.start_up = ()->
-	print("start mouse")
+snapshot = nil
 
-test.mouse.tear_down = ()->
-	print("end mouse")
-	
-test.other.start_up = ()->
-	print("start other")
+test.start_up = () ->
+	snapshot = assert\snapshot()
 
-test.other.tear_down = ()->
-	print("end other")
+test.tear_down = () ->
+	snapshot\revert()
 	
-test.mouse.concat = () ->
-	test.is_userdata(input)
+test.stub.start_up = ()->
+	test.start_up()
+
+test.stub.tear_down = ()->
+	test.tear_down()
+	
+test.stub.create = () ->
+	s = stub(getmetatable(input), "SetMouseVisible")
+	
+	input\SetMouseVisible(true)
+
+	assert.is_not_nil(getmetatable(input.SetMouseVisible))
+	assert.stub(s).was.called_with(input, true)
+	
+test.stub.torn_down = () ->
+	assert.is_nil(getmetatable(input.SetMouseVisible))
 
 test.summary()
