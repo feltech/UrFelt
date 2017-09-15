@@ -33,7 +33,7 @@ void Tick<Label::InitSurface>::tick(const float dt)
 
 void Tick<Label::InitSurface>::execute(co::coroutine<FLOAT>::push_type& sink)
 {
-	m_papp->m_psurface->seed(Vec3i(0,0,0));
+	m_papp->m_psurface->seed(Urho3D::Vector3(0,0,0));
 
 	for (UINT i = 0; i < 2; i++)
 		m_papp->m_psurface->update([](const auto&, const auto&)->FLOAT {

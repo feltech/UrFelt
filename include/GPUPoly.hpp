@@ -22,8 +22,7 @@ class GPUPoly
 {
 public:
 	void bind (
-		const UrFelt::Polys::Child *const ppoly_,
-		Urho3D::Context *const pcontext_, Urho3D::Node *const pnode_root_
+		const UrFelt::Polys::Child *const ppoly_, Urho3D::Node *const pnode_root_
 	);
 
 	bool flush ();

@@ -8,16 +8,15 @@ namespace UrFelt
 {
 
 void GPUPoly::bind (
-	const UrFelt::Polys::Child *const ppoly_, Urho3D::Context *const pcontext_,
-	Urho3D::Node *const pnode_root_
+	const UrFelt::Polys::Child *const ppoly_, Urho3D::Node *const pnode_root_
 ) {
 	using namespace Urho3D;
 	m_ppoly = ppoly_;
-	m_pcontext = pcontext_;
-	m_pmodel = SharedPtr<Model>(new Model(m_pcontext));
-	m_pvb = SharedPtr<VertexBuffer>(new VertexBuffer(m_pcontext));
-	m_pib = SharedPtr<IndexBuffer>(new IndexBuffer(m_pcontext));
-	m_pgeom = SharedPtr<Geometry>(new Geometry(m_pcontext));
+	Urho3D::Context* pcontext = pnode_root_->GetContext();
+	m_pmodel = SharedPtr<Model>(new Model(pcontext));
+	m_pvb = SharedPtr<VertexBuffer>(new VertexBuffer(pcontext));
+	m_pib = SharedPtr<IndexBuffer>(new IndexBuffer(pcontext));
+	m_pgeom = SharedPtr<Geometry>(new Geometry(pcontext));
 	m_pnode = pnode_root_->CreateChild("Poly");
 	m_pstatic_model = m_pnode->CreateComponent<StaticModel>();
 
@@ -57,7 +56,7 @@ bool GPUPoly::flush()
 	m_pgeom->SetDrawRange(TRIANGLE_LIST, 0, m_ppoly->spxs().size() * 3, false);
 	m_pmodel->SetGeometry(0, 0, m_pgeom);
 	m_pstatic_model->SetModel(m_pmodel);
-	ResourceCache* cache = m_pcontext->GetSubsystem<ResourceCache>();
+	ResourceCache* cache = m_pnode->GetContext()->GetSubsystem<ResourceCache>();
 	m_pstatic_model->SetMaterial(
 		cache->GetResource<Material>("Materials/Surface.xml")
 	);

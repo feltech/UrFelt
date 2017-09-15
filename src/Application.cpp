@@ -65,9 +65,20 @@ void Application::Setup()
 
 	PhysicsWorld::config.collisionConfig_ = new btFeltCollisionConfiguration();
 
+
 	LuaScript* lua = context_->GetSubsystem<LuaScript>();
+
 	m_plua = std::make_unique<sol::state_view>(lua->GetState());
 	m_plua->open_libraries(sol::lib::base);
+
+	sol::table lua_UrFelt = m_plua->create_named_table("UrFelt");
+
+
+	lua_UrFelt.new_usertype<UrSurface>(
+		"UrSurface",
+		sol::constructors<UrSurface(const Vector3&, const Vector3&, Node*)>(),
+		"seed", &UrSurface::seed
+	);
 
 //	tolua_UrFelt_open (lua->GetState());
 //	m_queue_worker.bind(lua->GetState());

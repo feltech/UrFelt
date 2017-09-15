@@ -15,8 +15,16 @@ const Felt::Vec3f UrSurface::ray_miss = UrSurface::Surface::ray_miss;
 
 
 UrSurface::UrSurface(
-	const Felt::Vec3i& size_, const Felt::Vec3i& size_partition_,
-	Urho3D::Context* pcontext_, Urho3D::Node* pnode_
+	const Urho3D::Vector3& size_, const Urho3D::Vector3& size_partition_, Urho3D::Node* pnode_
+) :
+	UrSurface{
+		reinterpret_cast<const Felt::Vec3i&>(size_),
+		reinterpret_cast<const Felt::Vec3i&>(size_partition_), pnode_
+	}
+{}
+
+UrSurface::UrSurface(
+	const Felt::Vec3i& size_, const Felt::Vec3i& size_partition_, Urho3D::Node* pnode_
 ) :
 	m_surface{size_, size_partition_},
 	m_coll_shapes{
@@ -33,7 +41,7 @@ UrSurface::UrSurface(
 		pos_idx_child++
 	) {
 		m_gpu_polys.get(pos_idx_child).bind(
-			&m_polys.children().get(pos_idx_child), pcontext_, pnode_
+			&m_polys.children().get(pos_idx_child), pnode_
 		);
 	}
 
