@@ -1,17 +1,18 @@
-assert = require 'luassert'
+lassert = require 'luassert'
 stub = require 'luassert.stub'
-bdd = require 'Test.bdd'
-describe = require 'Test.bdd.describe'
+Runner = require 'feltest'
+Runner.DEBUG = false
+run = Runner()
 
 snapshot = nil
 
-print("v2")
+print("v4")
 
-describe(
+run\describe(
 	'stubbing userdata'
 		
 )\beforeEach( () ->
-	snapshot = assert\snapshot()
+	snapshot = lassert\snapshot()
 	
 )\afterEach( () ->
 	snapshot\revert()
@@ -22,53 +23,93 @@ describe(
 	
 	input\SetMouseVisible(true)
 
-	assert.is_not_nil(getmetatable(input.SetMouseVisible))
-	assert.stub(s).was.called_with(input, true)
+	lassert.is_not_nil(getmetatable(input.SetMouseVisible))
+	lassert.stub(s).was.called_with(input, true)
 		
 )\it('removes the stub when done', () ->
 	
-	assert.is_nil(getmetatable(input.SetMouseVisible))
+	lassert.is_nil(getmetatable(input.SetMouseVisible))
+	
 )
 
+input\SetMouseVisible(true)
+input\SetMouseGrabbed(true)
 
-scene = nil
+export final_scene
+export final_surface
 
-describe(
-	'construct a surface'
-)\beforeEach( () ->
-	scene = Scene()
-
-	scene\CreateComponent("Octree")
+run\describe(
+	'surface'
+)\beforeEach( () =>
+	@scene = Scene()
+	@scene\CreateComponent("Octree")
 	
-	cameraNode = scene\CreateChild("Camera")	
-	cameraNode.position = Vector3(0.0, 10.0, -50.0)
+	cameraNode = @scene\CreateChild("Camera")	
+	cameraNode.position = Vector3(0.0, 0.0, -10.0)
 	camera = cameraNode\CreateComponent("Camera")
-	viewport = Viewport\new(scene_, cameraNode\GetComponent("Camera"))
+	viewport = Viewport\new(@scene, cameraNode\GetComponent("Camera"))
 	renderer\SetViewport(0, viewport) 
 	
-	lightNode = scene\CreateChild("DirectionalLight")
+	lightNode = @scene\CreateChild("DirectionalLight")
 	lightNode.direction = Vector3(0.6, -1.0, 0.8)
 	light = lightNode\CreateComponent("Light")
 	light.lightType = LIGHT_DIRECTIONAL
 		
-)\afterEach( () ->
-	scene = nil
+)\afterEach( () =>
+	final_scene = @scene
+	final_surface = @surface
 	 
-)\it('can be constructed', () ->
-	node = scene\CreateChild("Surface")
-	surface = UrFelt.UrSurface.new(Vector3(16, 16, 16), Vector3(8, 8, 8), node)
+)\it('can be constructed', () =>
+	node = @scene\CreateChild("Surface")
+	@surface = UrFelt.UrSurface.new(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
 	
-	assert.are.equal(type(surface), "userdata", "surface should be userdata")
+	lassert.are.equal(type(@surface), "userdata", "surface should be userdata")
 
-)\it('can spawn a seed surface', () ->
-	node = scene\CreateChild("Surface")
-	surface = UrFelt.UrSurface.new(Vector3(16, 16, 16), Vector3(8, 8, 8), node)
+)\it('can spawn a seed', () =>
+	node = @scene\CreateChild("Surface")
+	@surface = UrFelt.UrSurface.new(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
 	
-	surface\seed(Vector3(0,0,0))	
+	@surface\seed(IntVector3(0,0,0))	
+	
+)\it('can be rendered', () =>
+	node = @scene\CreateChild("Surface")	
+	@surface = UrFelt.UrSurface.new(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
+	@surface\seed(IntVector3(0,0,0))	
+	
+	@surface\invalidate()
+	@surface\polygonise()
+	@surface\flush()
+	
+)\it('can be updated', () =>
+	node = @scene\CreateChild("Surface")	
+	@surface = UrFelt.UrSurface.new(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
+	@surface\seed(IntVector3(0,0,0))	
+	@surface\update (pos, grid)->
+		return -0.5
+	
+	@surface\invalidate()
+	@surface\polygonise()
+	@surface\flush()
 )
 
-success = bdd.runTests()
-os.exit(success and 0 or 1)
+
+success = run\runTests()
+
+	
+export HandleUpdate = (eventType, eventData)->
+	success = run\resumeTests()
+	if success ~= nil
+		print("Tests completed with success=" .. tostring(success)) 
+		os.exit(sucesss and 0 or 1)
+	lassert.are.equal("userdata", type(final_scene))
+	lassert.are.equal("userdata", type(final_surface))
+
+
+SubscribeToEvent("Update", "HandleUpdate")
+
+-- os.exit(success and 0 or 1)
+
+
 
 
 
