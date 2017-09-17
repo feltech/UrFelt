@@ -72,6 +72,7 @@ namespace UrFelt
 	private:
 		void Setup();
 		void Start();
+		void Stop();
 		void tick(Urho3D::StringHash eventType, Urho3D::VariantMap& eventData);
 		void worker();
 		void start_worker();

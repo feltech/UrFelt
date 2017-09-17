@@ -34,12 +34,6 @@ public:
 	UrSurface () = default;
 
 	UrSurface(
-		const Urho3D::Vector3& size_,
-		const Urho3D::Vector3& size_partition_,
-		Urho3D::Node* pnode_
-	);
-
-	UrSurface(
 		const Felt::Vec3i& size_,
 		const Felt::Vec3i& size_partition_,
 		Urho3D::Node* pnode_
@@ -90,9 +84,19 @@ public:
 	 *
 	 * @param pos_centre_ position of seed.
 	 */
-	void seed (const Urho3D::Vector3& pos_centre_)
+	void seed (const Felt::Vec3i& pos_centre_)
 	{
-		m_surface.seed(reinterpret_cast<const Felt::Vec3i&>(pos_centre_));
+		m_surface.seed(pos_centre_);
+	}
+
+	/**
+	 * Create singularity seed surface (single zero-layer point).
+	 *
+	 * @param pos_centre_ position of seed.
+	 */
+	void invalidate ()
+	{
+		m_polys.invalidate();
 	}
 
 	/**

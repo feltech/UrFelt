@@ -32,6 +32,13 @@ namespace UrFelt
 const char* PHYSICS_CATEGORY = "Physics";
 const char* SUBSYSTEM_CATEGORY = "Subsystem";
 
+
+Application::Application (Urho3D::Context* context) : Urho3D::Application(context),
+	m_psurface(), m_quit(false)
+{
+	context_->RegisterSubsystem(new Urho3D::LuaScript(context_));
+}
+
 Application::~Application ()
 {
 	m_quit = true;
@@ -39,11 +46,9 @@ Application::~Application ()
 		m_thread_updater.join();
 }
 
-
-Application::Application (Urho3D::Context* context) : Urho3D::Application(context),
-	m_psurface(), m_quit(false)
+void Application::Stop()
 {
-	context_->RegisterSubsystem(new Urho3D::LuaScript(context_));
+	m_plua.reset();
 }
 
 Urho3D::String Application::GetTypeNameStatic()
@@ -69,15 +74,27 @@ void Application::Setup()
 	LuaScript* lua = context_->GetSubsystem<LuaScript>();
 
 	m_plua = std::make_unique<sol::state_view>(lua->GetState());
-	m_plua->open_libraries(sol::lib::base);
 
 	sol::table lua_UrFelt = m_plua->create_named_table("UrFelt");
 
+	lua_UrFelt.new_usertype<UrSurface::IsoGrid>(
+		"IsoGrid"
+	);
 
 	lua_UrFelt.new_usertype<UrSurface>(
 		"UrSurface",
-		sol::constructors<UrSurface(const Vector3&, const Vector3&, Node*)>(),
-		"seed", &UrSurface::seed
+		sol::constructors<UrSurface(const Felt::Vec3i&, const Felt::Vec3i&, Node*)>(),
+		"seed", &UrSurface::seed,
+		"invalidate", &UrSurface::invalidate,
+		"polygonise", &UrSurface::polygonise,
+		"flush", &UrSurface::flush,
+		"update", [](UrSurface& self, sol::function fn_) {
+			self.update([&fn_](const Felt::Vec3i& pos_, const UrSurface::IsoGrid& isogrid_) {
+				Urho3D::IntVector3 vpos_ = reinterpret_cast<const Urho3D::IntVector3&>(pos_);
+				Felt::Distance dist = fn_(vpos_, isogrid_);
+				return dist;
+			});
+		}
 	);
 
 //	tolua_UrFelt_open (lua->GetState());

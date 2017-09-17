@@ -13,16 +13,6 @@ namespace UrFelt
 
 const Felt::Vec3f UrSurface::ray_miss = UrSurface::Surface::ray_miss;
 
-
-UrSurface::UrSurface(
-	const Urho3D::Vector3& size_, const Urho3D::Vector3& size_partition_, Urho3D::Node* pnode_
-) :
-	UrSurface{
-		reinterpret_cast<const Felt::Vec3i&>(size_),
-		reinterpret_cast<const Felt::Vec3i&>(size_partition_), pnode_
-	}
-{}
-
 UrSurface::UrSurface(
 	const Felt::Vec3i& size_, const Felt::Vec3i& size_partition_, Urho3D::Node* pnode_
 ) :
@@ -88,3 +78,4 @@ void UrSurface::flush()
 }
 
 } // UrFelt.
+
