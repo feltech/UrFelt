@@ -2,7 +2,12 @@
 #define INCLUDE_URSURFACE3D_HPP_
 
 #include <functional>
+#include <queue>
 #include <boost/coroutine/all.hpp>
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
 
 #include <Felt/Impl/Tracked.hpp>
 #include <Felt/Surface.hpp>
@@ -30,6 +35,9 @@ private:
 public:
 	using IsoGrid = Surface::IsoGrid;
 	static const Felt::Vec3f ray_miss;
+private:
+	using UpdateFn = std::function<Felt::Distance(const Felt::Vec3i&, const IsoGrid&)>;
+public:
 
 	UrSurface () = default;
 
@@ -39,6 +47,8 @@ public:
 		Urho3D::Node* pnode_
 	);
 
+	~UrSurface();
+	
 	/**
 	 * Perform a a full (parallelised) update of the narrow band.
 	 *
@@ -54,7 +64,7 @@ public:
 		m_surface.update(fn_);
 		m_polys.notify();
 	}
-
+	
 	/**
 	 * Perform a a full (parallelised) update of the narrow band.
 	 *
@@ -72,6 +82,36 @@ public:
 		m_surface.update(pos_leaf_lower_, pos_leaf_upper_, fn_);
 		m_polys.notify();
 	}
+		
+	/**
+	 * Perform a a full (parallelised) update of the narrow band.
+	 *
+	 * Lambda function passed will be given the position to process and
+	 * a reference to the phi grid, and is expected to return delta phi to
+	 * apply.
+	 *
+	 * @param fn_ (pos, phi) -> float
+	 */
+	void enqueue(UpdateFn&& fn_);
+
+	/**
+	 * Perform a a full (parallelised) update of the narrow band.
+	 *
+	 * Lambda function passed will be given the position to process and
+	 * a reference to the phi grid, and is expected to return delta phi to
+	 * apply.
+	 *
+	 * @param fn_ (pos, phi) -> float
+	 */
+	void enqueue(
+		const Felt::Vec3i& pos_leaf_lower_, const Felt::Vec3i& pos_leaf_upper_,
+		UpdateFn&& fn_
+	);
+
+	/**
+	 * Execute enqueued updates.
+	 */
+	void wake();
 
 
 	Felt::Vec3f ray(const Felt::Vec3f& pos_origin_, const Felt::Vec3f& dir_) const
@@ -110,6 +150,13 @@ public:
 	void flush();
 
 private:
+	void executor();
+
+	bool m_exit;
+	std::atomic_flag m_lock;
+	std::thread m_executor;
+
+	std::queue<std::function<void()>>	m_queue_updates;
 	UrFelt::Surface		m_surface;
 	UrFelt::Polys		m_polys;
 	CollShapes			m_coll_shapes;

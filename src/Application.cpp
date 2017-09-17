@@ -21,7 +21,6 @@
 #include <Urho3D/Graphics/Camera.h>
 #include <Urho3D/Physics/PhysicsWorld.h>
 
-
 #include "AppState.hpp"
 #include "btFeltCollisionConfiguration.hpp"
 #include "UrSurfaceCollisionShape.hpp"
@@ -88,13 +87,16 @@ void Application::Setup()
 		"invalidate", &UrSurface::invalidate,
 		"polygonise", &UrSurface::polygonise,
 		"flush", &UrSurface::flush,
+
 		"update", [](UrSurface& self, sol::function fn_) {
 			self.update([&fn_](const Felt::Vec3i& pos_, const UrSurface::IsoGrid& isogrid_) {
 				Urho3D::IntVector3 vpos_ = reinterpret_cast<const Urho3D::IntVector3&>(pos_);
 				Felt::Distance dist = fn_(vpos_, isogrid_);
 				return dist;
 			});
-		}
+		},
+
+		"wake", &UrSurface::wake
 	);
 
 //	tolua_UrFelt_open (lua->GetState());

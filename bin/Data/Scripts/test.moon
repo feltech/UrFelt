@@ -84,12 +84,30 @@ run\describe(
 	node = @scene\CreateChild("Surface")	
 	@surface = UrFelt.UrSurface.new(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
 	@surface\seed(IntVector3(0,0,0))	
+	@surface\invalidate()
+
 	@surface\update (pos, grid)->
 		return -0.5
 	
-	@surface\invalidate()
+	coroutine.yield()
+	
 	@surface\polygonise()
 	@surface\flush()
+	
+-- )\it('can raise the surface', () =>
+-- 	node = @scene\CreateChild("Surface")	
+-- 	@surface = UrFelt.UrSurface.new(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
+-- 	@surface\seed(IntVector3(0,0,0))	
+-- 	@surface\update (pos, grid)->
+-- 		return -1.0	
+-- 	@surface\invalidate()
+-- 	@surface\polygonise()
+-- 	@surface\flush()
+-- 	
+-- 	ray = Ray(Vector3(0, 0, -10), Vector3(0, 0, 1))
+-- 		
+-- 	@surface\raise(4, ray)
+-- 	coroutine.yield()
 )
 
 
@@ -98,9 +116,9 @@ success = run\runTests()
 	
 export HandleUpdate = (eventType, eventData)->
 	success = run\resumeTests()
-	if success ~= nil
-		print("Tests completed with success=" .. tostring(success)) 
-		os.exit(sucesss and 0 or 1)
+-- 	if success ~= nil
+-- 		print("Tests completed with success=" .. tostring(success)) 
+-- 		os.exit(sucesss and 0 or 1)
 	lassert.are.equal("userdata", type(final_scene))
 	lassert.are.equal("userdata", type(final_surface))
 

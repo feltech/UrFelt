@@ -24,7 +24,7 @@ UrSurface::UrSurface(
 	m_gpu_polys{
 		m_surface.isogrid().children().size(), m_surface.isogrid().children().offset(), GPUPoly{}
 	},
-	m_pnode{pnode_}
+	m_pnode{pnode_}, m_exit{false}, m_lock{false}, m_executor{&UrSurface::executor, this}
 {
 	for (
 		Felt::PosIdx pos_idx_child = 0; pos_idx_child < m_polys.children().data().size();
@@ -42,6 +42,14 @@ UrSurface::UrSurface(
 	m_psurface_body->SetUseGravity(false);
 	m_psurface_body->SetRestitution(0.0);
 	m_psurface_body->Activate();
+}
+
+
+UrSurface::~UrSurface()
+{
+	m_exit = true;
+	m_lock.clear(std::memory_order_release);
+	m_executor.join();
 }
 
 
@@ -74,6 +82,56 @@ void UrSurface::flush()
 		}
 
 		m_gpu_polys.get(pos_idx_child).flush();
+	}
+}
+
+
+void UrSurface::enqueue(UrSurface::UpdateFn&& fn_)
+{
+	m_queue_updates.push([
+		this,
+		fn_ = std::move(fn_)
+	]() {
+		m_surface.update(std::move(fn_));
+		m_polys.notify();
+	});
+}
+
+
+void UrSurface::enqueue(
+	const Felt::Vec3i& pos_leaf_lower_, const Felt::Vec3i& pos_leaf_upper_,
+	UrSurface::UpdateFn&& fn_
+) {
+	m_queue_updates.push([
+		this,
+		fn_ = std::move(fn_),
+		&pos_leaf_lower_ ,
+		&pos_leaf_upper_
+	]() {
+		m_surface.update(pos_leaf_lower_, pos_leaf_upper_, std::move(fn_));
+		m_polys.notify();
+	});
+}
+
+
+void UrSurface::wake()
+{
+	m_lock.clear();
+}
+
+
+void UrSurface::executor()
+{
+	while (not m_exit)
+	{
+		while (m_lock.test_and_set(std::memory_order_acquire))
+		{}
+
+		while (not m_queue_updates.empty())
+		{
+			m_queue_updates.front()();
+			m_queue_updates.pop();
+		}
 	}
 }
 
