@@ -24,6 +24,8 @@ add_definitions(
 	-fopenmp 
 	# Cannot use coroutine2 on Ubuntu 16.04 by default.
 	-DBOOST_COROUTINES_NO_DEPRECATION_WARNING -DBOOST_COROUTINE_NO_DEPRECATION_WARNING
+	# Enable debugging
+	-O0 -ggdb -g
 	# Enable Felt library exceptions
 #	-DFELT_EXCEPTIONS
 	# Enable profiling
