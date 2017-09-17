@@ -96,6 +96,8 @@ void Application::Setup()
 			});
 		},
 
+		"enqueue_simple", &UrSurface::enqueue_simple,
+
 		"wake", &UrSurface::wake
 	);
 

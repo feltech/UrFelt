@@ -48,7 +48,7 @@ UrSurface::UrSurface(
 UrSurface::~UrSurface()
 {
 	m_exit = true;
-	m_lock.clear(std::memory_order_release);
+	m_lock.unlock();
 	m_executor.join();
 }
 
@@ -86,37 +86,44 @@ void UrSurface::flush()
 }
 
 
-void UrSurface::enqueue(UrSurface::UpdateFn&& fn_)
-{
-	m_queue_updates.push([
-		this,
-		fn_ = std::move(fn_)
-	]() {
-		m_surface.update(std::move(fn_));
-		m_polys.notify();
-	});
-}
-
-
-void UrSurface::enqueue(
-	const Felt::Vec3i& pos_leaf_lower_, const Felt::Vec3i& pos_leaf_upper_,
-	UrSurface::UpdateFn&& fn_
-) {
-	m_queue_updates.push([
-		this,
-		fn_ = std::move(fn_),
-		&pos_leaf_lower_ ,
-		&pos_leaf_upper_
-	]() {
-		m_surface.update(pos_leaf_lower_, pos_leaf_upper_, std::move(fn_));
-		m_polys.notify();
-	});
-}
+//void UrSurface::enqueue(UrSurface::UpdateFn&& fn_)
+//{
+//	m_queue_updates.push([
+//		this,
+//		fn_ = std::move(fn_)
+//	]() {
+//		m_surface.update(std::move(fn_));
+//		m_polys.notify();
+//	});
+//}
+//
+//
+//void UrSurface::enqueue(
+//	const Felt::Vec3i& pos_leaf_lower_, const Felt::Vec3i& pos_leaf_upper_,
+//	UrSurface::UpdateFn&& fn_
+//) {
+//	m_queue_updates.push([
+//		this,
+//		fn_ = std::move(fn_),
+//		&pos_leaf_lower_ ,
+//		&pos_leaf_upper_
+//	]() {
+//		m_surface.update(pos_leaf_lower_, pos_leaf_upper_, std::move(fn_));
+//		m_polys.notify();
+//	});
+//}
 
 
 void UrSurface::wake()
 {
-	m_lock.clear();
+	m_lock.unlock();
+}
+
+
+void UrSurface::enqueue_simple(const float amount_, sol::coroutine callback_)
+{
+	std::lock_guard<boost::detail::spinlock> lock(m_lock);
+	m_queue_pending.push(std::make_unique<UrSurfaceOp>(UrSurfaceOpSimple{amount_, callback_}));
 }
 
 
@@ -124,16 +131,34 @@ void UrSurface::executor()
 {
 	while (not m_exit)
 	{
-		while (m_lock.test_and_set(std::memory_order_acquire))
-		{}
+		std::lock_guard<boost::detail::spinlock> lock(m_lock);
 
-		while (not m_queue_updates.empty())
+		for (const std::unique_ptr<UrSurfaceOp>& base_op : m_queue_pending)
 		{
-			m_queue_updates.front()();
-			m_queue_updates.pop();
+			switch (base_op->type)
+			{
+			case UrSurfaceOp::Type::Simple:
+				const UrSurfaceOpSimple& op = static_cast<const UrSurfaceOpSimple&>(*base_op.get());
+
+				float remaining = op.amount;
+
+				while (std::numeric_limits<float>::epsilon() < std::abs(remaining))
+				{
+					const float amount = std::min(std::abs(remaining), 0.5f) * Felt::sgn(remaining);
+					remaining -= amount;
+
+					m_surface.update([amount](const auto&, const auto&){
+						return amount;
+					});
+					m_polys.notify();
+				}
+				break;
+			}
 		}
 	}
 }
+
+
 
 } // UrFelt.
 
