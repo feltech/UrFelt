@@ -7,6 +7,16 @@
 namespace UrFelt
 {
 
+GPUPoly::~GPUPoly ()
+{
+	if (m_pvb.NotNull())
+		m_pvb->Release();
+	if (m_pib.NotNull())
+		m_pib->Release();
+	if (m_pnode != nullptr)
+		m_pnode->Remove();
+}
+
 void GPUPoly::bind (
 	const UrFelt::Polys::Child *const ppoly_, Urho3D::Node *const pnode_root_
 ) {

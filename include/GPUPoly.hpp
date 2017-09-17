@@ -21,6 +21,8 @@ namespace UrFelt
 class GPUPoly
 {
 public:
+	~GPUPoly();
+
 	void bind (
 		const UrFelt::Polys::Child *const ppoly_, Urho3D::Node *const pnode_root_
 	);
