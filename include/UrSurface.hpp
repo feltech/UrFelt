@@ -44,6 +44,31 @@ private:
 //	using UpdateFn = std::function<Felt::Distance(const Felt::Vec3i&, const IsoGrid&)>;
 public:
 
+	struct Op
+	{
+		struct Base
+		{
+			sol::function callback;
+			virtual void execute(UrSurface& surface) = 0;
+		protected:
+			Base(sol::function callback_);
+		};
+
+		struct Polygonise : Base
+		{
+			Polygonise(sol::function callback_);
+			void execute(UrSurface& surface);
+		};
+
+		struct Simple : Base
+		{
+			Simple(const float amount_, sol::function callback_);
+			void execute(UrSurface& surface);
+		private:
+			const float m_amount;
+		};
+	};
+
 	UrSurface () = default;
 
 	UrSurface(
@@ -87,7 +112,12 @@ public:
 		m_surface.update(pos_leaf_lower_, pos_leaf_upper_, fn_);
 		m_polys.notify();
 	}
-		
+
+	/**
+	 * Loop changed spatial partitions and construct polygonisation.
+	 */
+	void polygonise();
+
 	/**
 	 * Enqueue a full (parallelised) update of the narrow band.
 	 *
@@ -97,12 +127,17 @@ public:
 	 *
 	 * @param fn_ (pos, phi) -> float
 	 */
-	void enqueue_simple(const float amount_, sol::coroutine callback_);
+	void enqueue(UrSurface::Op::Base* op);
 
 	/**
 	 * Execute enqueued updates.
 	 */
 	void wake();
+
+	/**
+	 * Wait for the executor to complete, then call callbacks and clear the queue.
+	 */
+	void await();
 
 
 	Felt::Vec3f ray(const Felt::Vec3f& pos_origin_, const Felt::Vec3f& dir_) const
@@ -131,11 +166,6 @@ public:
 	}
 
 	/**
-	 * Reconstruct polygonisation from changed surface children.
-	 */
-	void polygonise();
-
-	/**
 	 * Construct physics and GPU assets and add to scene.
 	 */
 	void flush();
@@ -144,10 +174,11 @@ private:
 	void executor();
 
 	bool m_exit;
-	boost::detail::spinlock m_lock;
+	std::mutex m_mutex_executor;
+	std::condition_variable m_execution;
 	std::thread m_executor;
 
-	std::vector< std::unique_ptr<UrSurfaceOp> >	m_queue_pending;
+	std::vector<UrSurface::Op::Base*>	m_queue_executor;
 
 	UrFelt::Surface		m_surface;
 	UrFelt::Polys		m_polys;
@@ -157,32 +188,6 @@ private:
 	Urho3D::RigidBody* 	m_psurface_body;
 
 };
-
-
-struct UrSurfaceOp
-{
-	enum class Type
-	{
-		Simple, Ray
-	};
-	Type type;
-	sol::coroutine callback;
-protected:
-	UrSurfaceOp(Type type_, sol::coroutine callback_) :
-		type{type_}, callback{callback_}
-	{}
-};
-
-
-struct UrSurfaceOpSimple  : UrSurfaceOp
-{
-	const float amount;
-
-	UrSurfaceOpSimple(const float amount_, sol::coroutine callback_) :
-		UrSurfaceOp{UrSurfaceOp::Type::Simple, callback_}, amount{amount}
-	{}
-};
-
 
 } /* namespace UrFelt */
 

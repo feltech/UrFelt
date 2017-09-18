@@ -24,7 +24,7 @@ UrSurface::UrSurface(
 	m_gpu_polys{
 		m_surface.isogrid().children().size(), m_surface.isogrid().children().offset(), GPUPoly{}
 	},
-	m_pnode{pnode_}, m_exit{false}, m_lock{false}, m_executor{&UrSurface::executor, this}
+	m_pnode{pnode_}, m_exit{false}, m_executor{&UrSurface::executor, this}
 {
 	for (
 		Felt::PosIdx pos_idx_child = 0; pos_idx_child < m_polys.children().data().size();
@@ -47,8 +47,11 @@ UrSurface::UrSurface(
 
 UrSurface::~UrSurface()
 {
-	m_exit = true;
-	m_lock.unlock();
+	{
+		std::lock_guard<std::mutex> lock(m_mutex_executor);
+		m_exit = true;
+	}
+	wake();
 	m_executor.join();
 }
 
@@ -86,44 +89,9 @@ void UrSurface::flush()
 }
 
 
-//void UrSurface::enqueue(UrSurface::UpdateFn&& fn_)
-//{
-//	m_queue_updates.push([
-//		this,
-//		fn_ = std::move(fn_)
-//	]() {
-//		m_surface.update(std::move(fn_));
-//		m_polys.notify();
-//	});
-//}
-//
-//
-//void UrSurface::enqueue(
-//	const Felt::Vec3i& pos_leaf_lower_, const Felt::Vec3i& pos_leaf_upper_,
-//	UrSurface::UpdateFn&& fn_
-//) {
-//	m_queue_updates.push([
-//		this,
-//		fn_ = std::move(fn_),
-//		&pos_leaf_lower_ ,
-//		&pos_leaf_upper_
-//	]() {
-//		m_surface.update(pos_leaf_lower_, pos_leaf_upper_, std::move(fn_));
-//		m_polys.notify();
-//	});
-//}
-
-
-void UrSurface::wake()
+void UrSurface::enqueue(UrSurface::Op::Base* op_)
 {
-	m_lock.unlock();
-}
-
-
-void UrSurface::enqueue_simple(const float amount_, sol::coroutine callback_)
-{
-	std::lock_guard<boost::detail::spinlock> lock(m_lock);
-	m_queue_pending.push(std::make_unique<UrSurfaceOp>(UrSurfaceOpSimple{amount_, callback_}));
+	m_queue_executor.push_back(op_);
 }
 
 
@@ -131,31 +99,56 @@ void UrSurface::executor()
 {
 	while (not m_exit)
 	{
-		std::lock_guard<boost::detail::spinlock> lock(m_lock);
+		std::unique_lock<std::mutex> lock(m_mutex_executor);
+		m_execution.wait(lock);
 
-		for (const std::unique_ptr<UrSurfaceOp>& base_op : m_queue_pending)
-		{
-			switch (base_op->type)
-			{
-			case UrSurfaceOp::Type::Simple:
-				const UrSurfaceOpSimple& op = static_cast<const UrSurfaceOpSimple&>(*base_op.get());
-
-				float remaining = op.amount;
-
-				while (std::numeric_limits<float>::epsilon() < std::abs(remaining))
-				{
-					const float amount = std::min(std::abs(remaining), 0.5f) * Felt::sgn(remaining);
-					remaining -= amount;
-
-					m_surface.update([amount](const auto&, const auto&){
-						return amount;
-					});
-					m_polys.notify();
-				}
-				break;
-			}
-		}
+		for (UrSurface::Op::Base* op : m_queue_executor)
+			op->execute(*this);
 	}
+}
+
+
+void UrSurface::await()
+{
+	std::lock_guard<std::mutex> lock(m_mutex_executor);
+	for (UrSurface::Op::Base* op : m_queue_executor)
+		op->callback();
+	m_queue_executor.clear();
+}
+
+
+void UrSurface::wake()
+{
+	m_execution.notify_one();
+}
+
+
+UrSurface::Op::Base::Base(sol::function callback_) :
+	callback{callback_}
+{}
+
+
+UrSurface::Op::Polygonise::Polygonise(sol::function callback_) :
+	UrSurface::Op::Base{callback_}
+{}
+
+
+void UrSurface::Op::Polygonise::execute(UrSurface& surface)
+{
+	surface.polygonise();
+}
+
+
+UrSurface::Op::Simple::Simple(const float amount_, sol::function callback_) :
+	UrSurface::Op::Base{callback_}, m_amount{amount_}
+{}
+
+
+void UrSurface::Op::Simple::execute(UrSurface& surface)
+{
+	surface.update([amount=m_amount](const auto&, const auto&) {
+		return amount;
+	});
 }
 
 

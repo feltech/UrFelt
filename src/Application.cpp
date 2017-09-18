@@ -82,6 +82,7 @@ void Application::Setup()
 
 	lua_UrFelt.new_usertype<UrSurface>(
 		"UrSurface",
+		sol::call_constructor,
 		sol::constructors<UrSurface(const Felt::Vec3i&, const Felt::Vec3i&, Node*)>(),
 		"seed", &UrSurface::seed,
 		"invalidate", &UrSurface::invalidate,
@@ -96,10 +97,20 @@ void Application::Setup()
 			});
 		},
 
-		"enqueue_simple", &UrSurface::enqueue_simple,
-
-		"wake", &UrSurface::wake
+		"enqueue", &UrSurface::enqueue,
+		"wake", &UrSurface::wake,
+		"await", &UrSurface::await
 	);
+
+	sol::table lua_Op = lua_UrFelt.create_named("Op");
+
+	lua_Op.new_usertype<UrSurface::Op::Polygonise>(
+		"Polygonise",
+		sol::call_constructor,
+		sol::constructors<UrSurface::Op::Polygonise(sol::function)>(),
+        sol::base_classes, sol::bases<UrSurface::Op::Base>()
+	);
+
 
 //	tolua_UrFelt_open (lua->GetState());
 //	m_queue_worker.bind(lua->GetState());

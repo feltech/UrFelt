@@ -61,19 +61,19 @@ run\describe(
 	 
 )\it('can be constructed', () =>
 	node = @scene\CreateChild("Surface")
-	@surface = UrFelt.UrSurface.new(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
+	@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
 	
 	lassert.are.equal(type(@surface), "userdata", "surface should be userdata")
 
 )\it('can spawn a seed', () =>
 	node = @scene\CreateChild("Surface")
-	@surface = UrFelt.UrSurface.new(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
+	@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
 	
 	@surface\seed(IntVector3(0,0,0))	
 	
 )\it('can be rendered', () =>
 	node = @scene\CreateChild("Surface")	
-	@surface = UrFelt.UrSurface.new(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
+	@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
 	@surface\seed(IntVector3(0,0,0))	
 	
 	@surface\invalidate()
@@ -82,17 +82,36 @@ run\describe(
 	
 )\it('can be updated', () =>
 	node = @scene\CreateChild("Surface")	
-	@surface = UrFelt.UrSurface.new(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
+	@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
 	@surface\seed(IntVector3(0,0,0))	
 	@surface\invalidate()
 
 	@surface\update (pos, grid)->
-		return -0.5
-	
-	coroutine.yield()
-	
+		return -0.5	
 	@surface\polygonise()
 	@surface\flush()
+
+)\it('can be updated asynchronously', () =>
+	node = @scene\CreateChild("Surface")	
+	@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
+	@surface\seed(IntVector3(0,0,0))	
+	@surface\invalidate()
+	@surface\update (pos, grid)->
+		return -0.5	
+		
+	flushed = false
+	
+	@surface\enqueue(UrFelt.Op.Polygonise(()->
+		@surface\flush()
+		flushed = true
+	))
+	lassert.is_false(flushed)
+	@surface\wake()
+	lassert.is_false(flushed)
+	coroutine.yield()
+	lassert.is_false(flushed)
+	@surface\await()
+	lassert.is_true(flushed)
 	
 -- )\it('can raise the surface', () =>
 -- 	node = @scene\CreateChild("Surface")	
@@ -115,12 +134,13 @@ success = run\runTests()
 
 	
 export HandleUpdate = (eventType, eventData)->
+	
 	success = run\resumeTests()
 -- 	if success ~= nil
 -- 		print("Tests completed with success=" .. tostring(success)) 
 -- 		os.exit(sucesss and 0 or 1)
-	lassert.are.equal("userdata", type(final_scene))
-	lassert.are.equal("userdata", type(final_surface))
+-- 	lassert.are.equal("userdata", type(final_scene))
+-- 	lassert.are.equal("userdata", type(final_surface))
 
 
 SubscribeToEvent("Update", "HandleUpdate")
