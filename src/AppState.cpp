@@ -5,44 +5,30 @@
 #include "Common.hpp"
 #include "AppState.hpp"
 
-using namespace UrFelt::State;
 using namespace Felt;
+using namespace UrFelt;
+using namespace UrFelt::State;
+
 
 void Tick<Label::InitSurface>::tick(const float dt)
 {
-	using namespace Messages;
-	if (m_co)
-	{
-		const FLOAT frac_done = m_co.get();
-		m_papp->m_queue_script.push(UrQueue::Map{
-			{"type", PERCENT_BOTTOM},
-			{"value", (FLOAT)(INT)(100.0 * frac_done)},
-			{"label", "Initialising surface"}
-		});
-		m_co();
-	}
-	else
-	{
-		m_papp->m_queue_script.push(UrQueue::Map{
-			{"type", PERCENT_BOTTOM},
-			{"value", -1}
-		});
-	}
+	const FLOAT frac_done = m_co.get();
+	m_co();
 }
 
 
 void Tick<Label::InitSurface>::execute(co::coroutine<FLOAT>::push_type& sink)
 {
-	m_papp->m_psurface->seed(Felt::Vec3i(0,0,0));
+	m_psurface->seed(Felt::Vec3i(0,0,0));
 
 	for (UINT i = 0; i < 2; i++)
-		m_papp->m_psurface->update([](const auto&, const auto&)->FLOAT {
+		m_psurface->update([](const auto&, const auto&)->FLOAT {
 			return -1.0f;
 		});
 
 	for (UINT expand = 0; expand < 100; expand++)
 	{
-		m_papp->m_psurface->update([](const auto& pos, const auto&)->FLOAT {
+		m_psurface->update([](const auto& pos, const auto&)->FLOAT {
 			using namespace Felt;
 			if (std::abs(pos(1)) > 1)
 				return 0;
@@ -67,7 +53,7 @@ Tick<Label::Zap>::Tick(Application* papp_, FLOAT amt)
 }
 
 
-void Tick<Label::Zap>::tick(const float dt)
+void Tick<Label::Zap>::tick(const float dt, UrSurface* psurface)
 {
 	using namespace Urho3D;
 	const IntVector2& pos_mouse = m_papp->GetSubsystem<Input>()->GetMousePosition();
@@ -82,7 +68,7 @@ void Tick<Label::Zap>::tick(const float dt)
 
 	constexpr float radius = 5.0f;
 
-	const Vec3f& pos_hit = m_papp->m_psurface->ray(origin, direction);
+	const Vec3f& pos_hit = psurface->ray(origin, direction);
 
 	if (pos_hit == UrSurface::ray_miss)
 		return;
@@ -95,11 +81,10 @@ void Tick<Label::Zap>::tick(const float dt)
 	using Clock = std::chrono::high_resolution_clock;
 	using Seconds = std::chrono::duration<float>;
 	using Time = std::chrono::time_point<Clock, Seconds>;
-	using namespace Messages;
 
 	auto time_before = Clock::now();
 
-	m_papp->m_psurface->update(pos_lower, pos_upper,
+	psurface->update(pos_lower, pos_upper,
 		[&pos_hit, this](const Vec3i& pos, const UrSurface::IsoGrid& isogrid) -> FLOAT {
 			const Vec3f& posf = pos.template cast<FLOAT>();
 			const Vec3f& pos_dist = posf - pos_hit;
@@ -127,42 +112,5 @@ void Tick<Label::Zap>::tick(const float dt)
 
 	auto time_after = Clock::now();
 	Seconds duration = time_after - time_before;
-
-	m_papp->m_queue_script.push(UrQueue::Map{
-		{"type", PERCENT_TOP},
-		{"value", duration.count() * 1000},
-		{"label", "Updating surface"}
-	});
-
-
-//	m_papp->m_psurface->update_start();
-//	FLOAT leftover = m_papp->m_psurface->delta_gauss<4>(
-//		reinterpret_cast<const Vec3f&>(zap_ray.origin_),
-//		reinterpret_cast<const Vec3f&>(zap_ray.direction_),
-//		m_amt, radius
-//	);
-//	m_papp->m_psurface->update_end_local();
-//	m_papp->m_psurface->poly().notify(m_papp->m_psurface);
-}
-
-
-void Tick<Label::Running>::tick(const float dt)
-{
-	m_time_since_update += dt;
-	if (m_time_since_update > 1.0f/30.0f)
-	{
-	}
-}
-
-
-void Tick<Label::UpdateGPU>::tick(const float dt)
-{
-	m_papp->m_psurface->flush();
-}
-
-
-void Tick<Label::UpdatePoly>::tick(const float dt)
-{
-	m_papp->m_psurface->polygonise();
 }
 

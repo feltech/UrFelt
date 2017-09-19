@@ -69,6 +69,8 @@ public:
 		};
 	};
 
+	static void to_lua(sol::table& lua);
+
 	UrSurface () = default;
 
 	UrSurface(

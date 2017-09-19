@@ -65,11 +65,9 @@ set (TARGET_NAME UrhoFelt)
 
 # Define source files
 file (GLOB CPP_FILES src/*.cpp)
-file (GLOB LUABIND_FILES src/bind/*.cpp)
-file (GLOB LUABIND_UTIL ${URHO3D_HOME}/Source/Urho3D/LuaScript/ToluaUtils.cpp)
 file (GLOB H_FILES include/*.h)
 set (
-	SOURCE_FILES ${CPP_FILES} ${LUABIND_UTIL} ${LUABIND_FILES} ${H_FILES}
+	SOURCE_FILES ${CPP_FILES} ${H_FILES}
 )
 
 # Setup target with resource copying

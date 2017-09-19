@@ -27,44 +27,15 @@
 
 #include "UrSurface.hpp"
 
-extern int tolua_UrFelt_open (lua_State* tolua_S);
 
+extern int tolua_UrFelt_open (lua_State* tolua_S);
 
 
 namespace UrFelt
 {
-	namespace Messages
-	{
-		enum MsgType
-		{
-			STATE_RUNNING = 1, ACTIVATE_SURFACE, START_ZAP, STOP_ZAP, PERCENT_TOP, PERCENT_BOTTOM,
-			MAIN_INIT_DONE, WORKER_INIT_DONE, APP_PAUSE, WORKER_PAUSE
-		};
-	}
-
-
-	namespace State
-	{
-		class BaseSM;
-		class AppSM;
-		class WorkerRunningSM;
-		class WorkerRunningController;
-		class TickBase;
-		template <class StateType> class Tick;
-	}
-	using UrQueue = LuaCppMsg::Queue<
-		Urho3D::Ray, LuaCppMsg::CopyPtr<Urho3D::Ray>*, float
-	>;
-
 	class Application : public Urho3D::Application
 	{
-		friend class State::BaseSM;
-		friend class State::AppSM;
-		friend class State::WorkerRunningSM;
-		friend class State::WorkerRunningController;
-		template <class StateType> friend class State::Tick;
 	public:
-		~Application();
 		Application(Urho3D::Context* context);
 
 		static Urho3D::String GetTypeNameStatic();
@@ -73,25 +44,8 @@ namespace UrFelt
 		void Setup();
 		void Start();
 		void Stop();
-		void tick(Urho3D::StringHash eventType, Urho3D::VariantMap& eventData);
-		void worker();
-		void start_worker();
 
 	private:
-		std::unique_ptr<State::TickBase>		m_app_state;
-		std::unique_ptr<State::TickBase>		m_app_state_next;
-		std::shared_ptr<State::TickBase>		m_worker_state;
-		std::shared_ptr<State::TickBase>		m_worker_state_next;
-
-		std::unique_ptr<UrSurface>				m_psurface;
-
-		std::thread 				m_thread_updater;
-		std::atomic<bool>			m_quit;
-
-		UrQueue	m_queue_script;
-		UrQueue	m_queue_worker;
-		UrQueue	m_queue_main;
-
 		std::unique_ptr<sol::state_view>	m_plua;
 	};
 }

@@ -13,6 +13,46 @@ namespace UrFelt
 
 const Felt::Vec3f UrSurface::ray_miss = UrSurface::Surface::ray_miss;
 
+
+void UrSurface::to_lua(sol::table& lua)
+{
+	lua.new_usertype<UrSurface>(
+		"UrSurface",
+		sol::call_constructor,
+		sol::constructors<UrSurface(const Felt::Vec3i&, const Felt::Vec3i&, Urho3D::Node*)>(),
+		"seed", &UrSurface::seed,
+		"invalidate", &UrSurface::invalidate,
+		"polygonise", &UrSurface::polygonise,
+		"flush", &UrSurface::flush,
+
+		"update", [](UrSurface& self, sol::function fn_) {
+			self.update([&fn_](const Felt::Vec3i& pos_, const UrSurface::IsoGrid& isogrid_) {
+				Urho3D::IntVector3 vpos_ = reinterpret_cast<const Urho3D::IntVector3&>(pos_);
+				Felt::Distance dist = fn_(vpos_, isogrid_);
+				return dist;
+			});
+		},
+
+		"enqueue", &UrSurface::enqueue,
+		"wake", &UrSurface::wake,
+		"await", &UrSurface::await
+	);
+
+	lua.new_usertype<UrSurface::IsoGrid>(
+		"IsoGrid"
+	);
+
+	sol::table lua_Op = lua.create_named("Op");
+
+	lua_Op.new_usertype<UrSurface::Op::Polygonise>(
+		"Polygonise",
+		sol::call_constructor,
+		sol::constructors<UrSurface::Op::Polygonise(sol::function)>(),
+		sol::base_classes, sol::bases<UrSurface::Op::Base>()
+	);
+}
+
+
 UrSurface::UrSurface(
 	const Felt::Vec3i& size_, const Felt::Vec3i& size_partition_, Urho3D::Node* pnode_
 ) :
