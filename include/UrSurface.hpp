@@ -46,10 +46,14 @@ public:
 
 	struct Op
 	{
+		#define URSURFACE_OP_CLONE(Type)\
+			std::unique_ptr<Base> clone() { return std::unique_ptr<Base>(new Type(*this)); };
+
 		struct Base
 		{
 			sol::function callback;
 			virtual void execute(UrSurface& surface) = 0;
+			virtual std::unique_ptr<Base> clone() = 0;
 		protected:
 			Base(sol::function callback_);
 		};
@@ -58,12 +62,14 @@ public:
 		{
 			Polygonise(sol::function callback_);
 			void execute(UrSurface& surface);
+			URSURFACE_OP_CLONE(Polygonise)
 		};
 
 		struct Simple : Base
 		{
 			Simple(const float amount_, sol::function callback_);
 			void execute(UrSurface& surface);
+			URSURFACE_OP_CLONE(Simple)
 		private:
 			const float m_amount;
 		};
@@ -180,7 +186,7 @@ private:
 	std::condition_variable m_execution;
 	std::thread m_executor;
 
-	std::vector<UrSurface::Op::Base*>	m_queue_executor;
+	std::vector<std::unique_ptr<UrSurface::Op::Base>>	m_queue_executor;
 
 	UrFelt::Surface		m_surface;
 	UrFelt::Polys		m_polys;

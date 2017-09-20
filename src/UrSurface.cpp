@@ -131,7 +131,7 @@ void UrSurface::flush()
 
 void UrSurface::enqueue(UrSurface::Op::Base* op_)
 {
-	m_queue_executor.push_back(op_);
+	m_queue_executor.push_back(op_->clone());
 }
 
 
@@ -142,7 +142,7 @@ void UrSurface::executor()
 		std::unique_lock<std::mutex> lock(m_mutex_executor);
 		m_execution.wait(lock);
 
-		for (UrSurface::Op::Base* op : m_queue_executor)
+		for (std::unique_ptr<UrSurface::Op::Base>& op : m_queue_executor)
 			op->execute(*this);
 	}
 }
@@ -151,7 +151,7 @@ void UrSurface::executor()
 void UrSurface::await()
 {
 	std::lock_guard<std::mutex> lock(m_mutex_executor);
-	for (UrSurface::Op::Base* op : m_queue_executor)
+	for (std::unique_ptr<UrSurface::Op::Base>& op : m_queue_executor)
 		op->callback();
 	m_queue_executor.clear();
 }
