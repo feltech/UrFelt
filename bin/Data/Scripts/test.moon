@@ -126,22 +126,38 @@ run\describe(
 	lassert.is_true(flushed)
 	lassert.is_true(expanded)
 	
--- )\it('can raise the surface', () =>
--- 	node = @scene\CreateChild("Surface")	
--- 	@surface = UrFelt.UrSurface.new(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
--- 	@surface\seed(IntVector3(0,0,0))	
--- 	@surface\update (pos, grid)->
--- 		return -1.0	
--- 	@surface\invalidate()
--- 	@surface\polygonise()
--- 	@surface\flush()
--- 	
--- 	ray = Ray(Vector3(0, 0, -10), Vector3(0, 0, 1))
--- 		
--- 	@surface\raise(4, ray)
--- 	coroutine.yield()
-)
+)\it('can be updated asynchronously over multiple event loops', () =>
+	node = @scene\CreateChild("Surface")	
+	@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
+	@surface\seed(IntVector3(0,0,0))	
+	
+	flushed = false
+	
+	-- With a callback.
+	@surface\enqueue (UrFelt.Op.ExpandByConstant(-5, () ->
+		@surface\enqueue (UrFelt.Op.Polygonise(()->
+			@surface\flush()
+			flushed = true
+		))	
+	))
 
+	lassert.is_false(flushed)
+	
+	@surface\poll()
+	coroutine.yield()
+
+	lassert.is_false(flushed)
+	
+	count = 0
+	
+	while not flushed
+		count = count + 1
+		@surface\poll()
+		coroutine.yield()
+		
+	print("Iterations: " .. tostring(count))
+	lassert.is_true(flushed)
+)
 
 success = run\runTests()
 

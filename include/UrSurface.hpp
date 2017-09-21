@@ -37,6 +37,9 @@ private:
 	using CollShapes = Felt::Impl::Tracked::SingleListSingleIdxByValue<UrSurfaceCollisionShape*, 3>;
 	using GPUPolys = Felt::Impl::Tracked::SingleListSingleIdxByRef<GPUPoly, 3>;
 
+	using Lock = boost::detail::spinlock;
+	using Guard = std::lock_guard<Lock>;
+
 public:
 	using IsoGrid = Surface::IsoGrid;
 	static const Felt::Vec3f ray_miss;
@@ -54,10 +57,13 @@ public:
 			sol::function callback;
 			virtual void execute(UrSurface& surface) = 0;
 			virtual std::unique_ptr<Base> clone() const = 0;
+			virtual bool is_complete();
 		protected:
 			Base() = default;
 			Base(sol::function callback_);
 		};
+
+		using Ptr = std::unique_ptr<UrSurface::Op::Base>;
 
 		struct Polygonise : Base
 		{
@@ -72,9 +78,10 @@ public:
 			ExpandByConstant(const float amount_);
 			ExpandByConstant(const float amount_, sol::function callback_);
 			void execute(UrSurface& surface);
+			bool is_complete();
 			URSURFACE_OP_CLONE(ExpandByConstant)
 		private:
-			const float m_amount;
+			float m_amount;
 		};
 	};
 
@@ -141,14 +148,14 @@ public:
 	void enqueue(const UrSurface::Op::Base& op_);
 
 	/**
-	 * Execute enqueued updates.
-	 */
-	void wake();
-
-	/**
 	 * Wait for the executor to complete, then call callbacks and clear the queue.
 	 */
 	void await();
+
+	/**
+	 * Poll completed ops and call callbacks.
+	 */
+	void poll();
 
 
 	Felt::Vec3f ray(const Felt::Vec3f& pos_origin_, const Felt::Vec3f& dir_) const
@@ -191,11 +198,11 @@ private:
 //	std::mutex	m_mutex_await;
 //	std::condition_variable	m_cond_await;
 
-	boost::detail::spinlock	m_lock_pending;
-	boost::detail::spinlock	m_lock_done;
+	Lock	m_lock_pending;
+	Lock	m_lock_done;
 
-	std::deque<std::unique_ptr<UrSurface::Op::Base>>	m_queue_pending;
-	std::deque<std::unique_ptr<UrSurface::Op::Base>>	m_queue_done;
+	std::deque<Op::Ptr>	m_queue_pending;
+	std::deque<Op::Ptr>	m_queue_done;
 
 	UrFelt::Surface		m_surface;
 	UrFelt::Polys		m_polys;

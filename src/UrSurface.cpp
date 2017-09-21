@@ -1,6 +1,8 @@
 #include "UrSurface.hpp"
 
 #include <algorithm>
+#include <limits>
+
 #include <Urho3D/Physics/RigidBody.h>
 
 #include "btFeltCollisionConfiguration.hpp"
@@ -34,7 +36,8 @@ void UrSurface::to_lua(sol::table& lua)
 		},
 
 		"enqueue", &UrSurface::enqueue,
-		"await", &UrSurface::await
+		"await", &UrSurface::await,
+		"poll", &UrSurface::poll
 	);
 
 	lua.new_usertype<UrSurface::IsoGrid>(
@@ -148,21 +151,34 @@ void UrSurface::executor()
 {
 	while (not m_exit)
 	{
-		std::unique_ptr<UrSurface::Op::Base> op;
-		m_lock_pending.lock();
-		if (m_queue_pending.empty())
+		UrSurface::Op::Base* op = nullptr;
 		{
-			m_lock_pending.unlock();
+			Guard lock{m_lock_pending};
+			if (not m_queue_pending.empty())
+				op = m_queue_pending.front().get();
+		}
+
+		if (op == nullptr)
+		{
 			std::this_thread::yield();
 			continue;
 		}
-		op = std::move(m_queue_pending.front());
-		m_queue_pending.pop_front();
-		m_lock_done.lock();
-		m_lock_pending.unlock();
+
 		op->execute(*this);
-		m_queue_done.push_back(std::move(op));
-		m_lock_done.unlock();
+
+		if (op->is_complete())
+		{
+			Guard lock_pending{m_lock_pending};
+			Guard lock_done{m_lock_done};
+			m_queue_done.push_back(std::move(m_queue_pending.front()));
+			m_queue_pending.pop_front();
+		}
+		else
+		{
+			Guard lock{m_lock_pending};
+			m_queue_pending.push_back(std::move(m_queue_pending.front()));
+			m_queue_pending.pop_front();
+		}
 	}
 }
 
@@ -171,11 +187,11 @@ void UrSurface::await()
 {
 	while (true)
 	{
-		std::lock_guard<boost::detail::spinlock> lock(m_lock_pending);
+		Guard lock(m_lock_pending);
 		if (m_queue_pending.empty())
 		{
-			std::lock_guard<boost::detail::spinlock> lock(m_lock_done);
-			for (std::unique_ptr<UrSurface::Op::Base>& op : m_queue_done)
+			Guard lock(m_lock_done);
+			for (Op::Ptr& op : m_queue_done)
 				if (op->callback)
 					op->callback();
 			m_queue_done.clear();
@@ -185,10 +201,24 @@ void UrSurface::await()
 	}
 }
 
+void UrSurface::poll()
+{
+	Guard lock(m_lock_done);
+	for (Op::Ptr& op : m_queue_done)
+		if (op->callback)
+			op->callback();
+	m_queue_done.clear();
+}
 
 UrSurface::Op::Base::Base(sol::function callback_) :
 	callback{callback_}
 {}
+
+
+bool UrSurface::Op::Base::is_complete()
+{
+	return true;
+}
 
 
 UrSurface::Op::Polygonise::Polygonise(sol::function callback_) :
@@ -214,11 +244,17 @@ UrSurface::Op::ExpandByConstant::ExpandByConstant(const float amount_, sol::func
 
 void UrSurface::Op::ExpandByConstant::execute(UrSurface& surface)
 {
-	surface.update([amount=m_amount](const auto&, const auto&) {
+	const float amount = std::min(std::abs(m_amount), 1.0f) * Felt::sgn(m_amount);
+	m_amount -= amount;
+	surface.update([amount](const auto&, const auto&) {
 		return amount;
 	});
 }
 
+bool UrSurface::Op::ExpandByConstant::is_complete()
+{
+	return std::abs(m_amount) < std::numeric_limits<float>::epsilon();
+}
 
 
 } // UrFelt.
