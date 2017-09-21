@@ -69,14 +69,14 @@ class Describe
  
 	_verifyBehaviour: (behaviour)=>
 		return coroutine.create(()->
-			start = os.clock()
+			start = os.time()
 			Runner.debug("describe._verifyBehaviour: before x" .. tostring(#@_beforeFns))
 			
 			beforeFns = [coroutine.create(fn) for fn in *@_beforeFns]		
 			afterFns = [coroutine.create(fn) for fn in *@_afterFns]		
 				
 			for beforeFn in *beforeFns
-				start = os.clock()
+				start = os.time()
 				Runner.debug("describe._verifyBehaviour: _beforeFn starting")			
 				while true 
 					is_ok, err = coroutine.resume(beforeFn, behaviour)
@@ -86,14 +86,14 @@ class Describe
 					elseif coroutine.status(beforeFn) ~= "suspended"
 						Runner.debug("describe._verifyBehaviour: _beforeFn done")			
 						break
-					elseif os.clock() - start > Runner.TIMEOUT
-						error("timeout after " .. tostring(Runner.TIMEOUT) .. "ms")
+					elseif os.time() - start > Runner.TIMEOUT
+						error("timeout after " .. tostring(Runner.TIMEOUT) .. "s")
 					else
 						Runner.debug("describe._verifyBehaviour: _beforeFn incomplete")			
 						coroutine.yield()
 
 			
-			start = os.clock()
+			start = os.time()
 			success = false
 			message = nil
 			while true 
@@ -104,17 +104,18 @@ class Describe
 					break		
 				elseif coroutine.status(behaviour.testFn) ~= "suspended"
 					break
-				elseif os.clock() - start > Runner.TIMEOUT
-					print("timeout after " .. tostring(Runner.TIMEOUT) .. "ms")
+				elseif os.time() - start > Runner.TIMEOUT
+					success = false
+					print("timeout after " .. tostring(Runner.TIMEOUT) .. "s")
 					break
 				else
-					Runner.debug("describe._verifyBehaviour: test incomplete")			
+					Runner.debug("describe._verifyBehaviour: test incomplete")	
 					coroutine.yield()
 						
 			
 			Runner.debug("describe._verifyBehaviour: after x" .. tostring(#@_afterFns))	
 			for afterFn in *afterFns
-				start = os.clock()
+				start = os.time()
 				Runner.debug("describe._verifyBehaviour: afterFn starting")			
 				while true 
 					is_ok, err = coroutine.resume(afterFn, behaviour)
@@ -123,8 +124,8 @@ class Describe
 						error("\n" .. err)
 					elseif coroutine.status(afterFn) ~= "suspended"
 						break
-					elseif os.clock() - start > Runner.TIMEOUT
-						error("timeout after .. " .. tostring(Runner.TIMEOUT) .. "ms")
+					elseif os.time() - start > Runner.TIMEOUT
+						error("timeout after .. " .. tostring(Runner.TIMEOUT) .. "s")
 					else
 						Runner.debug("describe._verifyBehaviour: afterFn incomplete")			
 						coroutine.yield()
@@ -145,7 +146,7 @@ class Describe
 
 
 class Runner
-	@TIMEOUT = 60000
+	@TIMEOUT = 5
 	@DEBUG: false
 	debug: (msg)->
 		if Runner.DEBUG then
