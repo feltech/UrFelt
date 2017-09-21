@@ -34,7 +34,6 @@ void UrSurface::to_lua(sol::table& lua)
 		},
 
 		"enqueue", &UrSurface::enqueue,
-		"wake", &UrSurface::wake,
 		"await", &UrSurface::await
 	);
 
@@ -47,8 +46,19 @@ void UrSurface::to_lua(sol::table& lua)
 	lua_Op.new_usertype<UrSurface::Op::Polygonise>(
 		"Polygonise",
 		sol::call_constructor,
-		sol::constructors<UrSurface::Op::Polygonise(sol::function)>(),
-		sol::base_classes, sol::bases<UrSurface::Op::Base>()
+		sol::constructors<
+			UrSurface::Op::Polygonise(),
+			UrSurface::Op::Polygonise(sol::function)
+		>()
+	);
+
+	lua_Op.new_usertype<UrSurface::Op::ExpandByConstant>(
+		"ExpandByConstant",
+		sol::call_constructor,
+		sol::constructors<
+			UrSurface::Op::ExpandByConstant(float),
+			UrSurface::Op::ExpandByConstant(float, sol::function)
+		>()
 	);
 }
 
@@ -64,7 +74,7 @@ UrSurface::UrSurface(
 	m_gpu_polys{
 		m_surface.isogrid().children().size(), m_surface.isogrid().children().offset(), GPUPoly{}
 	},
-	m_pnode{pnode_}, m_exit{false}, m_executor{&UrSurface::executor, this}
+	m_pnode{pnode_}, m_exit{false}, m_queue_pending{}, m_queue_done{}
 {
 	for (
 		Felt::PosIdx pos_idx_child = 0; pos_idx_child < m_polys.children().data().size();
@@ -82,16 +92,14 @@ UrSurface::UrSurface(
 	m_psurface_body->SetUseGravity(false);
 	m_psurface_body->SetRestitution(0.0);
 	m_psurface_body->Activate();
+
+	m_executor = std::thread{&UrSurface::executor, this};
 }
 
 
 UrSurface::~UrSurface()
 {
-	{
-		std::lock_guard<std::mutex> lock(m_mutex_executor);
-		m_exit = true;
-	}
-	wake();
+	m_exit = true;
 	m_executor.join();
 }
 
@@ -129,9 +137,10 @@ void UrSurface::flush()
 }
 
 
-void UrSurface::enqueue(UrSurface::Op::Base* op_)
+void UrSurface::enqueue(const UrSurface::Op::Base& op_)
 {
-	m_queue_executor.push_back(op_->clone());
+	std::lock_guard<boost::detail::spinlock> lock(m_lock_pending);
+	m_queue_pending.push_back(op_.clone());
 }
 
 
@@ -139,27 +148,41 @@ void UrSurface::executor()
 {
 	while (not m_exit)
 	{
-		std::unique_lock<std::mutex> lock(m_mutex_executor);
-		m_execution.wait(lock);
-
-		for (std::unique_ptr<UrSurface::Op::Base>& op : m_queue_executor)
-			op->execute(*this);
+		std::unique_ptr<UrSurface::Op::Base> op;
+		m_lock_pending.lock();
+		if (m_queue_pending.empty())
+		{
+			m_lock_pending.unlock();
+			std::this_thread::yield();
+			continue;
+		}
+		op = std::move(m_queue_pending.front());
+		m_queue_pending.pop_front();
+		m_lock_done.lock();
+		m_lock_pending.unlock();
+		op->execute(*this);
+		m_queue_done.push_back(std::move(op));
+		m_lock_done.unlock();
 	}
 }
 
 
 void UrSurface::await()
 {
-	std::lock_guard<std::mutex> lock(m_mutex_executor);
-	for (std::unique_ptr<UrSurface::Op::Base>& op : m_queue_executor)
-		op->callback();
-	m_queue_executor.clear();
-}
-
-
-void UrSurface::wake()
-{
-	m_execution.notify_one();
+	while (true)
+	{
+		std::lock_guard<boost::detail::spinlock> lock(m_lock_pending);
+		if (m_queue_pending.empty())
+		{
+			std::lock_guard<boost::detail::spinlock> lock(m_lock_done);
+			for (std::unique_ptr<UrSurface::Op::Base>& op : m_queue_done)
+				if (op->callback)
+					op->callback();
+			m_queue_done.clear();
+			return;
+		}
+		std::this_thread::yield();
+	}
 }
 
 
@@ -179,12 +202,17 @@ void UrSurface::Op::Polygonise::execute(UrSurface& surface)
 }
 
 
-UrSurface::Op::Simple::Simple(const float amount_, sol::function callback_) :
+UrSurface::Op::ExpandByConstant::ExpandByConstant(const float amount_) :
+	m_amount{amount_}
+{}
+
+
+UrSurface::Op::ExpandByConstant::ExpandByConstant(const float amount_, sol::function callback_) :
 	UrSurface::Op::Base{callback_}, m_amount{amount_}
 {}
 
 
-void UrSurface::Op::Simple::execute(UrSurface& surface)
+void UrSurface::Op::ExpandByConstant::execute(UrSurface& surface)
 {
 	surface.update([amount=m_amount](const auto&, const auto&) {
 		return amount;

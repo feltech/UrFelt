@@ -47,29 +47,32 @@ public:
 	struct Op
 	{
 		#define URSURFACE_OP_CLONE(Type)\
-			std::unique_ptr<Base> clone() { return std::unique_ptr<Base>(new Type(*this)); };
+			std::unique_ptr<Base> clone() const { return std::unique_ptr<Base>(new Type(*this)); };
 
 		struct Base
 		{
 			sol::function callback;
 			virtual void execute(UrSurface& surface) = 0;
-			virtual std::unique_ptr<Base> clone() = 0;
+			virtual std::unique_ptr<Base> clone() const = 0;
 		protected:
+			Base() = default;
 			Base(sol::function callback_);
 		};
 
 		struct Polygonise : Base
 		{
+			Polygonise() = default;
 			Polygonise(sol::function callback_);
 			void execute(UrSurface& surface);
 			URSURFACE_OP_CLONE(Polygonise)
 		};
 
-		struct Simple : Base
+		struct ExpandByConstant : Base
 		{
-			Simple(const float amount_, sol::function callback_);
+			ExpandByConstant(const float amount_);
+			ExpandByConstant(const float amount_, sol::function callback_);
 			void execute(UrSurface& surface);
-			URSURFACE_OP_CLONE(Simple)
+			URSURFACE_OP_CLONE(ExpandByConstant)
 		private:
 			const float m_amount;
 		};
@@ -135,7 +138,7 @@ public:
 	 *
 	 * @param fn_ (pos, phi) -> float
 	 */
-	void enqueue(UrSurface::Op::Base* op);
+	void enqueue(const UrSurface::Op::Base& op_);
 
 	/**
 	 * Execute enqueued updates.
@@ -181,12 +184,18 @@ public:
 private:
 	void executor();
 
-	bool m_exit;
-	std::mutex m_mutex_executor;
-	std::condition_variable m_execution;
+	std::atomic_bool m_exit;
+
 	std::thread m_executor;
 
-	std::vector<std::unique_ptr<UrSurface::Op::Base>>	m_queue_executor;
+//	std::mutex	m_mutex_await;
+//	std::condition_variable	m_cond_await;
+
+	boost::detail::spinlock	m_lock_pending;
+	boost::detail::spinlock	m_lock_done;
+
+	std::deque<std::unique_ptr<UrSurface::Op::Base>>	m_queue_pending;
+	std::deque<std::unique_ptr<UrSurface::Op::Base>>	m_queue_done;
 
 	UrFelt::Surface		m_surface;
 	UrFelt::Polys		m_polys;

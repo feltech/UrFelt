@@ -96,22 +96,35 @@ run\describe(
 	@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
 	@surface\seed(IntVector3(0,0,0))	
 	@surface\invalidate()
-	@surface\update (pos, grid)->
-		return -0.5	
-		
-	flushed = false
 	
-	@surface\enqueue(UrFelt.Op.Polygonise(()->
+	flushed = false
+	expanded = false
+	
+	-- No callback.
+	@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
+	
+	-- With a callback.
+	@surface\enqueue (UrFelt.Op.ExpandByConstant(-1, () ->
+		expanded = true 
+	))
+	
+	-- Finish with a polygonise and flush in main thread.
+	@surface\enqueue (UrFelt.Op.Polygonise(()->
 		@surface\flush()
 		flushed = true
-	))
+	))		
+	lassert.is_false(expanded)
 	lassert.is_false(flushed)
-	@surface\wake()
-	lassert.is_false(flushed)
+	
 	coroutine.yield()
+	
 	lassert.is_false(flushed)
+	lassert.is_false(expanded)
+	
 	@surface\await()
+	
 	lassert.is_true(flushed)
+	lassert.is_true(expanded)
 	
 -- )\it('can raise the surface', () =>
 -- 	node = @scene\CreateChild("Surface")	
