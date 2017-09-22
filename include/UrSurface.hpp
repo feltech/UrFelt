@@ -83,6 +83,22 @@ public:
 		private:
 			float m_amount;
 		};
+
+		struct ExpandToBox : Base
+		{
+			ExpandToBox(const Felt::Vec3f& pos_start_, const Felt::Vec3f& pos_end_);
+			ExpandToBox(
+				const Felt::Vec3f& pos_start_, const Felt::Vec3f& pos_end_,
+				sol::function callback_
+			);
+			void execute(UrSurface& surface);
+			bool is_complete();
+			URSURFACE_OP_CLONE(ExpandToBox)
+		private:
+			bool m_is_complete;
+			const Felt::Vec3f m_pos_start
+			const Felt::Vec3f m_pos_end
+		};
 	};
 
 	static void to_lua(sol::table& lua);

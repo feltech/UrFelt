@@ -4,6 +4,7 @@
 #include <limits>
 
 #include <Urho3D/Physics/RigidBody.h>
+#include <Felt/Impl/Util.hpp>
 
 #include "btFeltCollisionConfiguration.hpp"
 #include "UrSurfaceCollisionShape.hpp"
@@ -256,6 +257,34 @@ bool UrSurface::Op::ExpandByConstant::is_complete()
 	return std::abs(m_amount) < std::numeric_limits<float>::epsilon();
 }
 
+
+UrSurface::Op::ExpandToBox::ExpandToBox(
+	const Felt::Vec3f& pos_start_, const Felt::Vec3f& pos_end_, sol::function callback_
+) :
+	UrSurface::Op::Base{callback_},
+	ExpandToBox{pos_start_, pos_end_}
+{}
+
+
+UrSurface::Op::ExpandToBox::ExpandToBox(
+	const Felt::Vec3f& pos_start_, const Felt::Vec3f& pos_end_
+) : m_pos_start{pos_start_}, m_pos_end{pos_end_}
+{}
+
+
+void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
+{
+	bool is_updated = false;
+	surface.update([&m_pos_start, &m_pos_end, &is_updated](const Vec3i& pos_, const auto&) {
+
+	});
+}
+
+
+bool UrSurface::Op::ExpandToBox::is_complete()
+{
+	return m_is_complete;
+}
 
 } // UrFelt.
 

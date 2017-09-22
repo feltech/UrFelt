@@ -39,7 +39,7 @@ export final_scene
 export final_surface
 
 run\describe(
-	'surface'
+	'surface synchronous'
 )\beforeEach( () =>
 	@scene = Scene()
 	@scene\CreateComponent("Octree")
@@ -90,74 +90,113 @@ run\describe(
 		return -0.5	
 	@surface\polygonise()
 	@surface\flush()
+)
 
-)\it('can be updated asynchronously', () =>
-	node = @scene\CreateChild("Surface")	
-	@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
-	@surface\seed(IntVector3(0,0,0))	
-	@surface\invalidate()
+
+run\describe 'surface asynchronous', ()=>
 	
-	flushed = false
-	expanded = false
+	@beforeEach () =>
+		@scene = Scene()
+		@scene\CreateComponent("Octree")
+		
+		cameraNode = @scene\CreateChild("Camera")	
+		cameraNode.position = Vector3(0.0, 0.0, -10.0)
+		camera = cameraNode\CreateComponent("Camera")
+		viewport = Viewport\new(@scene, cameraNode\GetComponent("Camera"))
+		renderer\SetViewport(0, viewport) 
+		
+		lightNode = @scene\CreateChild("DirectionalLight")
+		lightNode.direction = Vector3(0.6, -1.0, 0.8)
+		light = lightNode\CreateComponent("Light")
+		light.lightType = LIGHT_DIRECTIONAL
+		
+		node = @scene\CreateChild("Surface")	
+		@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
+		@surface\seed(IntVector3(0,0,0))	
+		
+	@afterEach () =>
+		final_scene = @scene
+		final_surface = @surface
+		
 	
-	-- No callback.
-	@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
-	
-	-- With a callback.
-	@surface\enqueue (UrFelt.Op.ExpandByConstant(-1, () ->
-		expanded = true 
-	))
-	
-	-- Finish with a polygonise and flush in main thread.
-	@surface\enqueue (UrFelt.Op.Polygonise(()->
-		@surface\flush()
-		flushed = true
-	))		
-	lassert.is_false(expanded)
-	lassert.is_false(flushed)
-	
-	coroutine.yield()
-	
-	lassert.is_false(flushed)
-	lassert.is_false(expanded)
-	
-	@surface\await()
-	
-	lassert.is_true(flushed)
-	lassert.is_true(expanded)
-	
-)\it('can be updated asynchronously over multiple event loops', () =>
-	node = @scene\CreateChild("Surface")	
-	@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
-	@surface\seed(IntVector3(0,0,0))	
-	
-	flushed = false
-	
-	-- With a callback.
-	@surface\enqueue (UrFelt.Op.ExpandByConstant(-5, () ->
+	@it 'can be updated and awaited', () =>
+		flushed = false
+		expanded = false
+		
+		-- No callback.
+		@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
+		
+		-- With a callback.
+		@surface\enqueue (UrFelt.Op.ExpandByConstant(-1, () ->
+			expanded = true 
+		))
+		
+		-- Finish with a polygonise and flush in main thread.
 		@surface\enqueue (UrFelt.Op.Polygonise(()->
 			@surface\flush()
 			flushed = true
-		))	
-	))
-
-	lassert.is_false(flushed)
-	
-	@surface\poll()
-	coroutine.yield()
-
-	lassert.is_false(flushed)
-	
-	count = 0
-	
-	while not flushed
-		count = count + 1
-		@surface\poll()
+		))		
+		lassert.is_false(expanded)
+		lassert.is_false(flushed)
+		
 		coroutine.yield()
 		
-	print("Iterations: " .. tostring(count))
-	lassert.is_true(flushed)
-)
+		lassert.is_false(flushed)
+		lassert.is_false(expanded)
+		
+		@surface\await()
+		
+		lassert.is_true(flushed)
+		lassert.is_true(expanded)
+		
+		
+	@it 'can be updated over multiple event loops', () =>
+		flushed = false
+		
+		-- With a callback.
+		@surface\enqueue (UrFelt.Op.ExpandByConstant(-5, () ->
+			@surface\enqueue (UrFelt.Op.Polygonise(()->
+				@surface\flush()
+				flushed = true
+			))	
+		))
+	
+		lassert.is_false(flushed)
+		
+		@surface\poll()
+		coroutine.yield()
+	
+		lassert.is_false(flushed)
+		
+		count = 0
+		
+		while not flushed
+			count = count + 1
+			@surface\poll()
+			coroutine.yield()
+			
+		print("Iterations: " .. tostring(count))
+		lassert.is_true(flushed)
+
+	@it 'expands to fill a box', () =>
+		flushed = false
+		
+		-- With a callback.
+		@surface\enqueue (UrFelt.Op.ExpandToBox(Vector3(-10,-5,-10), Vector3(10,5,10) () ->
+			@surface\enqueue (UrFelt.Op.Polygonise(()->
+				@surface\flush()
+				flushed = true
+			))	
+		))
+	
+		while not flushed
+			count = count + 1
+			@surface\poll()
+			coroutine.yield()
+			
+		print("Iterations: " .. tostring(count))
+		lassert.is_true(flushed)
+
 
 success = run\runTests()
 
