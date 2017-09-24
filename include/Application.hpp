@@ -23,7 +23,6 @@
 #include <sol.hpp>
 
 #include <Felt/Surface.hpp>
-#include <LuaCppMsg.hpp>
 
 #include "UrSurface.hpp"
 

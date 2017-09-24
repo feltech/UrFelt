@@ -19,7 +19,7 @@ void Tick<Label::InitSurface>::tick(const float dt)
 
 void Tick<Label::InitSurface>::execute(co::coroutine<FLOAT>::push_type& sink)
 {
-	m_psurface->seed(Felt::Vec3i(0,0,0));
+	m_psurface->seed(Urho3D::IntVector3(0,0,0));
 
 	for (UINT i = 0; i < 2; i++)
 		m_psurface->update([](const auto&, const auto&)->FLOAT {
@@ -63,12 +63,10 @@ void Tick<Label::Zap>::tick(const float dt, UrSurface* psurface)
 	};
 
 	const Ray& zap_ray = m_pcamera->GetScreenRay(screen_coord.x_, screen_coord.y_);
-	const Vec3f& origin = reinterpret_cast<const Vec3f&>(zap_ray.origin_);
-	const Vec3f& direction = reinterpret_cast<const Vec3f&>(zap_ray.direction_);
 
 	constexpr float radius = 5.0f;
 
-	const Vec3f& pos_hit = psurface->ray(origin, direction);
+	const Vec3f& pos_hit = psurface->ray(zap_ray.origin_, zap_ray.direction_);
 
 	if (pos_hit == UrSurface::ray_miss)
 		return;

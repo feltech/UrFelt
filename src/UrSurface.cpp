@@ -1,5 +1,6 @@
 #include "UrSurface.hpp"
 
+#include <vector>
 #include <algorithm>
 #include <limits>
 
@@ -8,6 +9,28 @@
 
 #include "btFeltCollisionConfiguration.hpp"
 #include "UrSurfaceCollisionShape.hpp"
+
+
+namespace sol {
+namespace stack {
+	template <typename T>
+	struct userdata_checker<extensible<T>> {
+		template <typename Handler>
+		static bool check(
+			lua_State* L, int relindex, type index_type, Handler&& handler, record& tracking
+		) {
+			// just marking unused parameters for no compiler warnings
+			(void)index_type;
+			(void)handler;
+			int index = lua_absindex(L, relindex);
+			std::string name = sol::detail::short_demangle<T>();
+			tolua_Error tolua_err;
+			return tolua_isusertype(L, index, name.c_str(), 0, &tolua_err);
+		}
+	};
+}
+} // namespace sol::stack
+
 
 
 namespace UrFelt
@@ -22,7 +45,9 @@ void UrSurface::to_lua(sol::table& lua)
 	lua.new_usertype<UrSurface>(
 		"UrSurface",
 		sol::call_constructor,
-		sol::constructors<UrSurface(const Felt::Vec3i&, const Felt::Vec3i&, Urho3D::Node*)>(),
+		sol::constructors<
+			UrSurface(const Urho3D::IntVector3&, const Urho3D::IntVector3&, Urho3D::Node*)
+		>(),
 		"seed", &UrSurface::seed,
 		"invalidate", &UrSurface::invalidate,
 		"polygonise", &UrSurface::polygonise,
@@ -39,10 +64,6 @@ void UrSurface::to_lua(sol::table& lua)
 		"enqueue", &UrSurface::enqueue,
 		"await", &UrSurface::await,
 		"poll", &UrSurface::poll
-	);
-
-	lua.new_usertype<UrSurface::IsoGrid>(
-		"IsoGrid"
 	);
 
 	sol::table lua_Op = lua.create_named("Op");
@@ -64,7 +85,29 @@ void UrSurface::to_lua(sol::table& lua)
 			UrSurface::Op::ExpandByConstant(float, sol::function)
 		>()
 	);
+
+	lua_Op.new_usertype<UrSurface::Op::ExpandToBox>(
+		"ExpandToBox",
+		sol::call_constructor,
+		sol::constructors<
+			UrSurface::Op::ExpandToBox(
+				const Urho3D::Vector3&, const Urho3D::Vector3&, sol::function
+			),
+			UrSurface::Op::ExpandToBox(const Urho3D::Vector3&, const Urho3D::Vector3&)
+		>()
+	);
 }
+
+
+UrSurface::UrSurface(
+	const Urho3D::IntVector3& size_, const Urho3D::IntVector3& size_partition_, Urho3D::Node* pnode_
+) :
+	UrSurface{
+		reinterpret_cast<const Felt::Vec3i&>(size_),
+		reinterpret_cast<const Felt::Vec3i&>(size_partition_),
+		pnode_
+	}
+{}
 
 
 UrSurface::UrSurface(
@@ -78,7 +121,8 @@ UrSurface::UrSurface(
 	m_gpu_polys{
 		m_surface.isogrid().children().size(), m_surface.isogrid().children().offset(), GPUPoly{}
 	},
-	m_pnode{pnode_}, m_exit{false}, m_queue_pending{}, m_queue_done{}
+	m_pnode{pnode_}, m_exit{false},
+	m_queue_pending{}, m_queue_done{}, m_lock_pending{}, m_lock_done{}
 {
 	for (
 		Felt::PosIdx pos_idx_child = 0; pos_idx_child < m_polys.children().data().size();
@@ -143,7 +187,7 @@ void UrSurface::flush()
 
 void UrSurface::enqueue(const UrSurface::Op::Base& op_)
 {
-	std::lock_guard<boost::detail::spinlock> lock(m_lock_pending);
+	Guard lock{m_lock_pending};
 	m_queue_pending.push_back(op_.clone());
 }
 
@@ -259,25 +303,113 @@ bool UrSurface::Op::ExpandByConstant::is_complete()
 
 
 UrSurface::Op::ExpandToBox::ExpandToBox(
-	const Felt::Vec3f& pos_start_, const Felt::Vec3f& pos_end_, sol::function callback_
+	const Urho3D::Vector3& pos_start_, const Urho3D::Vector3& pos_end_, sol::function callback_
 ) :
 	UrSurface::Op::Base{callback_},
-	ExpandToBox{pos_start_, pos_end_}
-{}
+	m_pos_start{reinterpret_cast<const Felt::Vec3f&>(pos_start_)},
+	m_pos_end{reinterpret_cast<const Felt::Vec3f&>(pos_end_)},
+	m_is_complete{false}
+{
+	volatile int i = 0;
+}
 
 
 UrSurface::Op::ExpandToBox::ExpandToBox(
-	const Felt::Vec3f& pos_start_, const Felt::Vec3f& pos_end_
-) : m_pos_start{pos_start_}, m_pos_end{pos_end_}
+	const Urho3D::Vector3& pos_start_, const Urho3D::Vector3& pos_end_
+) :
+	ExpandToBox{pos_start_, pos_end_, sol::function{}}
 {}
 
 
 void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 {
-	bool is_updated = false;
-	surface.update([&m_pos_start, &m_pos_end, &is_updated](const Vec3i& pos_, const auto&) {
+	m_is_complete = true;
 
-	});
+	surface.update(
+		[this](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
+			using namespace Felt;
+
+			const Vec3f& grad = isogrid_.gradE(pos_);
+			if (grad.isZero())
+				return 1.0f;
+
+			const Vec3f& normal = grad.normalized();
+			const Felt::Distance mag_grad = grad.norm();
+			const Felt::Distance dist_surf = isogrid_.get(pos_);
+
+			std::vector<Surface::Plane> planes;
+			for (Felt::Dim d = 0; d < m_pos_start.size(); d++)
+			{
+				Vec3f plane_normal = Felt::Vec3f::Zero();
+				plane_normal(d) = -1;
+				Surface::Plane plane{plane_normal, m_pos_start(d)};
+				planes.push_back(plane);
+			}
+			for (Felt::Dim d = 0; d < m_pos_end.size(); d++)
+			{
+				Vec3f plane_normal = Felt::Vec3f::Zero();
+				plane_normal(d) = 1;
+				Surface::Plane plane{plane_normal, -m_pos_end(d)};
+				planes.push_back(plane);
+			}
+
+			std::vector<Surface::Plane> planes_in;
+			std::vector<Surface::Plane> planes_out;
+
+			for (const Surface::Plane& plane : planes)
+				if (normal.dot(plane.normal()) > 0)
+					planes_in.push_back(plane);
+				else
+					planes_out.push_back(plane);
+
+			std::sort(planes_in.begin(), planes_in.end(),
+				[&pos_, &normal](const Surface::Plane& a, const Surface::Plane& b){
+					const Vec3f& fpos = pos_.template cast<Felt::Distance>();
+					const Surface::Line& line{fpos, normal};
+					const Vec3f& pos_intersect_a = line.intersectionPoint(a);
+					const Vec3f& pos_dist_a = fpos - pos_intersect_a;
+					const Vec3f& pos_intersect_b = line.intersectionPoint(b);
+					const Vec3f& pos_dist_b = fpos - pos_intersect_a;
+					return pos_dist_a.squaredNorm() < pos_dist_b.squaredNorm();
+				}
+			);
+
+			std::sort(planes_out.begin(), planes_out.end(),
+				[&pos_, &normal](const Surface::Plane& a, const Surface::Plane& b){
+					const Vec3f& fpos = pos_.template cast<Felt::Distance>();
+					const Surface::Line& line{fpos, normal};
+					const Vec3f& pos_intersect_a = line.intersectionPoint(a);
+					const Vec3f& pos_dist_a = fpos - pos_intersect_a;
+					const Vec3f& pos_intersect_b = line.intersectionPoint(b);
+					const Vec3f& pos_dist_b = fpos - pos_intersect_a;
+					return pos_dist_a.squaredNorm() < pos_dist_b.squaredNorm();
+				}
+			);
+
+			const Vec3f& fpos = pos_.template cast<Felt::Distance>() - normal*dist_surf;
+			Surface::Line line{fpos, normal};
+			if (planes_in.size() == 0)
+				volatile int i = 0;
+			const Vec3f& pos_intersect = line.intersectionPoint(planes_in[0]);
+			const Vec3f& pos_dist = pos_intersect - fpos;
+			const Felt::Distance dist_side = normal.dot(pos_dist);
+
+			const Felt::Distance dist_side_clamped =
+				std::min(std::max(dist_side, -0.5f), 0.5f);
+
+			const Felt::Distance amount = -mag_grad * dist_side_clamped;
+
+			if (std::abs(pos_(1)) == 6 && std::abs(amount) < 0)
+				volatile int i =0;
+
+			m_is_complete &= std::abs(amount) <= std::numeric_limits<float>::epsilon();
+
+			if (pos_(0) > m_pos_end(0) || pos_(1) > m_pos_end(1) || pos_(2) > m_pos_end(2))
+				volatile int i=0;
+
+			return amount;
+		}
+	);
 }
 
 

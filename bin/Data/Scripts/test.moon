@@ -2,6 +2,7 @@ lassert = require 'luassert'
 stub = require 'luassert.stub'
 Runner = require 'feltest'
 Runner.DEBUG = false
+Runner.TIMEOUT = 120
 run = Runner()
 
 snapshot = nil
@@ -47,7 +48,7 @@ run\describe(
 	cameraNode = @scene\CreateChild("Camera")	
 	cameraNode.position = Vector3(0.0, 0.0, -10.0)
 	camera = cameraNode\CreateComponent("Camera")
-	viewport = Viewport\new(@scene, cameraNode\GetComponent("Camera"))
+	viewport = Viewport(@scene, cameraNode\GetComponent("Camera"))
 	renderer\SetViewport(0, viewport) 
 	
 	lightNode = @scene\CreateChild("DirectionalLight")
@@ -56,6 +57,7 @@ run\describe(
 	light.lightType = LIGHT_DIRECTIONAL
 		
 )\afterEach( () =>
+	collectgarbage("collect")
 	final_scene = @scene
 	final_surface = @surface
 	 
@@ -100,7 +102,7 @@ run\describe 'surface asynchronous', ()=>
 		@scene\CreateComponent("Octree")
 		
 		cameraNode = @scene\CreateChild("Camera")	
-		cameraNode.position = Vector3(0.0, 0.0, -10.0)
+		cameraNode.position = Vector3(0.0, 0.0, -50.0)
 		camera = cameraNode\CreateComponent("Camera")
 		viewport = Viewport\new(@scene, cameraNode\GetComponent("Camera"))
 		renderer\SetViewport(0, viewport) 
@@ -111,12 +113,15 @@ run\describe 'surface asynchronous', ()=>
 		light.lightType = LIGHT_DIRECTIONAL
 		
 		node = @scene\CreateChild("Surface")	
-		@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
+		@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), node)
 		@surface\seed(IntVector3(0,0,0))	
 		
 	@afterEach () =>
+		collectgarbage("collect")
 		final_scene = @scene
 		final_surface = @surface
+		@scene = nil
+		@surface = nil
 		
 	
 	@it 'can be updated and awaited', () =>
@@ -181,17 +186,27 @@ run\describe 'surface asynchronous', ()=>
 	@it 'expands to fill a box', () =>
 		flushed = false
 		
-		-- With a callback.
-		@surface\enqueue (UrFelt.Op.ExpandToBox(Vector3(-10,-5,-10), Vector3(10,5,10) () ->
-			@surface\enqueue (UrFelt.Op.Polygonise(()->
+		box_start = Vector3(-10,-5,-10)
+		box_end = Vector3(10,5,10)
+		
+		@surface\invalidate()
+		@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
+		
+		callback = () ->
+			@surface\invalidate()
+			@surface\enqueue UrFelt.Op.Polygonise ()->
 				@surface\flush()
 				flushed = true
-			))	
-		))
-	
+		
+		op = UrFelt.Op.ExpandToBox(box_start, box_end, callback)
+		
+		@surface\enqueue(op)
+		
+		count = 0
 		while not flushed
 			count = count + 1
 			@surface\poll()
+		
 			coroutine.yield()
 			
 		print("Iterations: " .. tostring(count))

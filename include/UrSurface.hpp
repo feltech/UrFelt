@@ -10,11 +10,13 @@
 #include <boost/coroutine/all.hpp>
 #include <boost/smart_ptr/detail/spinlock.hpp>
 
+#include <Urho3D/ThirdParty/toluapp/tolua++.h>
 #include <sol.hpp>
 
 #include <Felt/Impl/Tracked.hpp>
 #include <Felt/Surface.hpp>
 #include "GPUPoly.hpp"
+
 
 namespace Urho3D
 {
@@ -86,9 +88,9 @@ public:
 
 		struct ExpandToBox : Base
 		{
-			ExpandToBox(const Felt::Vec3f& pos_start_, const Felt::Vec3f& pos_end_);
+			ExpandToBox(const Urho3D::Vector3& pos_start_, const Urho3D::Vector3& pos_end_);
 			ExpandToBox(
-				const Felt::Vec3f& pos_start_, const Felt::Vec3f& pos_end_,
+				const Urho3D::Vector3& pos_start_, const Urho3D::Vector3& pos_end_,
 				sol::function callback_
 			);
 			void execute(UrSurface& surface);
@@ -96,18 +98,20 @@ public:
 			URSURFACE_OP_CLONE(ExpandToBox)
 		private:
 			bool m_is_complete;
-			const Felt::Vec3f m_pos_start
-			const Felt::Vec3f m_pos_end
+			const Felt::Vec3f m_pos_start;
+			const Felt::Vec3f m_pos_end;
 		};
 	};
 
 	static void to_lua(sol::table& lua);
 
 	UrSurface () = default;
-
 	UrSurface(
-		const Felt::Vec3i& size_,
-		const Felt::Vec3i& size_partition_,
+		const Urho3D::IntVector3& size_, const Urho3D::IntVector3& size_partition_,
+		Urho3D::Node* pnode_
+	);
+	UrSurface(
+		const Felt::Vec3i& size_, const Felt::Vec3i& size_partition_,
 		Urho3D::Node* pnode_
 	);
 
@@ -174,9 +178,22 @@ public:
 	void poll();
 
 
-	Felt::Vec3f ray(const Felt::Vec3f& pos_origin_, const Felt::Vec3f& dir_) const
+	Felt::Vec3f ray(const Urho3D::Vector3& pos_origin_, const Urho3D::Vector3& dir_) const
 	{
-		return m_surface.ray(pos_origin_, dir_);
+		return m_surface.ray(
+			reinterpret_cast<const Felt::Vec3f&>(pos_origin_),
+			reinterpret_cast<const Felt::Vec3f&>(dir_)
+		);
+	}
+
+	static constexpr Felt::TupleIdx layer_idx(Felt::LayerId layer_id_)
+	{
+		return Surface::layer_idx(layer_id_);
+	}
+
+	const IsoGrid& isogrid() const
+	{
+		return m_surface.isogrid();
 	}
 
 	/**
@@ -184,9 +201,9 @@ public:
 	 *
 	 * @param pos_centre_ position of seed.
 	 */
-	void seed (const Felt::Vec3i& pos_centre_)
+	void seed (const Urho3D::IntVector3& pos_centre_)
 	{
-		m_surface.seed(pos_centre_);
+		m_surface.seed(reinterpret_cast<const Felt::Vec3i&>(pos_centre_));
 	}
 
 	/**

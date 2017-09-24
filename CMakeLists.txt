@@ -16,6 +16,7 @@ endif ()
 set (URHO3D_HOME "vendor/Urho3D")
 
 set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Add common C++ definitions.
 add_definitions(
@@ -24,6 +25,10 @@ add_definitions(
 	-fopenmp 
 	# Cannot use coroutine2 on Ubuntu 16.04 by default.
 	-DBOOST_COROUTINES_NO_DEPRECATION_WARNING -DBOOST_COROUTINE_NO_DEPRECATION_WARNING
+	# For LuaJIT exceptions
+	-DSOL_EXCEPTIONS_SAFE_PROPAGATION
+	# Enable sol::stack::userdata_checker
+	-DSOL_ENABLE_INTEROP
 	# Enable debugging
 	-O0 -ggdb -g
 	# Enable Felt library exceptions
