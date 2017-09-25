@@ -202,11 +202,15 @@ run\describe 'surface asynchronous', ()=>
 		
 		@surface\enqueue(op)
 		
+		last = os.time()
 		count = 0
 		while not flushed
 			count = count + 1
 			@surface\poll()
-		
+			if os.time() - last > 1
+				last = os.time()
+				@surface\enqueue UrFelt.Op.Polygonise ()->
+					@surface\flush()
 			coroutine.yield()
 			
 		print("Iterations: " .. tostring(count))

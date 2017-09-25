@@ -160,6 +160,7 @@ void UrSurface::polygonise()
 
 void UrSurface::flush()
 {
+	Guard lock{m_lock_pending};
 	for (const Felt::PosIdx pos_idx_child : m_polys.changes())
 	{
 		const bool has_surface = m_surface.is_intersected(pos_idx_child);
@@ -209,18 +210,18 @@ void UrSurface::executor()
 			continue;
 		}
 
+		Guard lock{m_lock_pending};
+
 		op->execute(*this);
 
 		if (op->is_complete())
 		{
-			Guard lock_pending{m_lock_pending};
 			Guard lock_done{m_lock_done};
 			m_queue_done.push_back(std::move(m_queue_pending.front()));
 			m_queue_pending.pop_front();
 		}
 		else
 		{
-			Guard lock{m_lock_pending};
 			m_queue_pending.push_back(std::move(m_queue_pending.front()));
 			m_queue_pending.pop_front();
 		}
@@ -232,24 +233,31 @@ void UrSurface::await()
 {
 	while (true)
 	{
-		Guard lock(m_lock_pending);
-		if (m_queue_pending.empty())
+		bool empty;
 		{
-			Guard lock(m_lock_done);
-			for (Op::Ptr& op : m_queue_done)
-				if (op->callback)
-					op->callback();
-			m_queue_done.clear();
-			return;
+			Guard lock(m_lock_pending);
+			empty = m_queue_pending.empty();
 		}
-		std::this_thread::yield();
+
+		if (!empty)
+		{
+			std::this_thread::yield();
+			continue;
+		}
+
+		poll();
 	}
 }
 
 void UrSurface::poll()
 {
-	Guard lock(m_lock_done);
-	for (Op::Ptr& op : m_queue_done)
+	std::deque<Op::Ptr> queue_done;
+	{
+		Guard lock(m_lock_done);
+		queue_done = std::move(m_queue_done);
+	}
+
+	for (Op::Ptr& op : queue_done)
 		if (op->callback)
 			op->callback();
 	m_queue_done.clear();
@@ -330,12 +338,14 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 			using namespace Felt;
 
 			const Vec3f& grad = isogrid_.gradE(pos_);
-			if (grad.isZero())
-				return 1.0f;
+//			if (grad.isZero())
+//				return 1.0f;
 
 			const Vec3f& normal = grad.normalized();
 			const Felt::Distance mag_grad = grad.norm();
 			const Felt::Distance dist_surf = isogrid_.get(pos_);
+			const Vec3f& fpos = pos_.template cast<Felt::Distance>() - normal*dist_surf;
+			const bool inside = Felt::inside(fpos, m_pos_start, m_pos_end);
 
 			std::vector<Surface::Plane> planes;
 			for (Felt::Dim d = 0; d < m_pos_start.size(); d++)
@@ -386,18 +396,26 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 				}
 			);
 
-			const Vec3f& fpos = pos_.template cast<Felt::Distance>() - normal*dist_surf;
-			Surface::Line line{fpos, normal};
-			if (planes_in.size() == 0)
-				volatile int i = 0;
-			const Vec3f& pos_intersect = line.intersectionPoint(planes_in[0]);
-			const Vec3f& pos_dist = pos_intersect - fpos;
-			const Felt::Distance dist_side = normal.dot(pos_dist);
+			Vec3f force_total = Vec3f::Zero();
+			const float orientation = (2*float(inside) - 1);
 
-			const Felt::Distance dist_side_clamped =
-				std::min(std::max(dist_side, -0.5f), 0.5f);
+			for (const Surface::Plane& plane : planes)
+			{
+				const Vec3f& pos_proj = plane.projection(fpos);
+				const Vec3f& pos_dist = fpos - pos_proj;
+				const Distance inv_dist_sq = 1.0f/pos_dist.squaredNorm();
+				const Distance inv_dist_sq_clamped = std::min(inv_dist_sq, 1.0f);
+				const Vec3f& pole = normal.dot(plane.normal()) * plane.normal();
+				const Vec3f& force = inv_dist_sq_clamped*pole;
+				force_total += force * orientation;
+			}
 
-			const Felt::Distance amount = -mag_grad * dist_side_clamped;
+			const Distance force_speed =  normal.dot(force_total);
+
+			const Felt::Distance force_speed_clamped =
+				std::min(std::max(force_speed, -0.5f), 0.5f);
+
+			const Felt::Distance amount = -mag_grad * force_speed_clamped;
 
 			if (std::abs(pos_(1)) == 6 && std::abs(amount) < 0)
 				volatile int i =0;
