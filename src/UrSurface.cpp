@@ -246,8 +246,10 @@ void UrSurface::await()
 		}
 
 		poll();
+		return;
 	}
 }
+
 
 void UrSurface::poll()
 {
@@ -260,8 +262,8 @@ void UrSurface::poll()
 	for (Op::Ptr& op : queue_done)
 		if (op->callback)
 			op->callback();
-	m_queue_done.clear();
 }
+
 
 UrSurface::Op::Base::Base(sol::function callback_) :
 	callback{callback_}
