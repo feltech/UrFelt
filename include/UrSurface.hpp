@@ -224,12 +224,10 @@ public:
 private:
 	void executor();
 
+	std::atomic_bool m_pause;
 	std::atomic_bool m_exit;
 
 	std::thread m_executor;
-
-//	std::mutex	m_mutex_await;
-//	std::condition_variable	m_cond_await;
 
 	Lock	m_lock_pending;
 	Lock	m_lock_done;
@@ -244,6 +242,24 @@ private:
 	Urho3D::Node* 		m_pnode;
 	Urho3D::RigidBody* 	m_psurface_body;
 
+
+	struct Pause
+	{
+		Pause(UrSurface* self) :
+			m_self{self}
+		{
+			m_self->m_pause = true;
+			m_self->m_lock_pending.lock();
+		}
+		~Pause()
+		{
+			m_self->m_pause = false;
+			m_self->m_lock_pending.unlock();
+		}
+		UrSurface* m_self;
+	};
+
+	friend struct Pause;
 };
 
 } /* namespace UrFelt */

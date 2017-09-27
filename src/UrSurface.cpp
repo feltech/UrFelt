@@ -160,7 +160,7 @@ void UrSurface::polygonise()
 
 void UrSurface::flush()
 {
-	Guard lock{m_lock_pending};
+	Pause pause{this};
 	for (const Felt::PosIdx pos_idx_child : m_polys.changes())
 	{
 		const bool has_surface = m_surface.is_intersected(pos_idx_child);
@@ -183,13 +183,15 @@ void UrSurface::flush()
 
 		m_gpu_polys.get(pos_idx_child).flush();
 	}
+	m_pause = false;
 }
 
 
 void UrSurface::enqueue(const UrSurface::Op::Base& op_)
 {
-	Guard lock{m_lock_pending};
+	Pause pause{this};
 	m_queue_pending.push_back(op_.clone());
+	m_pause = false;
 }
 
 
@@ -197,6 +199,12 @@ void UrSurface::executor()
 {
 	while (not m_exit)
 	{
+		if (m_pause)
+		{
+			std::this_thread::yield();
+			continue;
+		}
+
 		UrSurface::Op::Base* op = nullptr;
 		{
 			Guard lock{m_lock_pending};
@@ -340,14 +348,15 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 			using namespace Felt;
 
 			const Vec3f& grad = isogrid_.gradE(pos_);
-//			if (grad.isZero())
-//				return 1.0f;
+			if (grad.isZero())
+				return 1.0f;
 
 			const Vec3f& normal = grad.normalized();
 			const Felt::Distance mag_grad = grad.norm();
 			const Felt::Distance dist_surf = isogrid_.get(pos_);
 			const Vec3f& fpos = pos_.template cast<Felt::Distance>() - normal*dist_surf;
 			const bool inside = Felt::inside(fpos, m_pos_start, m_pos_end);
+			const float orientation = (2*float(inside) - 1);
 
 			std::vector<Surface::Plane> planes;
 			for (Felt::Dim d = 0; d < m_pos_start.size(); d++)
@@ -365,69 +374,30 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 				planes.push_back(plane);
 			}
 
-			std::vector<Surface::Plane> planes_in;
-			std::vector<Surface::Plane> planes_out;
-
-			for (const Surface::Plane& plane : planes)
-				if (normal.dot(plane.normal()) > 0)
-					planes_in.push_back(plane);
-				else
-					planes_out.push_back(plane);
-
-			std::sort(planes_in.begin(), planes_in.end(),
-				[&pos_, &normal](const Surface::Plane& a, const Surface::Plane& b){
-					const Vec3f& fpos = pos_.template cast<Felt::Distance>();
-					const Surface::Line& line{fpos, normal};
-					const Vec3f& pos_intersect_a = line.intersectionPoint(a);
-					const Vec3f& pos_dist_a = fpos - pos_intersect_a;
-					const Vec3f& pos_intersect_b = line.intersectionPoint(b);
-					const Vec3f& pos_dist_b = fpos - pos_intersect_a;
-					return pos_dist_a.squaredNorm() < pos_dist_b.squaredNorm();
-				}
-			);
-
-			std::sort(planes_out.begin(), planes_out.end(),
-				[&pos_, &normal](const Surface::Plane& a, const Surface::Plane& b){
-					const Vec3f& fpos = pos_.template cast<Felt::Distance>();
-					const Surface::Line& line{fpos, normal};
-					const Vec3f& pos_intersect_a = line.intersectionPoint(a);
-					const Vec3f& pos_dist_a = fpos - pos_intersect_a;
-					const Vec3f& pos_intersect_b = line.intersectionPoint(b);
-					const Vec3f& pos_dist_b = fpos - pos_intersect_a;
-					return pos_dist_a.squaredNorm() < pos_dist_b.squaredNorm();
-				}
-			);
-
 			Vec3f force_total = Vec3f::Zero();
-			const float orientation = (2*float(inside) - 1);
 
 			for (const Surface::Plane& plane : planes)
 			{
 				const Vec3f& pos_proj = plane.projection(fpos);
 				const Vec3f& pos_dist = fpos - pos_proj;
-				const Distance inv_dist_sq = 1.0f/pos_dist.squaredNorm();
-				const Distance inv_dist_sq_clamped = std::min(inv_dist_sq, 1.0f);
-				const Vec3f& pole = normal.dot(plane.normal()) * plane.normal();
-				const Vec3f& force = inv_dist_sq_clamped*pole;
-				force_total += force * orientation;
+				const Distance dist_sq = pos_dist.squaredNorm();
+				Distance impulse;
+				if (dist_sq < 1.0f)
+					impulse = std::sqrt(dist_sq);
+				else
+					impulse = 1.0f / dist_sq;
+				force_total += impulse * plane.normal() * orientation;
 			}
-
 			const Distance force_speed =  normal.dot(force_total);
 
-			const Felt::Distance force_speed_clamped =
-				std::min(std::max(force_speed, -0.5f), 0.5f);
+			const Felt::Distance amount = -mag_grad * force_speed + 0.01f * isogrid_.curv(fpos);
 
-			const Felt::Distance amount = -mag_grad * force_speed_clamped;
+			m_is_complete &= std::abs(amount) <= 0.001f;//std::numeric_limits<float>::epsilon();
 
-			if (std::abs(pos_(1)) == 6 && std::abs(amount) < 0)
-				volatile int i =0;
+			const Felt::Distance amount_clamped =
+				std::min(std::max(amount, -1.0f), 1.0f);
 
-			m_is_complete &= std::abs(amount) <= std::numeric_limits<float>::epsilon();
-
-			if (pos_(0) > m_pos_end(0) || pos_(1) > m_pos_end(1) || pos_(2) > m_pos_end(2))
-				volatile int i=0;
-
-			return amount;
+			return amount_clamped;
 		}
 	);
 }
