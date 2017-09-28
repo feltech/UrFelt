@@ -358,6 +358,7 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 			const bool inside = Felt::inside(fpos, m_pos_start, m_pos_end);
 			const float orientation = (2*float(inside) - 1);
 
+
 			std::vector<Surface::Plane> planes;
 			for (Felt::Dim d = 0; d < m_pos_start.size(); d++)
 			{
@@ -373,26 +374,35 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 				Surface::Plane plane{plane_normal, -m_pos_end(d)};
 				planes.push_back(plane);
 			}
+			Vec3f pos_intersect = Vec3f::Constant(std::numeric_limits<Distance>::max());
+			const Vec3f& pos_box_centre = (m_pos_end - m_pos_start).template cast<Distance>() /
+				2 + m_pos_start.template cast<Distance>();
 
-			Vec3f force_total = Vec3f::Zero();
+			Surface::Line line{pos_box_centre, normal};
 
 			for (const Surface::Plane& plane : planes)
 			{
-				const Vec3f& pos_proj = plane.projection(fpos);
-				const Vec3f& pos_dist = fpos - pos_proj;
-				const Distance dist_sq = pos_dist.squaredNorm();
-				Distance impulse;
-				if (dist_sq < 1.0f)
-					impulse = std::sqrt(dist_sq);
-				else
-					impulse = 1.0f / dist_sq;
-				force_total += impulse * plane.normal() * orientation;
+				const Vec3f pos_test = line.intersectionPoint(plane);
+				if (pos_test.dot(normal) > 0)
+					if (
+						(pos_test - pos_box_centre).squaredNorm() <
+						(pos_intersect - pos_box_centre).squaredNorm()
+					) {
+						pos_intersect = pos_test;
+					}
 			}
-			const Distance force_speed =  normal.dot(force_total);
 
-			const Felt::Distance amount = -mag_grad * force_speed + 0.01f * isogrid_.curv(fpos);
+			const Vec3f& displacement_from_ideal =  pos_intersect - fpos;
 
-			m_is_complete &= std::abs(amount) <= 0.001f;//std::numeric_limits<float>::epsilon();
+			Distance force_speed;
+			if (displacement_from_ideal.squaredNorm() > 1.0f)
+				force_speed = normal.dot(displacement_from_ideal.normalized());
+			else
+				force_speed = normal.dot(displacement_from_ideal);
+
+			const Felt::Distance amount = -force_speed*0.5f + 0.1f * isogrid_.curv(fpos);
+
+			m_is_complete &= std::abs(amount) <= std::numeric_limits<float>::epsilon();
 
 			const Felt::Distance amount_clamped =
 				std::min(std::max(amount, -1.0f), 1.0f);
