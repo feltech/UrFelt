@@ -383,7 +383,7 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 			for (const Surface::Plane& plane : planes)
 			{
 				const Vec3f pos_test = line.intersectionPoint(plane);
-				if (pos_test.dot(normal) > 0)
+				if (plane.normal().dot(normal) > 0)
 					if (
 						(pos_test - pos_box_centre).squaredNorm() <
 						(pos_intersect - pos_box_centre).squaredNorm()
@@ -400,7 +400,7 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 			else
 				force_speed = normal.dot(displacement_from_ideal);
 
-			const Felt::Distance amount = -force_speed*0.5f + 0.1f * isogrid_.curv(fpos);
+			const Felt::Distance amount = -force_speed*0.5f + 0.001f * isogrid_.curv(fpos);
 
 			m_is_complete &= std::abs(amount) <= std::numeric_limits<float>::epsilon();
 
