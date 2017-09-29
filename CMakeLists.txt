@@ -30,7 +30,7 @@ add_definitions(
 	# Enable sol::stack::userdata_checker
 	-DSOL_ENABLE_INTEROP
 	# Enable debugging
-	-O0 -ggdb -g
+# 	-O0 -ggdb -g
 	# Enable Felt library exceptions
 #	-DFELT_EXCEPTIONS
 	# Enable profiling

@@ -326,9 +326,23 @@ UrSurface::Op::ExpandToBox::ExpandToBox(
 	UrSurface::Op::Base{callback_},
 	m_pos_start{reinterpret_cast<const Felt::Vec3f&>(pos_start_)},
 	m_pos_end{reinterpret_cast<const Felt::Vec3f&>(pos_end_)},
-	m_is_complete{false}
+	m_is_complete{false},
+	m_size{0}
 {
-	volatile int i = 0;
+	for (Felt::Dim d = 0; d < m_pos_start.size(); d++)
+	{
+		Felt::Vec3f plane_normal = Felt::Vec3f::Zero();
+		plane_normal(d) = -1;
+		Surface::Plane plane{plane_normal, m_pos_start(d)};
+		m_planes.push_back(plane);
+	}
+	for (Felt::Dim d = 0; d < m_pos_end.size(); d++)
+	{
+		Felt::Vec3f plane_normal = Felt::Vec3f::Zero();
+		plane_normal(d) = 1;
+		Surface::Plane plane{plane_normal, -m_pos_end(d)};
+		m_planes.push_back(plane);
+	}
 }
 
 
@@ -342,9 +356,13 @@ UrSurface::Op::ExpandToBox::ExpandToBox(
 void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 {
 	m_is_complete = true;
+	bool is_first_run = m_size == 0;
+	m_size = 0;
+	Felt::Vec3f pos_COM = m_pos_COM;
+	m_pos_COM = Felt::Vec3f{0,0,0};
 
 	surface.update(
-		[this](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
+		[this, &pos_COM, is_first_run](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
 			using namespace Felt;
 
 			const Vec3f& grad = isogrid_.gradE(pos_);
@@ -352,38 +370,34 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 				return 1.0f;
 
 			const Vec3f& normal = grad.normalized();
-			const Felt::Distance mag_grad = grad.norm();
 			const Felt::Distance dist_surf = isogrid_.get(pos_);
 			const Vec3f& fpos = pos_.template cast<Felt::Distance>() - normal*dist_surf;
 			const bool inside = Felt::inside(fpos, m_pos_start, m_pos_end);
 			const float orientation = (2*float(inside) - 1);
 
+			m_size++;
+			m_pos_COM += fpos;
 
-			std::vector<Surface::Plane> planes;
-			for (Felt::Dim d = 0; d < m_pos_start.size(); d++)
+			Vec3f dir_from_COM;
+			if (is_first_run)
 			{
-				Vec3f plane_normal = Felt::Vec3f::Zero();
-				plane_normal(d) = -1;
-				Surface::Plane plane{plane_normal, m_pos_start(d)};
-				planes.push_back(plane);
+				dir_from_COM = normal;
 			}
-			for (Felt::Dim d = 0; d < m_pos_end.size(); d++)
+			else
 			{
-				Vec3f plane_normal = Felt::Vec3f::Zero();
-				plane_normal(d) = 1;
-				Surface::Plane plane{plane_normal, -m_pos_end(d)};
-				planes.push_back(plane);
+				const Vec3f& disp_from_COM = fpos - pos_COM;
+				dir_from_COM = disp_from_COM.normalized();
 			}
+
+			const Vec3f& pos_box_centre = m_pos_start.template cast<Distance>() +
+				(m_pos_end - m_pos_start).template cast<Distance>() / 2;
+			Surface::Line line{pos_box_centre, dir_from_COM};
 			Vec3f pos_intersect = Vec3f::Constant(std::numeric_limits<Distance>::max());
-			const Vec3f& pos_box_centre = (m_pos_end - m_pos_start).template cast<Distance>() /
-				2 + m_pos_start.template cast<Distance>();
 
-			Surface::Line line{pos_box_centre, normal};
-
-			for (const Surface::Plane& plane : planes)
+			for (const Surface::Plane& plane : m_planes)
 			{
 				const Vec3f pos_test = line.intersectionPoint(plane);
-				if (plane.normal().dot(normal) > 0)
+				if (plane.normal().dot(dir_from_COM) > 0)
 					if (
 						(pos_test - pos_box_centre).squaredNorm() <
 						(pos_intersect - pos_box_centre).squaredNorm()
@@ -400,9 +414,9 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 			else
 				force_speed = normal.dot(displacement_from_ideal);
 
-			const Felt::Distance amount = -force_speed*0.5f + 0.001f * isogrid_.curv(fpos);
+			const Felt::Distance amount = -force_speed + 0.01f * isogrid_.curv(fpos);
 
-			m_is_complete &= std::abs(amount) <= std::numeric_limits<float>::epsilon();
+			m_is_complete &= std::abs(amount) <= 0.0001f;
 
 			const Felt::Distance amount_clamped =
 				std::min(std::max(amount, -1.0f), 1.0f);
@@ -410,6 +424,8 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 			return amount_clamped;
 		}
 	);
+
+	m_pos_COM /= m_size;
 }
 
 
