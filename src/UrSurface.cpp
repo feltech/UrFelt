@@ -324,23 +324,27 @@ UrSurface::Op::ExpandToBox::ExpandToBox(
 	const Urho3D::Vector3& pos_start_, const Urho3D::Vector3& pos_end_, sol::function callback_
 ) :
 	UrSurface::Op::Base{callback_},
-	m_pos_start{reinterpret_cast<const Felt::Vec3f&>(pos_start_)},
-	m_pos_end{reinterpret_cast<const Felt::Vec3f&>(pos_end_)},
+	m_pos_min{reinterpret_cast<const Felt::Vec3f&>(pos_start_)},
+	m_pos_max{reinterpret_cast<const Felt::Vec3f&>(pos_end_)},
 	m_is_complete{false},
-	m_size{0}
+	m_size{0},
+	m_pos_centre{
+		m_pos_min.template cast<Felt::Distance>() +
+		(m_pos_max - m_pos_min).template cast<Felt::Distance>() / 2
+	}
 {
-	for (Felt::Dim d = 0; d < m_pos_start.size(); d++)
+	for (Felt::Dim d = 0; d < m_pos_min.size(); d++)
 	{
 		Felt::Vec3f plane_normal = Felt::Vec3f::Zero();
 		plane_normal(d) = -1;
-		Surface::Plane plane{plane_normal, m_pos_start(d)};
+		Surface::Plane plane{plane_normal, m_pos_min(d)};
 		m_planes.push_back(plane);
 	}
-	for (Felt::Dim d = 0; d < m_pos_end.size(); d++)
+	for (Felt::Dim d = 0; d < m_pos_max.size(); d++)
 	{
 		Felt::Vec3f plane_normal = Felt::Vec3f::Zero();
 		plane_normal(d) = 1;
-		Surface::Plane plane{plane_normal, -m_pos_end(d)};
+		Surface::Plane plane{plane_normal, -m_pos_max(d)};
 		m_planes.push_back(plane);
 	}
 }
@@ -355,73 +359,113 @@ UrSurface::Op::ExpandToBox::ExpandToBox(
 
 void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 {
+	// Assume complete until at least one point has a distance update greater than epsilon.
 	m_is_complete = true;
-	bool is_first_run = m_size == 0;
-	m_size = 0;
+	// Take a copy of surface size and centre of mass, before resetting it.
+	const Felt::Distance size = m_size;
 	Felt::Vec3f pos_COM = m_pos_COM;
+	// Reset surface size (number of zero layer points) and surface's centre of mass to zero,
+	// for incremental recalculation below.
+	m_size = 0;
 	m_pos_COM = Felt::Vec3f{0,0,0};
 
 	surface.update(
-		[this, &pos_COM, is_first_run](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
+		[this, &pos_COM, &size](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
 			using namespace Felt;
+			// Size of surface update to consider zero (thus finished).
+			static constexpr Distance epsilon = 0.0001;
+			// Multiplier to ensure no surface update with magnitude greater than zero.
+			// TODO: understand why grad can be > 2 and if sqrt(2) per component theory is correct.
+			static constexpr Distance clamp = 1.0f/sqrt(6.0f);
 
+			// Get entropy-satisfying gradient (surface "normal").
 			const Vec3f& grad = isogrid_.gradE(pos_);
+			// If the gradient is zero, we must have a singularity, so just trivially contract
+			// (i.e. destroy).
 			if (grad.isZero())
 				return 1.0f;
-
-			const Vec3f& normal = grad.normalized();
+			// Get distance of this discrete zero-layer point to the continuous zero-level set
+			// surface.
 			const Felt::Distance dist_surf = isogrid_.get(pos_);
-			const Vec3f& fpos = pos_.template cast<Felt::Distance>() - normal*dist_surf;
-			const bool inside = Felt::inside(fpos, m_pos_start, m_pos_end);
-			const float orientation = (2*float(inside) - 1);
 
+			// Discretisation means grad can be non-normalised, so normalise it.
+			const Vec3f& normal = grad.normalized();
+			// Interpolate discrete zero-layer grid point to continuous zero-level isosurface.
+			const Vec3f& fpos = pos_.template cast<Felt::Distance>() - normal*dist_surf;
+			// Get euclidean norm of the gradient, for use in level set update equations.
+			const Distance grad_norm = grad.norm();
+
+			// Incremental update of centre of mass.
 			m_size++;
 			m_pos_COM += fpos;
 
+			// Direction from centre of mass of surface to this surface point.
 			Vec3f dir_from_COM;
-			if (is_first_run)
+
+			if (size == 0)
 			{
+				// If size (thus centre of mass) has not yet been calculated (i.e. this is the
+				// first iteration) just assume the line from the centre of mass is the same as the
+				// surface normal.
 				dir_from_COM = normal;
 			}
 			else
 			{
+				// Displacement of surface point from surface's centre of mass.
 				const Vec3f& disp_from_COM = fpos - pos_COM;
+				// If the surface is tiny, don't allow it to collapse.
+				if (disp_from_COM.squaredNorm() <= 1.0f/clamp)
+				{
+					m_is_complete = false;
+					return -grad_norm*clamp;
+				}
+				// Get direction of surface point from surface's centre of mass.
 				dir_from_COM = disp_from_COM.normalized();
 			}
 
-			const Vec3f& pos_box_centre = m_pos_start.template cast<Distance>() +
-				(m_pos_end - m_pos_start).template cast<Distance>() / 2;
-			Surface::Line line{pos_box_centre, dir_from_COM};
-			Vec3f pos_intersect = Vec3f::Constant(std::numeric_limits<Distance>::max());
+			// Get ray from centre of target box along direction given by surface centre of mass
+			// to surface point.
+			const Surface::Line& line{m_pos_centre, dir_from_COM};
 
+			// Calculate point on box where this surface point wants to head toward.
+			Vec3f pos_target = Vec3f::Constant(std::numeric_limits<Distance>::max());
 			for (const Surface::Plane& plane : m_planes)
 			{
-				const Vec3f pos_test = line.intersectionPoint(plane);
+				// Find intersection point of closest plane enclosing target box and ray from centre
+				// of mass of target box that matches ray from centre of mass of surface to surface
+				// point.
+				const Vec3f& pos_test = line.intersectionPoint(plane);
 				if (plane.normal().dot(dir_from_COM) > 0)
 					if (
-						(pos_test - pos_box_centre).squaredNorm() <
-						(pos_intersect - pos_box_centre).squaredNorm()
+						(pos_test - m_pos_centre).squaredNorm() <
+						(pos_target - m_pos_centre).squaredNorm()
 					) {
-						pos_intersect = pos_test;
+						pos_target = pos_test;
 					}
 			}
 
-			const Vec3f& displacement_from_ideal =  pos_intersect - fpos;
+			// Get displacement of surface point to it's target point on the box.
+			const Vec3f& displacement_to_target =  pos_target - fpos;
 
-			Distance force_speed;
-			if (displacement_from_ideal.squaredNorm() > 1.0f)
-				force_speed = normal.dot(displacement_from_ideal.normalized());
+			// Calculate "impulse" to apply to surface point along it's normal to get it heading
+			// toward target box point.
+			Distance impulse;
+			if (displacement_to_target.squaredNorm() > 1.0f)
+				// If we're far from the target point, clamp the impulse to +/-1.
+				impulse = normal.dot(displacement_to_target.normalized());
 			else
-				force_speed = normal.dot(displacement_from_ideal);
+				// If we're near the target point, the impulse is directly proportional to the
+				// distance.
+				impulse = normal.dot(displacement_to_target);
 
-			const Felt::Distance amount = -force_speed + 0.01f * isogrid_.curv(fpos);
+			// The level set update.
+			const Felt::Distance amount = -clamp*grad_norm*impulse;
 
-			m_is_complete &= std::abs(amount) <= 0.0001f;
+			// Flag that the operation is incomplete if this surface point wants to move a distance
+			// larger than epsilon.
+			m_is_complete &= std::abs(amount) <= epsilon;
 
-			const Felt::Distance amount_clamped =
-				std::min(std::max(amount, -1.0f), 1.0f);
-
-			return amount_clamped;
+			return amount;
 		}
 	);
 

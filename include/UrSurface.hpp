@@ -98,11 +98,12 @@ public:
 			URSURFACE_OP_CLONE(ExpandToBox)
 		private:
 			bool m_is_complete;
-			const Felt::Vec3f m_pos_start;
-			const Felt::Vec3f m_pos_end;
-			Felt::Vec3f m_pos_COM;
-			Felt::ListIdx m_size;
-			std::vector<Surface::Plane> m_planes;
+			const Felt::Vec3f	m_pos_min;
+			const Felt::Vec3f	m_pos_max;
+			const Felt::Vec3f	m_pos_centre;
+			Felt::Vec3f	m_pos_COM;
+			Felt::ListIdx	m_size;
+			std::vector<Surface::Plane>	m_planes;
 
 		};
 	};
