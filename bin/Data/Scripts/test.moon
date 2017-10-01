@@ -125,7 +125,7 @@ run\describe 'surface asynchronous', ()=>
 		
 	
 	@it 'can be updated and awaited', () =>
-		flushed = false
+		finished = false
 		expanded = false
 		
 		-- No callback.
@@ -139,52 +139,52 @@ run\describe 'surface asynchronous', ()=>
 		-- Finish with a polygonise and flush in main thread.
 		@surface\enqueue (UrFelt.Op.Polygonise(()->
 			@surface\flush()
-			flushed = true
+			finished = true
 		))		
 		lassert.is_false(expanded)
-		lassert.is_false(flushed)
+		lassert.is_false(finished)
 		
 		coroutine.yield()
 		
-		lassert.is_false(flushed)
+		lassert.is_false(finished)
 		lassert.is_false(expanded)
 		
 		@surface\await()
 		
-		lassert.is_true(flushed)
+		lassert.is_true(finished)
 		lassert.is_true(expanded)
 		
 		
 	@it 'can be updated over multiple event loops', () =>
-		flushed = false
+		finished = false
 		
 		-- With a callback.
 		@surface\enqueue (UrFelt.Op.ExpandByConstant(-5, () ->
 			@surface\enqueue (UrFelt.Op.Polygonise(()->
 				@surface\flush()
-				flushed = true
+				finished = true
 			))	
 		))
 	
-		lassert.is_false(flushed)
+		lassert.is_false(finished)
 		
 		@surface\poll()
 		coroutine.yield()
 	
-		lassert.is_false(flushed)
+		lassert.is_false(finished)
 		
 		count = 0
 		
-		while not flushed
+		while not finished
 			count = count + 1
 			@surface\poll()
 			coroutine.yield()
 			
 		print("Iterations: " .. tostring(count))
-		lassert.is_true(flushed)
+		lassert.is_true(finished)
 
 	@it 'expands to fill a box', () =>
-		flushed = false
+		finished = false
 		
 		box_start = Vector3(-10,-5,-10)
 		box_end = Vector3(10,5,10)
@@ -196,7 +196,7 @@ run\describe 'surface asynchronous', ()=>
 			@surface\invalidate()
 			@surface\enqueue UrFelt.Op.Polygonise ()->
 				@surface\flush()
-				flushed = true
+				finished = true
 		
 		op = UrFelt.Op.ExpandToBox(box_start, box_end, callback)
 		
@@ -204,19 +204,49 @@ run\describe 'surface asynchronous', ()=>
 		
 		last = os.time()
 		count = 0
-		while not flushed
+		while not finished
 			count = count + 1
 			@surface\poll()
-			if os.time() - last >0.05
+			if os.time() - last > 0.05
+				last = os.time()
 				@surface\enqueue UrFelt.Op.Polygonise ()->
 					@surface\flush()
-					last = os.time()
 			coroutine.yield()
 			
 		print("Iterations: " .. tostring(count))
-		lassert.is_true(flushed)
+		lassert.is_true(finished)
 
-
+	@it 'moves to fill a box', () =>
+		finished = false
+		
+		box_start = Vector3(3,3,3)
+		box_end = Vector3(10,10,10)
+		
+		@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
+		
+		@surface\enqueue UrFelt.Op.ExpandToBox Vector3(3,3,3), Vector3(11,11,11), ()->
+			print("Done box 1")
+			@surface\enqueue UrFelt.Op.ExpandToBox Vector3(-10,-10,-10), Vector3(0,3,0), ()->
+				print("Done box 2")
+				@surface\enqueue UrFelt.Op.Polygonise ()->
+					@surface\flush()
+					finished = true
+			
+		
+		last = os.time()
+		count = 0
+		while not finished
+			count = count + 1
+			if os.time() - last > 0.05
+				@surface\enqueue UrFelt.Op.Polygonise ()->
+					last = os.time()
+					@surface\flush()
+			@surface\poll()
+			coroutine.yield()
+			
+		print("Iterations: " .. tostring(count))
+		lassert.is_true(finished)
+		
 success = run\runTests()
 
 	
