@@ -18,6 +18,15 @@ set (URHO3D_HOME "vendor/Urho3D")
 set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
+add_custom_target(
+	Moonc ALL
+	COMMAND 
+	grep -q 'moonc' .project || sed -i '/<buildSpec>/ r .externalToolBuilders/moonc.xml' .project
+	COMMENT
+	"Enable moonc transpiler"
+)
+
 # Add common C++ definitions.
 add_definitions(
 	-std=c++14 -Wfatal-errors
