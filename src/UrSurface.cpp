@@ -52,6 +52,7 @@ void UrSurface::to_lua(sol::table& lua)
 		"invalidate", &UrSurface::invalidate,
 		"polygonise", &UrSurface::polygonise,
 		"flush", &UrSurface::flush,
+		"flush_graphics", &UrSurface::flush_graphics,
 
 		"update", [](UrSurface& self, sol::function fn_) {
 			self.update([&fn_](const Felt::Vec3i& pos_, const UrSurface::IsoGrid& isogrid_) {
@@ -172,6 +173,20 @@ void UrSurface::polygonise()
 void UrSurface::flush()
 {
 	Pause pause{this};
+	flush_physics_impl();
+	flush_graphics_impl();
+}
+
+
+void UrSurface::flush_graphics()
+{
+	Pause pause{this};
+	flush_graphics_impl();
+}
+
+
+void UrSurface::flush_physics_impl()
+{
 	for (const Felt::PosIdx pos_idx_child : m_polys.changes())
 	{
 		const bool has_surface = m_surface.is_intersected(pos_idx_child);
@@ -191,10 +206,16 @@ void UrSurface::flush()
 			m_pnode->RemoveComponent(pshape);
 			m_coll_shapes.set(pos_idx_child, nullptr);
 		}
+	}
+}
 
+
+void UrSurface::flush_graphics_impl()
+{
+	for (const Felt::PosIdx pos_idx_child : m_polys.changes())
+	{
 		m_gpu_polys.get(pos_idx_child).flush();
 	}
-	m_pause = false;
 }
 
 
@@ -202,7 +223,6 @@ void UrSurface::enqueue(const UrSurface::Op::Base& op_)
 {
 	Pause pause{this};
 	m_queue_pending.push_back(op_.clone());
-	m_pause = false;
 }
 
 
@@ -385,7 +405,7 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 			using namespace Felt;
 			// Size of surface update to consider zero (thus finished).
 			static constexpr Distance epsilon = 0.0001;
-			// Multiplier to ensure no surface update with magnitude greater than zero.
+			// Multiplier to ensure no surface update with magnitude greater than 1.0.
 			// TODO: understand why grad can be > 2 and if sqrt(2) per component theory is correct.
 			static constexpr Distance clamp = 1.0f/sqrt(6.0f);
 
@@ -504,7 +524,7 @@ UrSurface::Op::ExpandToImage::ExpandToImage(
 ) :
 	UrSurface::Op::Base{callback_},
 	m_is_complete{false}, m_file_name{file_name_}, m_ideal{ideal_}, m_tolerance{tolerance_},
-	m_curvature_weight{curvature_weight_}, m_image{}
+	m_curvature_weight{curvature_weight_}, m_image{}, m_divisor{0}
 {}
 
 
@@ -512,18 +532,21 @@ void UrSurface::Op::ExpandToImage::execute(UrSurface& surface)
 {
 	if (!m_image.size())
 	{
-		std::cerr << "Loading " << m_file_name << std::endl;
 		m_image.load(m_file_name.c_str());
-		std::cerr << "Loaded " << m_file_name << " with " << m_image.size() << " pixels" <<  std::endl;
+		m_divisor = m_image.max();
+		std::cerr << "Loaded " << m_file_name << " with " << m_image.size() << " pixels in a " <<
+			m_image.width() << "x" <<  m_image.height() << "x" <<  m_image.depth() <<
+			" configuration with max voxel value " << m_divisor << std::endl;
 	}
+
+	m_is_complete = true;
 
 	surface.update([this](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
 		using namespace Felt;
 		// Size of surface update to consider zero (thus finished).
 		static constexpr Distance epsilon = 0.0001;
-		// Multiplier to ensure no surface update with magnitude greater than zero.
-		// TODO: understand why grad can be > 2 and if sqrt(2) per component theory is correct.
-		static constexpr Distance clamp = 1.0f/sqrt(6.0f);
+		// Multiplier to ensure no surface update with magnitude greater than 1.0.
+		static constexpr Distance clamp = 1.0f/(2*sqrt(6.0f));
 
 		// Get entropy-satisfying gradient (surface "normal").
 		const Vec3f& grad = isogrid_.gradE(pos_);
@@ -543,17 +566,17 @@ void UrSurface::Op::ExpandToImage::execute(UrSurface& surface)
 		const Distance grad_norm = grad.norm();
 
 		const Distance voxel = m_image.atXYZ(
-			pos_(0), pos_(1), pos_(2), 10000
-		);
+			pos_(0) + m_image.width()/2, pos_(1) + m_image.height()/2, pos_(2) + m_image.depth()/2,
+			0, std::numeric_limits<unsigned char>::max()
+		)/m_divisor;
 
-		const Distance speed = pow(voxel - m_ideal, 2) - pow(m_tolerance, 2);
+		const Distance speed =
+			2*pow(voxel - m_ideal, 2) / ( pow(voxel - m_ideal, 2) + pow(m_tolerance, 2) ) - 1;
 		const Distance curvature = isogrid_.curv(pos_);
 
 		const Distance amount = grad_norm*(speed + m_curvature_weight*curvature)*clamp;
 
 		m_is_complete &= std::abs(amount) <= epsilon;
-
-		std::cerr << Felt::format(pos_) << " = " << std::to_string(voxel) << std::endl;
 
 		return amount;
 	});

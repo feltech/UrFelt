@@ -128,7 +128,8 @@ public:
 			const float m_ideal;
 			const float m_tolerance;
 			const float m_curvature_weight;
-			cimg_library::CImg<Felt::Distance>	m_image;
+			float m_divisor;
+			cimg_library::CImg<float>	m_image;
 		};
 	};
 
@@ -250,8 +251,19 @@ public:
 	*/
 	void flush();
 
+	/**
+	* Construct GPU assets and add to scene.
+	*
+	* NOTE: if used, then physics will become out of sync and `invalidate()` must be called to
+	* before `flush` to recalculate and flush all physics assets.
+	*/
+	void flush_graphics();
+
 private:
 	void executor();
+	void flush_physics_impl();
+	void flush_graphics_impl();
+
 
 	std::atomic_bool m_pause;
 	std::atomic_bool m_exit;

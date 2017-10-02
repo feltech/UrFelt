@@ -63,6 +63,11 @@ void Application::Setup()
 
 	m_plua = std::make_unique<sol::state_view>(lua->GetState());
 
+	m_plua->set_function("now", []{
+		return std::chrono::system_clock::now().time_since_epoch() /
+		    std::chrono::milliseconds(1);
+	});
+
 	sol::table lua_UrFelt = m_plua->create_named_table("UrFelt");
 
 	UrSurface::to_lua(lua_UrFelt);
