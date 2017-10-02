@@ -21,7 +21,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_custom_target(
 	Moonc ALL
-	COMMAND 
+	COMMAND
 	grep -q 'moonc' .project || sed -i '/<buildSpec>/ r .externalToolBuilders/moonc.xml' .project
 	COMMENT
 	"Enable moonc transpiler"
@@ -30,8 +30,8 @@ add_custom_target(
 # Add common C++ definitions.
 add_definitions(
 	-std=c++14 -Wfatal-errors
-	# Enable OpenMP 
-	-fopenmp 
+	# Enable OpenMP
+	-fopenmp
 	# Cannot use coroutine2 on Ubuntu 16.04 by default.
 	-DBOOST_COROUTINES_NO_DEPRECATION_WARNING -DBOOST_COROUTINE_NO_DEPRECATION_WARNING
 	# For LuaJIT exceptions
@@ -56,7 +56,7 @@ find_package(Boost
 	1.58							# Minimum or EXACT version e.g. 1.36.0
 	REQUIRED						# Fail with error if Boost is not found
 	coroutine system	# Boost libraries by their canonical name
-) 
+)
 
 
 # Set include folders
@@ -64,11 +64,13 @@ set (FELT_INCLUDE vendor/Felt/include)
 set (LUACPPMSG_INCLUDE vendor/LuaCppMsg/include)
 set (SML_INCLUDE vendor/sml/include)
 set (LUAHPP_INCLUDE ${URHO3D_HOME}/Source/ThirdParty/LuaJIT/src)
+set (CIMG_INCLUDE vendor/CImg)
 set (VENDOR_INCLUDE vendor/include)
 
 include_directories (
 	include ${FELT_INCLUDE} ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
-	${SML_INCLUDE} ${VENDOR_INCLUDE} ${Boost_INCLUDE_DIRS} #/usr/include/x86_64-linux-gnu/c++/5
+	${SML_INCLUDE} ${VENDOR_INCLUDE} ${Boost_INCLUDE_DIRS} ${CIMG_INCLUDE}
+	#/usr/include/x86_64-linux-gnu/c++/5
 )
 
 #FILE(GLOB_RECURSE HPPS "include/*")
@@ -89,8 +91,8 @@ setup_main_executable ()
 
 # Link to external libraries.
 target_link_libraries(
-	UrhoFelt 
+	UrhoFelt
 	# Enable profiling
-#	-g -fno-omit-frame-pointer -ggdb 
+#	-g -fno-omit-frame-pointer -ggdb
 	gomp atomic ${Boost_LIBRARIES}
 )

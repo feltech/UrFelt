@@ -13,3 +13,7 @@
 [submodule "vendor/sml"]
 	path = vendor/sml
 	url = https://github.com/boost-experimental/sml.git
+[submodule "vendor/CImg"]
+	path = vendor/CImg
+	url = https://github.com/dtschump/CImg.git
+	branch = master

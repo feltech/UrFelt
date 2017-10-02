@@ -96,6 +96,17 @@ void UrSurface::to_lua(sol::table& lua)
 			UrSurface::Op::ExpandToBox(const Urho3D::Vector3&, const Urho3D::Vector3&)
 		>()
 	);
+
+	lua_Op.new_usertype<UrSurface::Op::ExpandToImage>(
+		"ExpandToImage",
+		sol::call_constructor,
+		sol::constructors<
+			UrSurface::Op::ExpandToImage(
+				const std::string&, const float, const float, const float, sol::function
+			),
+			UrSurface::Op::ExpandToImage(const std::string&, const float, const float, const float)
+		>()
+	);
 }
 
 
@@ -474,6 +485,82 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 
 
 bool UrSurface::Op::ExpandToBox::is_complete()
+{
+	return m_is_complete;
+}
+
+
+
+UrSurface::Op::ExpandToImage::ExpandToImage(
+	const std::string& file_name_, const float ideal_, const float tolerance_,
+	const float curvature_weight_
+) : UrSurface::Op::ExpandToImage{file_name_, ideal_, tolerance_, curvature_weight_, sol::function{}}
+{}
+
+
+UrSurface::Op::ExpandToImage::ExpandToImage(
+	const std::string& file_name_, const float ideal_, const float tolerance_,
+	const float curvature_weight_, sol::function callback_
+) :
+	UrSurface::Op::Base{callback_},
+	m_is_complete{false}, m_file_name{file_name_}, m_ideal{ideal_}, m_tolerance{tolerance_},
+	m_curvature_weight{curvature_weight_}, m_image{}
+{}
+
+
+void UrSurface::Op::ExpandToImage::execute(UrSurface& surface)
+{
+	if (!m_image.size())
+	{
+		std::cerr << "Loading " << m_file_name << std::endl;
+		m_image.load(m_file_name.c_str());
+		std::cerr << "Loaded " << m_file_name << " with " << m_image.size() << " pixels" <<  std::endl;
+	}
+
+	surface.update([this](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
+		using namespace Felt;
+		// Size of surface update to consider zero (thus finished).
+		static constexpr Distance epsilon = 0.0001;
+		// Multiplier to ensure no surface update with magnitude greater than zero.
+		// TODO: understand why grad can be > 2 and if sqrt(2) per component theory is correct.
+		static constexpr Distance clamp = 1.0f/sqrt(6.0f);
+
+		// Get entropy-satisfying gradient (surface "normal").
+		const Vec3f& grad = isogrid_.gradE(pos_);
+		// If the gradient is zero, we must have a singularity, so just trivially contract
+		// (i.e. destroy).
+		if (grad.isZero())
+			return 1.0f;
+		// Get distance of this discrete zero-layer point to the continuous zero-level set
+		// surface.
+		const Felt::Distance dist_surf = isogrid_.get(pos_);
+
+		// Discretisation means grad can be non-normalised, so normalise it.
+		const Vec3f& normal = grad.normalized();
+		// Interpolate discrete zero-layer grid point to continuous zero-level isosurface.
+		const Vec3f& fpos = pos_.template cast<Felt::Distance>() - normal*dist_surf;
+		// Get euclidean norm of the gradient, for use in level set update equations.
+		const Distance grad_norm = grad.norm();
+
+		const Distance voxel = m_image.atXYZ(
+			pos_(0), pos_(1), pos_(2), 10000
+		);
+
+		const Distance speed = pow(voxel - m_ideal, 2) - pow(m_tolerance, 2);
+		const Distance curvature = isogrid_.curv(pos_);
+
+		const Distance amount = grad_norm*(speed + m_curvature_weight*curvature)*clamp;
+
+		m_is_complete &= std::abs(amount) <= epsilon;
+
+		std::cerr << Felt::format(pos_) << " = " << std::to_string(voxel) << std::endl;
+
+		return amount;
+	});
+}
+
+
+bool UrSurface::Op::ExpandToImage::is_complete()
 {
 	return m_is_complete;
 }

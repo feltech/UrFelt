@@ -12,6 +12,8 @@
 
 #include <Urho3D/ThirdParty/toluapp/tolua++.h>
 #include <sol.hpp>
+#define cimg_display 0
+#include <CImg.h>
 
 #include <Felt/Impl/Tracked.hpp>
 #include <Felt/Surface.hpp>
@@ -106,6 +108,28 @@ public:
 			std::vector<Surface::Plane>	m_planes;
 
 		};
+
+		struct ExpandToImage : Base
+		{
+			ExpandToImage(
+				const std::string& file_name_, const float ideal_, const float tolerance_,
+				const float curvature_weight_
+			);
+			ExpandToImage(
+				const std::string& file_name_, const float ideal_, const float tolerance_,
+		const float curvature_weight_, sol::function callback_
+			);
+			void execute(UrSurface& surface);
+			bool is_complete();
+			URSURFACE_OP_CLONE(ExpandToImage)
+		private:
+			bool m_is_complete;
+			const std::string m_file_name;
+			const float m_ideal;
+			const float m_tolerance;
+			const float m_curvature_weight;
+			cimg_library::CImg<Felt::Distance>	m_image;
+		};
 	};
 
 	static void to_lua(sol::table& lua);
@@ -121,32 +145,32 @@ public:
 	);
 
 	~UrSurface();
-	
+
 	/**
-	 * Perform a a full (parallelised) update of the narrow band.
-	 *
-	 * Lambda function passed will be given the position to process and
-	 * a reference to the phi grid, and is expected to return delta phi to
-	 * apply.
-	 *
-	 * @param fn_ (pos, phi) -> float
-	 */
+	* Perform a a full (parallelised) update of the narrow band.
+	*
+	* Lambda function passed will be given the position to process and
+	* a reference to the phi grid, and is expected to return delta phi to
+	* apply.
+	*
+	* @param fn_ (pos, phi) -> float
+	*/
 	template <typename Fn>
 	void update(Fn&& fn_)
 	{
 		m_surface.update(fn_);
 		m_polys.notify();
 	}
-	
+
 	/**
-	 * Perform a a full (parallelised) update of the narrow band.
-	 *
-	 * Lambda function passed will be given the position to process and
-	 * a reference to the phi grid, and is expected to return delta phi to
-	 * apply.
-	 *
-	 * @param fn_ (pos, phi) -> float
-	 */
+	* Perform a a full (parallelised) update of the narrow band.
+	*
+	* Lambda function passed will be given the position to process and
+	* a reference to the phi grid, and is expected to return delta phi to
+	* apply.
+	*
+	* @param fn_ (pos, phi) -> float
+	*/
 	template <typename TFn>
 	void update(
 		const Felt::Vec3i& pos_leaf_lower_, const Felt::Vec3i& pos_leaf_upper_,
@@ -157,29 +181,29 @@ public:
 	}
 
 	/**
-	 * Loop changed spatial partitions and construct polygonisation.
-	 */
+	* Loop changed spatial partitions and construct polygonisation.
+	*/
 	void polygonise();
 
 	/**
-	 * Enqueue a full (parallelised) update of the narrow band.
-	 *
-	 * Lambda function passed will be given the position to process and
-	 * a reference to the phi grid, and is expected to return delta phi to
-	 * apply.
-	 *
-	 * @param fn_ (pos, phi) -> float
-	 */
+	* Enqueue a full (parallelised) update of the narrow band.
+	*
+	* Lambda function passed will be given the position to process and
+	* a reference to the phi grid, and is expected to return delta phi to
+	* apply.
+	*
+	* @param fn_ (pos, phi) -> float
+	*/
 	void enqueue(const UrSurface::Op::Base& op_);
 
 	/**
-	 * Wait for the executor to complete, then call callbacks and clear the queue.
-	 */
+	* Wait for the executor to complete, then call callbacks and clear the queue.
+	*/
 	void await();
 
 	/**
-	 * Poll completed ops and call callbacks.
-	 */
+	* Poll completed ops and call callbacks.
+	*/
 	void poll();
 
 
@@ -202,28 +226,28 @@ public:
 	}
 
 	/**
-	 * Create singularity seed surface (single zero-layer point).
-	 *
-	 * @param pos_centre_ position of seed.
-	 */
+	* Create singularity seed surface (single zero-layer point).
+	*
+	* @param pos_centre_ position of seed.
+	*/
 	void seed (const Urho3D::IntVector3& pos_centre_)
 	{
 		m_surface.seed(reinterpret_cast<const Felt::Vec3i&>(pos_centre_));
 	}
 
 	/**
-	 * Create singularity seed surface (single zero-layer point).
-	 *
-	 * @param pos_centre_ position of seed.
-	 */
+	* Create singularity seed surface (single zero-layer point).
+	*
+	* @param pos_centre_ position of seed.
+	*/
 	void invalidate ()
 	{
 		m_polys.invalidate();
 	}
 
 	/**
-	 * Construct physics and GPU assets and add to scene.
-	 */
+	* Construct physics and GPU assets and add to scene.
+	*/
 	void flush();
 
 private:

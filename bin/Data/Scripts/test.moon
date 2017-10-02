@@ -247,6 +247,28 @@ run\describe 'surface asynchronous', ()=>
 		print("Iterations: " .. tostring(count))
 		lassert.is_true(finished)
 		
+	@it 'expands to fit an image', ()=>
+		print("Loading image")
+		finished = false
+		@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
+		
+		@surface\enqueue UrFelt.Op.ExpandToImage "brain.hdr", 0.3, 0.1, 0.1, ()->
+			@surface\enqueue UrFelt.Op.Polygonise ()->
+				@surface\flush()
+				finished = true
+				
+		last = os.time()
+		count = 0
+		while not finished
+			count = count + 1
+			if os.time() - last > 0.05
+				@surface\enqueue UrFelt.Op.Polygonise ()->
+					last = os.time()
+					@surface\flush()
+			@surface\poll()
+			coroutine.yield()
+		
+		
 success = run\runTests()
 
 	
