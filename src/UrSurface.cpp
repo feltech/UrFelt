@@ -75,7 +75,8 @@ void UrSurface::to_lua(sol::table& lua)
 		sol::constructors<
 			UrSurface::Op::Polygonise(),
 			UrSurface::Op::Polygonise(sol::function)
-		>()
+		>(),
+		"stop", &UrSurface::Op::Base::stop
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandByConstant>(
@@ -84,7 +85,8 @@ void UrSurface::to_lua(sol::table& lua)
 		sol::constructors<
 			UrSurface::Op::ExpandByConstant(float),
 			UrSurface::Op::ExpandByConstant(float, sol::function)
-		>()
+		>(),
+		"stop", &UrSurface::Op::Base::stop
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandToBox>(
@@ -95,7 +97,8 @@ void UrSurface::to_lua(sol::table& lua)
 				const Urho3D::Vector3&, const Urho3D::Vector3&, sol::function
 			),
 			UrSurface::Op::ExpandToBox(const Urho3D::Vector3&, const Urho3D::Vector3&)
-		>()
+		>(),
+		"stop", &UrSurface::Op::Base::stop
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandToImage>(
@@ -106,7 +109,8 @@ void UrSurface::to_lua(sol::table& lua)
 				const std::string&, const float, const float, const float, sol::function
 			),
 			UrSurface::Op::ExpandToImage(const std::string&, const float, const float, const float)
-		>()
+		>(),
+		"stop", &UrSurface::Op::Base::stop
 	);
 }
 
@@ -219,10 +223,13 @@ void UrSurface::flush_graphics_impl()
 }
 
 
-void UrSurface::enqueue(const UrSurface::Op::Base& op_)
+UrSurface::Op::Base* UrSurface::enqueue(const UrSurface::Op::Base& op_)
 {
 	Pause pause{this};
-	m_queue_pending.push_back(op_.clone());
+	std::unique_ptr<UrSurface::Op::Base> clone = op_.clone();
+	UrSurface::Op::Base* ptr = clone.get();
+	m_queue_pending.push_back(std::move(clone));
+	return ptr;
 }
 
 
@@ -274,7 +281,7 @@ void UrSurface::await()
 	{
 		bool empty;
 		{
-			Guard lock(m_lock_pending);
+			Pause pause{this};
 			empty = m_queue_pending.empty();
 		}
 
@@ -305,7 +312,7 @@ void UrSurface::poll()
 
 
 UrSurface::Op::Base::Base(sol::function callback_) :
-	callback{callback_}
+	callback{callback_}, m_cancelled{false}
 {}
 
 
@@ -314,6 +321,10 @@ bool UrSurface::Op::Base::is_complete()
 	return true;
 }
 
+void UrSurface::Op::Base::stop()
+{
+	m_cancelled = true;
+}
 
 UrSurface::Op::Polygonise::Polygonise(sol::function callback_) :
 	UrSurface::Op::Base{callback_}
@@ -322,12 +333,15 @@ UrSurface::Op::Polygonise::Polygonise(sol::function callback_) :
 
 void UrSurface::Op::Polygonise::execute(UrSurface& surface)
 {
+	if (this->m_cancelled)
+		return;
+
 	surface.polygonise();
 }
 
 
 UrSurface::Op::ExpandByConstant::ExpandByConstant(const float amount_) :
-	m_amount{amount_}
+	UrSurface::Op::ExpandByConstant{amount_, sol::function{}}
 {}
 
 
@@ -338,6 +352,9 @@ UrSurface::Op::ExpandByConstant::ExpandByConstant(const float amount_, sol::func
 
 void UrSurface::Op::ExpandByConstant::execute(UrSurface& surface)
 {
+	if (this->m_cancelled)
+		return;
+
 	const float amount = std::min(std::abs(m_amount), 1.0f) * Felt::sgn(m_amount);
 	m_amount -= amount;
 	surface.update([amount](const auto&, const auto&) {
@@ -392,6 +409,8 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 {
 	// Assume complete until at least one point has a distance update greater than epsilon.
 	m_is_complete = true;
+	if (this->m_cancelled)
+		return;
 	// Take a copy of surface size and centre of mass, before resetting it.
 	const Felt::Distance size = m_size;
 	Felt::Vec3f pos_COM = m_pos_COM;
@@ -510,7 +529,6 @@ bool UrSurface::Op::ExpandToBox::is_complete()
 }
 
 
-
 UrSurface::Op::ExpandToImage::ExpandToImage(
 	const std::string& file_name_, const float ideal_, const float tolerance_,
 	const float curvature_weight_
@@ -530,6 +548,11 @@ UrSurface::Op::ExpandToImage::ExpandToImage(
 
 void UrSurface::Op::ExpandToImage::execute(UrSurface& surface)
 {
+	m_is_complete = true;
+
+	if (this->m_cancelled)
+		return;
+
 	if (!m_image.size())
 	{
 		m_image.load(m_file_name.c_str());
@@ -538,8 +561,6 @@ void UrSurface::Op::ExpandToImage::execute(UrSurface& surface)
 			m_image.width() << "x" <<  m_image.height() << "x" <<  m_image.depth() <<
 			" configuration with max voxel value " << m_divisor << std::endl;
 	}
-
-	m_is_complete = true;
 
 	surface.update([this](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
 		using namespace Felt;

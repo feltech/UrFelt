@@ -62,9 +62,11 @@ public:
 			virtual void execute(UrSurface& surface) = 0;
 			virtual std::unique_ptr<Base> clone() const = 0;
 			virtual bool is_complete();
+			virtual void stop();
 		protected:
 			Base() = default;
 			Base(sol::function callback_);
+			bool m_cancelled;
 		};
 
 		using Ptr = std::unique_ptr<UrSurface::Op::Base>;
@@ -195,7 +197,7 @@ public:
 	*
 	* @param fn_ (pos, phi) -> float
 	*/
-	void enqueue(const UrSurface::Op::Base& op_);
+	UrSurface::Op::Base* enqueue(const UrSurface::Op::Base& op_);
 
 	/**
 	* Wait for the executor to complete, then call callbacks and clear the queue.
