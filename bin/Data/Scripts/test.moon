@@ -305,15 +305,16 @@ run\describe 'fitting surface to image', ()=>
 			count = count + 1
 			if now() - last > 1000
 				last = now()
-				@surface\poll()
 				if not is_rendering
 					is_rendering = true
 					@surface\enqueue UrFelt.Op.Polygonise ()->
 						@surface\flush_graphics()
 						is_rendering = false
+				@surface\poll()
 
 			if now() - start_time > 5000
 				op\stop()
+				finished = true
 				
 			coroutine.yield()
 

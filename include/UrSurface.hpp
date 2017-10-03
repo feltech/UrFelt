@@ -1,6 +1,7 @@
 #ifndef INCLUDE_URSURFACE3D_HPP_
 #define INCLUDE_URSURFACE3D_HPP_
 
+#include <type_traits>
 #include <functional>
 #include <queue>
 #include <thread>
@@ -189,15 +190,28 @@ public:
 	void polygonise();
 
 	/**
-	* Enqueue a full (parallelised) update of the narrow band.
+	* Enqueue an operation that should be processed in a worker thread.
 	*
-	* Lambda function passed will be given the position to process and
-	* a reference to the phi grid, and is expected to return delta phi to
-	* apply.
+	* Ops can have an optional Lua callback function, which will be called in the main thread
+	* on poll() or await() once the op is complete (or cancelled).
 	*
-	* @param fn_ (pos, phi) -> float
+	* @tparam T operation type derived from Op::Base.
+	* @param op_ operation instance derived from Op::Base.
 	*/
-	UrSurface::Op::Base* enqueue(const UrSurface::Op::Base& op_);
+	template <class T>
+	T* enqueue(const T& op_)
+	{
+	    static_assert(
+	        std::is_base_of<UrSurface::Op::Base, T>::value,
+	        "Parameter must be derived from an Op::Base"
+	    );
+		Pause pause{this};
+		std::unique_ptr<UrSurface::Op::Base> clone = op_.clone();
+		UrSurface::Op::Base* ptr = clone.get();
+		m_queue_pending.push_back(std::move(clone));
+		return static_cast<T*>(ptr);
+	}
+
 
 	/**
 	* Wait for the executor to complete, then call callbacks and clear the queue.

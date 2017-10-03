@@ -62,7 +62,12 @@ void UrSurface::to_lua(sol::table& lua)
 			});
 		},
 
-		"enqueue", &UrSurface::enqueue,
+		"enqueue", sol::overload(
+			&UrSurface::enqueue<UrSurface::Op::Polygonise>,
+			&UrSurface::enqueue<UrSurface::Op::ExpandByConstant>,
+			&UrSurface::enqueue<UrSurface::Op::ExpandToBox>,
+			&UrSurface::enqueue<UrSurface::Op::ExpandToImage>
+		),
 		"await", &UrSurface::await,
 		"poll", &UrSurface::poll
 	);
@@ -76,7 +81,7 @@ void UrSurface::to_lua(sol::table& lua)
 			UrSurface::Op::Polygonise(),
 			UrSurface::Op::Polygonise(sol::function)
 		>(),
-		"stop", &UrSurface::Op::Base::stop
+		"stop", &UrSurface::Op::Polygonise::stop
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandByConstant>(
@@ -86,7 +91,7 @@ void UrSurface::to_lua(sol::table& lua)
 			UrSurface::Op::ExpandByConstant(float),
 			UrSurface::Op::ExpandByConstant(float, sol::function)
 		>(),
-		"stop", &UrSurface::Op::Base::stop
+		"stop", &UrSurface::Op::ExpandByConstant::stop
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandToBox>(
@@ -98,7 +103,7 @@ void UrSurface::to_lua(sol::table& lua)
 			),
 			UrSurface::Op::ExpandToBox(const Urho3D::Vector3&, const Urho3D::Vector3&)
 		>(),
-		"stop", &UrSurface::Op::Base::stop
+		"stop", &UrSurface::Op::ExpandToBox::stop
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandToImage>(
@@ -110,7 +115,7 @@ void UrSurface::to_lua(sol::table& lua)
 			),
 			UrSurface::Op::ExpandToImage(const std::string&, const float, const float, const float)
 		>(),
-		"stop", &UrSurface::Op::Base::stop
+		"stop", &UrSurface::Op::ExpandToImage::stop
 	);
 }
 
@@ -223,14 +228,6 @@ void UrSurface::flush_graphics_impl()
 }
 
 
-UrSurface::Op::Base* UrSurface::enqueue(const UrSurface::Op::Base& op_)
-{
-	Pause pause{this};
-	std::unique_ptr<UrSurface::Op::Base> clone = op_.clone();
-	UrSurface::Op::Base* ptr = clone.get();
-	m_queue_pending.push_back(std::move(clone));
-	return ptr;
-}
 
 
 void UrSurface::executor()
