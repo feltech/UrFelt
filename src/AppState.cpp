@@ -66,7 +66,8 @@ void Tick<Label::Zap>::tick(const float dt, UrSurface* psurface)
 
 	constexpr float radius = 5.0f;
 
-	const Vec3f& pos_hit = psurface->ray(zap_ray.origin_, zap_ray.direction_);
+	const Urho3D::Vector3& pos_ur_hit = psurface->ray(zap_ray);
+	const Vec3f& pos_hit = reinterpret_cast<const Vec3f&>(pos_ur_hit);
 
 	if (pos_hit == UrSurface::ray_miss)
 		return;

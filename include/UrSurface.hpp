@@ -224,12 +224,13 @@ public:
 	void poll();
 
 
-	Felt::Vec3f ray(const Urho3D::Vector3& pos_origin_, const Urho3D::Vector3& dir_) const
+	Urho3D::Vector3 ray(const Urho3D::Ray& ray_) const
 	{
-		return m_surface.ray(
-			reinterpret_cast<const Felt::Vec3f&>(pos_origin_),
-			reinterpret_cast<const Felt::Vec3f&>(dir_)
+		const Felt::Vec3f& pos_hit = m_surface.ray(
+			reinterpret_cast<const Felt::Vec3f&>(ray_.origin_),
+			reinterpret_cast<const Felt::Vec3f&>(ray_.direction_)
 		);
+		return reinterpret_cast<const Urho3D::Vector3&>(pos_hit);
 	}
 
 	static constexpr Felt::TupleIdx layer_idx(Felt::LayerId layer_id_)

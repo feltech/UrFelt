@@ -28,6 +28,21 @@ namespace stack {
 			return tolua_isusertype(L, index, name.c_str(), 0, &tolua_err);
 		}
 	};
+
+	template <typename T>
+	struct userdata_getter<extensible<T>> {
+		static std::pair<bool, T*> get(lua_State* L, int relindex, void* unadjusted_pointer, record& tracking) {
+			// you may not need to specialize this method every time:
+			// some libraries are compatible with sol2's layout
+			if (!userdata_checker<extensible<T>>::check(L, relindex, type::userdata, no_panic, tracking)) {
+				return { false, nullptr };
+			}
+			void* rawdata = detail::align_usertype_pointer(unadjusted_pointer);
+			void** pudata = static_cast<void**>(rawdata);
+			void* udata = *pudata;
+			return { true, static_cast<T*>(udata) };
+		}
+};
 }
 } // namespace sol::stack
 
@@ -49,6 +64,7 @@ void UrSurface::to_lua(sol::table& lua)
 			UrSurface(const Urho3D::IntVector3&, const Urho3D::IntVector3&, Urho3D::Node*)
 		>(),
 		"seed", &UrSurface::seed,
+		"ray", &UrSurface::ray,
 		"invalidate", &UrSurface::invalidate,
 		"polygonise", &UrSurface::polygonise,
 		"flush", &UrSurface::flush,
