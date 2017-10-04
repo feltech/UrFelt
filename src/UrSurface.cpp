@@ -11,8 +11,10 @@
 #include "UrSurfaceCollisionShape.hpp"
 
 
-namespace sol {
-namespace stack {
+namespace sol
+{
+	namespace stack
+	{
 	template <typename T>
 	struct userdata_checker<extensible<T>> {
 		template <typename Handler>
@@ -28,23 +30,16 @@ namespace stack {
 			return tolua_isusertype(L, index, name.c_str(), 0, &tolua_err);
 		}
 	};
+	} // stack
 
-	template <typename T>
-	struct userdata_getter<extensible<T>> {
-		static std::pair<bool, T*> get(lua_State* L, int relindex, void* unadjusted_pointer, record& tracking) {
-			// you may not need to specialize this method every time:
-			// some libraries are compatible with sol2's layout
-			if (!userdata_checker<extensible<T>>::check(L, relindex, type::userdata, no_panic, tracking)) {
-				return { false, nullptr };
-			}
-			void* rawdata = detail::align_usertype_pointer(unadjusted_pointer);
-			void** pudata = static_cast<void**>(rawdata);
-			void* udata = *pudata;
-			return { true, static_cast<T*>(udata) };
-		}
+template <>
+struct usertype_traits<Urho3D::Vector3> {
+	static const std::string& metatable() {
+		static const std::string n{"Vector3"};
+		return n;
+	}
 };
-}
-} // namespace sol::stack
+} // sol
 
 
 
