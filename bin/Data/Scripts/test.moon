@@ -290,8 +290,10 @@ run\describe 'ExpandToImage', ()=>
 		@surface\seed(IntVector3(50,50,50))
 		@surface\seed(IntVector3(-50,-50,-50))
 		@surface\seed(IntVector3(50,50,-50))
+		
+		op = UrFelt.Op.ExpandByConstant(-1)
 
-		@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
+		@surface\enqueue (op)
 
 		op = @surface\enqueue UrFelt.Op.ExpandToImage "brain.hdr", 0.58, 0.2, 0.1, ()->
 			finished = true

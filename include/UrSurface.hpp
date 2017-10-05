@@ -56,13 +56,13 @@ public:
 	struct Op
 	{
 		struct Base;
-		using Ptr = std::shared_ptr<Base>;
+		template <class T> using Ptr = std::shared_ptr<T>;
+		using BasePtr = Ptr<Base>;
 
 		struct Base
 		{
 			sol::function callback;
 			virtual void execute(UrSurface& surface) = 0;
-			virtual Ptr clone() const = 0;
 			virtual bool is_complete();
 			virtual void stop();
 		protected:
@@ -71,30 +71,35 @@ public:
 			bool m_cancelled;
 		};
 
-		#define URSURFACE_OP_CLONE(Type)\
-			Ptr clone() const { return Ptr{new Type(*this)}; };
+		#define URFELT_URSURFACE_OP_FACTORY(Derived)\
+			template <typename... Args>\
+			Ptr<Derived> factory(Args&&... args) \
+			{ \
+				return std::make_shared<Derived>(std::forward<Args>(args)...); \
+			}
 
 		struct Polygonise : Base
 		{
+			URFELT_URSURFACE_OP_FACTORY(Polygonise)
 			Polygonise() = default;
 			Polygonise(sol::function callback_);
 			void execute(UrSurface& surface);
-			URSURFACE_OP_CLONE(Polygonise)
 		};
 
 		struct ExpandByConstant : Base
 		{
+			URFELT_URSURFACE_OP_FACTORY(ExpandByConstant)
 			ExpandByConstant(const float amount_);
 			ExpandByConstant(const float amount_, sol::function callback_);
 			void execute(UrSurface& surface);
 			bool is_complete();
-			URSURFACE_OP_CLONE(ExpandByConstant)
 		private:
 			float m_amount;
 		};
 
 		struct ExpandToBox : Base
 		{
+			URFELT_URSURFACE_OP_FACTORY(ExpandToBox)
 			ExpandToBox(const Urho3D::Vector3& pos_start_, const Urho3D::Vector3& pos_end_);
 			ExpandToBox(
 				const Urho3D::Vector3& pos_start_, const Urho3D::Vector3& pos_end_,
@@ -102,7 +107,6 @@ public:
 			);
 			void execute(UrSurface& surface);
 			bool is_complete();
-			URSURFACE_OP_CLONE(ExpandToBox)
 		private:
 			bool m_is_complete;
 			const Felt::Vec3f	m_pos_min;
@@ -116,17 +120,17 @@ public:
 
 		struct ExpandToImage : Base
 		{
+			URFELT_URSURFACE_OP_FACTORY(ExpandToImage)
 			ExpandToImage(
 				const std::string& file_name_, const float ideal_, const float tolerance_,
 				const float curvature_weight_
 			);
 			ExpandToImage(
 				const std::string& file_name_, const float ideal_, const float tolerance_,
-		const float curvature_weight_, sol::function callback_
+				const float curvature_weight_, sol::function callback_
 			);
 			void execute(UrSurface& surface);
 			bool is_complete();
-			URSURFACE_OP_CLONE(ExpandToImage)
 		private:
 			bool m_is_complete;
 			const std::string m_file_name;
@@ -201,17 +205,15 @@ public:
 	* @param op_ operation instance derived from Op::Base.
 	*/
 	template <class T>
-	std::shared_ptr<T> enqueue(const T& op_)
+	Op::Ptr<T> enqueue(Op::Ptr<T> op_)
 	{
 	    static_assert(
 	        std::is_base_of<UrSurface::Op::Base, T>::value,
 	        "Parameter must be derived from an Op::Base"
 	    );
 		Pause pause{this};
-		Op::Ptr clone{op_.clone()};
-		std::shared_ptr<T> ref = std::shared_ptr<T>{std::static_pointer_cast<T>(clone)};
-		m_queue_pending.push_back(std::move(clone));
-		return ref;
+		m_queue_pending.push_back(op_);
+		return op_;
 	}
 
 
@@ -292,8 +294,8 @@ private:
 	Lock	m_lock_pending;
 	Lock	m_lock_done;
 
-	std::deque<Op::Ptr>	m_queue_pending;
-	std::deque<Op::Ptr>	m_queue_done;
+	std::deque<Op::BasePtr>	m_queue_pending;
+	std::deque<Op::BasePtr>	m_queue_done;
 
 	UrFelt::Surface		m_surface;
 	UrFelt::Polys		m_polys;

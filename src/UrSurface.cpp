@@ -88,44 +88,46 @@ void UrSurface::to_lua(sol::table& lua)
 	lua_Op.new_usertype<UrSurface::Op::Polygonise>(
 		"Polygonise",
 		sol::call_constructor,
-		sol::constructors<
-			UrSurface::Op::Polygonise(),
-			UrSurface::Op::Polygonise(sol::function)
-		>(),
+		sol::factories(
+			&UrSurface::Op::Polygonise::factory<>,
+			&UrSurface::Op::Polygonise::factory<sol::function>
+		),
 		"stop", &UrSurface::Op::Polygonise::stop
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandByConstant>(
 		"ExpandByConstant",
 		sol::call_constructor,
-		sol::constructors<
-			UrSurface::Op::ExpandByConstant(float),
-			UrSurface::Op::ExpandByConstant(float, sol::function)
-		>(),
+		sol::factories(
+			&UrSurface::Op::ExpandByConstant::factory<float>,
+			&UrSurface::Op::ExpandByConstant::factory<float, sol::function>
+		),
 		"stop", &UrSurface::Op::ExpandByConstant::stop
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandToBox>(
 		"ExpandToBox",
 		sol::call_constructor,
-		sol::constructors<
-			UrSurface::Op::ExpandToBox(
+		sol::factories(
+			&UrSurface::Op::ExpandToBox::factory<
 				const Urho3D::Vector3&, const Urho3D::Vector3&, sol::function
-			),
-			UrSurface::Op::ExpandToBox(const Urho3D::Vector3&, const Urho3D::Vector3&)
-		>(),
+			>,
+			&UrSurface::Op::ExpandToBox::factory<const Urho3D::Vector3&, const Urho3D::Vector3&>
+		),
 		"stop", &UrSurface::Op::ExpandToBox::stop
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandToImage>(
 		"ExpandToImage",
 		sol::call_constructor,
-		sol::constructors<
-			UrSurface::Op::ExpandToImage(
+		sol::factories(
+			&UrSurface::Op::ExpandToImage::factory<
 				const std::string&, const float, const float, const float, sol::function
-			),
-			UrSurface::Op::ExpandToImage(const std::string&, const float, const float, const float)
-		>(),
+			>,
+			&UrSurface::Op::ExpandToImage::factory<
+				const std::string&, const float, const float, const float
+			>
+		),
 		"stop", &UrSurface::Op::ExpandToImage::stop
 	);
 }
@@ -307,13 +309,13 @@ void UrSurface::await()
 
 void UrSurface::poll()
 {
-	std::deque<Op::Ptr> queue_done;
+	std::deque<Op::BasePtr> queue_done;
 	{
 		Guard lock(m_lock_done);
 		queue_done = std::move(m_queue_done);
 	}
 
-	for (Op::Ptr& op : queue_done)
+	for (Op::BasePtr& op : queue_done)
 		if (op->callback)
 			op->callback();
 }
