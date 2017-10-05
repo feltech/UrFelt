@@ -102,7 +102,8 @@ void UrSurface::to_lua(sol::table& lua)
 			&UrSurface::Op::ExpandByConstant::factory<float>,
 			&UrSurface::Op::ExpandByConstant::factory<float, sol::function>
 		),
-		"stop", &UrSurface::Op::ExpandByConstant::stop
+		"stop", &UrSurface::Op::ExpandByConstant::stop,
+		"new", sol::no_constructor
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandToBox>(

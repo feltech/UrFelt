@@ -73,7 +73,7 @@ public:
 
 		#define URFELT_URSURFACE_OP_FACTORY(Derived)\
 			template <typename... Args>\
-			Ptr<Derived> factory(Args&&... args) \
+			static Ptr<Derived> factory(Args&&... args) \
 			{ \
 				return std::make_shared<Derived>(std::forward<Args>(args)...); \
 			}
@@ -205,15 +205,14 @@ public:
 	* @param op_ operation instance derived from Op::Base.
 	*/
 	template <class T>
-	Op::Ptr<T> enqueue(Op::Ptr<T> op_)
+	void enqueue(Op::Ptr<T>& op_)
 	{
 	    static_assert(
 	        std::is_base_of<UrSurface::Op::Base, T>::value,
-	        "Parameter must be derived from an Op::Base"
+	        "Parameter must be derived from Op::Base"
 	    );
 		Pause pause{this};
 		m_queue_pending.push_back(op_);
-		return op_;
 	}
 
 
