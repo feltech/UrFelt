@@ -1,6 +1,7 @@
 #ifndef INCLUDE_URSURFACE3D_HPP_
 #define INCLUDE_URSURFACE3D_HPP_
 
+#include <memory>
 #include <type_traits>
 #include <functional>
 #include <queue>
@@ -54,14 +55,14 @@ public:
 
 	struct Op
 	{
-		#define URSURFACE_OP_CLONE(Type)\
-			std::unique_ptr<Base> clone() const { return std::unique_ptr<Base>(new Type(*this)); };
+		struct Base;
+		using Ptr = std::shared_ptr<Base>;
 
 		struct Base
 		{
 			sol::function callback;
 			virtual void execute(UrSurface& surface) = 0;
-			virtual std::unique_ptr<Base> clone() const = 0;
+			virtual Ptr clone() const = 0;
 			virtual bool is_complete();
 			virtual void stop();
 		protected:
@@ -70,7 +71,8 @@ public:
 			bool m_cancelled;
 		};
 
-		using Ptr = std::unique_ptr<UrSurface::Op::Base>;
+		#define URSURFACE_OP_CLONE(Type)\
+			Ptr clone() const { return Ptr{new Type(*this)}; };
 
 		struct Polygonise : Base
 		{
@@ -199,17 +201,17 @@ public:
 	* @param op_ operation instance derived from Op::Base.
 	*/
 	template <class T>
-	T* enqueue(const T& op_)
+	std::shared_ptr<T> enqueue(const T& op_)
 	{
 	    static_assert(
 	        std::is_base_of<UrSurface::Op::Base, T>::value,
 	        "Parameter must be derived from an Op::Base"
 	    );
 		Pause pause{this};
-		std::unique_ptr<UrSurface::Op::Base> clone = op_.clone();
-		UrSurface::Op::Base* ptr = clone.get();
+		Op::Ptr clone{op_.clone()};
+		std::shared_ptr<T> ref = std::shared_ptr<T>{std::static_pointer_cast<T>(clone)};
 		m_queue_pending.push_back(std::move(clone));
-		return static_cast<T*>(ptr);
+		return ref;
 	}
 
 
