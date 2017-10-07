@@ -38,12 +38,14 @@ add_definitions(
 	-DSOL_EXCEPTIONS_SAFE_PROPAGATION
 	# Enable sol::stack::userdata_checker
 	-DSOL_ENABLE_INTEROP
-	# Enable debugging
-# 	-O0 -ggdb -g
+	# Force enable debugging
+# 	-O0 
+	# Enable extra debugging/profiling
+#	-ggdb -g -fno-omit-frame-pointer
 	# Enable Felt library exceptions
 #	-DFELT_EXCEPTIONS
 	# Enable profiling
-#	-g -fno-omit-frame-pointer -ggdb
+	-g -fno-omit-frame-pointer -ggdb
 	# sudo perf record -g --call-graph dwarf -- ./UrhoFelt
 	# sudo perf report -g graph --no-children
 )

@@ -32,7 +32,6 @@ namespace UrFelt
 {
 
 class UrSurfaceCollisionShape;
-
 class UrSurfaceOp;
 
 class UrSurface
@@ -97,12 +96,31 @@ public:
 			float m_amount;
 		};
 
+		struct ExpandToSphere : Base
+		{
+			URFELT_URSURFACE_OP_FACTORY(ExpandToSphere)
+			ExpandToSphere(const Urho3D::Vector3& pos_centre_, const float radius_);
+			ExpandToSphere(
+				const Urho3D::Vector3& pos_centre_, const float radius_, sol::function callback_
+			);
+			void execute(UrSurface& surface);
+			bool is_complete();
+		private:
+			bool m_is_complete;
+			const float m_radius;
+			const Felt::Vec3f	m_pos_centre;
+			Felt::Vec3f	m_pos_COM;
+			Felt::ListIdx	m_size;
+			std::vector<Surface::Plane>	m_planes;
+
+		};
+
 		struct ExpandToBox : Base
 		{
 			URFELT_URSURFACE_OP_FACTORY(ExpandToBox)
-			ExpandToBox(const Urho3D::Vector3& pos_start_, const Urho3D::Vector3& pos_end_);
+			ExpandToBox(const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_);
 			ExpandToBox(
-				const Urho3D::Vector3& pos_start_, const Urho3D::Vector3& pos_end_,
+				const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
 				sol::function callback_
 			);
 			void execute(UrSurface& surface);
@@ -144,7 +162,7 @@ public:
 
 	static void to_lua(sol::table& lua);
 
-	UrSurface () = default;
+	UrSurface () = delete;
 	UrSurface(
 		const Urho3D::IntVector3& size_, const Urho3D::IntVector3& size_partition_,
 		Urho3D::Node* pnode_
@@ -226,20 +244,14 @@ public:
 	*/
 	void poll();
 
+	/**
+	 * Cast ray to surface.
+	 *
+	 * @param ray_ ray to cast.
+	 * @return position on surface that ray hits, or `ray_miss` if didn't hit.
+	 */
+	Urho3D::Vector3 ray(const Urho3D::Ray& ray_) const;
 
-	Urho3D::Vector3 ray(const Urho3D::Ray& ray_) const
-	{
-		const Felt::Vec3f& pos_hit = m_surface.ray(
-			reinterpret_cast<const Felt::Vec3f&>(ray_.origin_),
-			reinterpret_cast<const Felt::Vec3f&>(ray_.direction_)
-		);
-		return reinterpret_cast<const Urho3D::Vector3&>(pos_hit);
-	}
-
-	static constexpr Felt::TupleIdx layer_idx(Felt::LayerId layer_id_)
-	{
-		return Surface::layer_idx(layer_id_);
-	}
 
 	const IsoGrid& isogrid() const
 	{
@@ -284,6 +296,10 @@ private:
 	void flush_physics_impl();
 	void flush_graphics_impl();
 
+	static constexpr Felt::TupleIdx layer_idx(Felt::LayerId layer_id_)
+	{
+		return Surface::layer_idx(layer_id_);
+	}
 
 	std::atomic_bool m_pause;
 	std::atomic_bool m_exit;

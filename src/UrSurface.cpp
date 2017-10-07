@@ -27,7 +27,11 @@ namespace sol
 			int index = lua_absindex(L, relindex);
 			std::string name = sol::detail::short_demangle<T>();
 			tolua_Error tolua_err;
-			return tolua_isusertype(L, index, name.c_str(), 0, &tolua_err);
+
+			const bool is_tolua_usertype = tolua_isusertype(L, index, name.c_str(), 0, &tolua_err);
+			if (is_tolua_usertype)
+				tracking.use(1);
+			return is_tolua_usertype;
 		}
 	};
 	} // stack
@@ -45,7 +49,6 @@ struct usertype_traits<Urho3D::Vector3> {
 
 namespace UrFelt
 {
-
 
 const Felt::Vec3f UrSurface::ray_miss = UrSurface::Surface::ray_miss;
 
@@ -76,6 +79,7 @@ void UrSurface::to_lua(sol::table& lua)
 		"enqueue", sol::overload(
 			&UrSurface::enqueue<UrSurface::Op::Polygonise>,
 			&UrSurface::enqueue<UrSurface::Op::ExpandByConstant>,
+			&UrSurface::enqueue<UrSurface::Op::ExpandToSphere>,
 			&UrSurface::enqueue<UrSurface::Op::ExpandToBox>,
 			&UrSurface::enqueue<UrSurface::Op::ExpandToImage>
 		),
@@ -102,8 +106,19 @@ void UrSurface::to_lua(sol::table& lua)
 			&UrSurface::Op::ExpandByConstant::factory<float>,
 			&UrSurface::Op::ExpandByConstant::factory<float, sol::function>
 		),
-		"stop", &UrSurface::Op::ExpandByConstant::stop,
-		"new", sol::no_constructor
+		"stop", &UrSurface::Op::ExpandByConstant::stop
+	);
+
+	lua_Op.new_usertype<UrSurface::Op::ExpandToSphere>(
+		"ExpandToSphere",
+		sol::call_constructor,
+		sol::factories(
+			&UrSurface::Op::ExpandToSphere::factory<
+				const Urho3D::Vector3&, const float, sol::function
+			>,
+			&UrSurface::Op::ExpandToSphere::factory<const Urho3D::Vector3&, const float>
+		),
+		"stop", &UrSurface::Op::ExpandToSphere::stop
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandToBox>(
@@ -187,63 +202,6 @@ UrSurface::~UrSurface()
 }
 
 
-void UrSurface::polygonise()
-{
-	m_polys.march();
-}
-
-
-void UrSurface::flush()
-{
-	Pause pause{this};
-	flush_physics_impl();
-	flush_graphics_impl();
-}
-
-
-void UrSurface::flush_graphics()
-{
-	Pause pause{this};
-	flush_graphics_impl();
-}
-
-
-void UrSurface::flush_physics_impl()
-{
-	for (const Felt::PosIdx pos_idx_child : m_polys.changes())
-	{
-		const bool has_surface = m_surface.is_intersected(pos_idx_child);
-		UrSurfaceCollisionShape * pshape = m_coll_shapes.get(pos_idx_child);
-
-		if (has_surface && pshape == nullptr)
-		{
-			pshape = m_pnode->CreateComponent<UrSurfaceCollisionShape>();
-			pshape->SetSurface(
-				&m_surface.isogrid(), &m_surface.isogrid().children().get(pos_idx_child),
-				&m_polys.children().get(pos_idx_child)
-			);
-			m_coll_shapes.set(pos_idx_child, pshape);
-		}
-		else if (!has_surface && pshape != nullptr)
-		{
-			m_pnode->RemoveComponent(pshape);
-			m_coll_shapes.set(pos_idx_child, nullptr);
-		}
-	}
-}
-
-
-void UrSurface::flush_graphics_impl()
-{
-	for (const Felt::PosIdx pos_idx_child : m_polys.changes())
-	{
-		m_gpu_polys.get(pos_idx_child).flush();
-	}
-}
-
-
-
-
 void UrSurface::executor()
 {
 	while (not m_exit)
@@ -322,6 +280,72 @@ void UrSurface::poll()
 }
 
 
+void UrSurface::flush()
+{
+	Pause pause{this};
+	flush_physics_impl();
+	flush_graphics_impl();
+}
+
+
+void UrSurface::flush_physics_impl()
+{
+	for (const Felt::PosIdx pos_idx_child : m_polys.changes())
+	{
+		const bool has_surface = m_surface.is_intersected(pos_idx_child);
+		UrSurfaceCollisionShape * pshape = m_coll_shapes.get(pos_idx_child);
+
+		if (has_surface && pshape == nullptr)
+		{
+			pshape = m_pnode->CreateComponent<UrSurfaceCollisionShape>();
+			pshape->SetSurface(
+				&m_surface.isogrid(), &m_surface.isogrid().children().get(pos_idx_child),
+				&m_polys.children().get(pos_idx_child)
+			);
+			m_coll_shapes.set(pos_idx_child, pshape);
+		}
+		else if (!has_surface && pshape != nullptr)
+		{
+			m_pnode->RemoveComponent(pshape);
+			m_coll_shapes.set(pos_idx_child, nullptr);
+		}
+	}
+}
+
+
+void UrSurface::flush_graphics()
+{
+	Pause pause{this};
+	flush_graphics_impl();
+}
+
+
+void UrSurface::flush_graphics_impl()
+{
+	for (const Felt::PosIdx pos_idx_child : m_polys.changes())
+	{
+		m_gpu_polys.get(pos_idx_child).flush();
+	}
+}
+
+
+Urho3D::Vector3 UrSurface::ray(const Urho3D::Ray& ray_) const
+{
+	const Felt::Vec3f& pos_hit = m_surface.ray(
+		reinterpret_cast<const Felt::Vec3f&>(ray_.origin_),
+		reinterpret_cast<const Felt::Vec3f&>(ray_.direction_)
+	);
+	const Urho3D::Vector3& pos_ur_hit = reinterpret_cast<const Urho3D::Vector3&>(pos_hit);
+	return pos_ur_hit;
+}
+
+
+void UrSurface::polygonise()
+{
+	m_polys.march();
+}
+
+
 UrSurface::Op::Base::Base(sol::function callback_) :
 	callback{callback_}, m_cancelled{false}
 {}
@@ -373,9 +397,135 @@ void UrSurface::Op::ExpandByConstant::execute(UrSurface& surface)
 	});
 }
 
+
 bool UrSurface::Op::ExpandByConstant::is_complete()
 {
 	return std::abs(m_amount) < std::numeric_limits<float>::epsilon();
+}
+
+
+UrSurface::Op::ExpandToSphere::ExpandToSphere(
+	const Urho3D::Vector3& pos_centre_, const float radius_, sol::function callback_
+) :
+	UrSurface::Op::Base{callback_},
+	m_pos_centre{reinterpret_cast<const Felt::Vec3f&>(pos_centre_)},
+	m_radius{radius_},
+	m_is_complete{false},
+	m_size{0}
+{}
+
+
+UrSurface::Op::ExpandToSphere::ExpandToSphere(
+	const Urho3D::Vector3& pos_centre_, const float radius_
+) :
+	ExpandToSphere{pos_centre_, radius_, sol::function{}}
+{}
+
+
+void UrSurface::Op::ExpandToSphere::execute(UrSurface& surface)
+{
+	// Assume complete until at least one point has a distance update greater than epsilon.
+	m_is_complete = true;
+	if (this->m_cancelled)
+		return;
+	// Take a copy of surface size and centre of mass, before resetting it.
+	const Felt::Distance size = m_size;
+	Felt::Vec3f pos_COM = m_pos_COM;
+	// Reset surface size (number of zero layer points) and surface's centre of mass to zero,
+	// for incremental recalculation below.
+	m_size = 0;
+	m_pos_COM = Felt::Vec3f{0,0,0};
+
+	surface.update(
+		[this, &pos_COM, &size](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
+			using namespace Felt;
+			// Size of surface update to consider zero (thus finished).
+			static constexpr Distance epsilon = 0.0001;
+			// Multiplier to ensure no surface update with magnitude greater than 1.0.
+			// TODO: understand why grad can be > 2 and if sqrt(2) per component theory is correct.
+			static constexpr Distance clamp = 1.0f/sqrt(6.0f);
+
+			// Get entropy-satisfying gradient (surface "normal").
+			const Vec3f& grad = isogrid_.gradE(pos_);
+			// If the gradient is zero, we must have a singularity, so just trivially contract
+			// (i.e. destroy).
+			if (grad.isZero())
+				return 1.0f;
+			// Get distance of this discrete zero-layer point to the continuous zero-level set
+			// surface.
+			const Felt::Distance dist_surf = isogrid_.get(pos_);
+
+			// Discretisation means grad can be non-normalised, so normalise it.
+			const Vec3f& normal = grad.normalized();
+			// Interpolate discrete zero-layer grid point to continuous zero-level isosurface.
+			const Vec3f& posf = pos_.template cast<Felt::Distance>() - normal*dist_surf;
+			// Get euclidean norm of the gradient, for use in level set update equations.
+			const Distance grad_norm = grad.norm();
+
+			// Incremental update of centre of mass.
+			m_size++;
+			m_pos_COM += posf;
+
+			// Direction from centre of mass of surface to this surface point.
+			Vec3f dir_from_COM;
+
+			if (size == 0)
+			{
+				// If size (thus centre of mass) has not yet been calculated (i.e. this is the
+				// first iteration) just assume the line from the centre of mass is the same as the
+				// surface normal.
+				dir_from_COM = normal;
+			}
+			else
+			{
+				// Displacement of surface point from surface's centre of mass.
+				const Vec3f& disp_from_COM = posf - pos_COM;
+				// If the surface is tiny, don't allow it to collapse.
+				if (disp_from_COM.squaredNorm() <= 1.0f/clamp)
+				{
+					m_is_complete = false;
+					return -grad_norm*clamp;
+				}
+				// Get direction of surface point from surface's centre of mass.
+				dir_from_COM = disp_from_COM.normalized();
+			}
+
+			// Calculate point on sphere where this surface point wants to head toward.
+			const Vec3f& pos_target = m_pos_centre + dir_from_COM*m_radius;
+
+			// Get displacement of surface point to it's target point on the sphere.
+			const Vec3f& displacement_to_target =  pos_target - posf;
+
+			// Calculate "impulse" to apply to surface point along it's normal to get it heading
+			// toward target box point.
+			Distance impulse;
+			if (displacement_to_target.squaredNorm() > 1.0f)
+				// If we're far from the target point, clamp the impulse to +/-1.
+				impulse = normal.dot(displacement_to_target.normalized());
+			else
+				// If we're near the target point, the impulse is directly proportional to the
+				// distance.
+				impulse = normal.dot(displacement_to_target);
+
+			// The level set update.
+			const Felt::Distance amount = -clamp*grad_norm*impulse;
+
+			// Flag that the operation is incomplete if this surface point wants to move a distance
+			// larger than epsilon.
+			m_is_complete &= std::abs(amount) <= epsilon;
+
+			return amount;
+		}
+	);
+
+	// Update centre of mass as sum (see above) divided by number of surface points.
+	m_pos_COM /= m_size;
+}
+
+
+bool UrSurface::Op::ExpandToSphere::is_complete()
+{
+	return m_is_complete;
 }
 
 
@@ -530,6 +680,7 @@ void UrSurface::Op::ExpandToBox::execute(UrSurface& surface)
 		}
 	);
 
+	// Update centre of mass as sum (see above) divided by number of surface points.
 	m_pos_COM /= m_size;
 }
 
@@ -593,7 +744,7 @@ void UrSurface::Op::ExpandToImage::execute(UrSurface& surface)
 		// Discretisation means grad can be non-normalised, so normalise it.
 		const Vec3f& normal = grad.normalized();
 		// Interpolate discrete zero-layer grid point to continuous zero-level isosurface.
-		const Vec3f& fpos = pos_.template cast<Felt::Distance>() - normal*dist_surf;
+		const Vec3f& posf = pos_.template cast<Felt::Distance>() - normal*dist_surf;
 		// Get euclidean norm of the gradient, for use in level set update equations.
 		const Distance grad_norm = grad.norm();
 

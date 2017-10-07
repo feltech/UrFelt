@@ -2,16 +2,14 @@ lassert = require 'luassert'
 stub = require 'luassert.stub'
 Runner = require 'feltest'
 Runner.DEBUG = false
-Runner.TIMEOUT = 120
+Runner.TIMEOUT = 30
 run = Runner()
 
-snapshot = nil
 
-print("v4")
 input\SetMouseVisible(true)
 input\SetMouseGrabbed(true)
 
-export cameraNode
+export camera_node
 export final_scene
 export final_surface
 export MOVE_SPEED
@@ -19,6 +17,9 @@ export MOUSE_SENSITIVITY
 export yaw
 export pitch
 export ui_fps_txt
+
+
+snapshot = nil
 
 run\describe(
 	'stubbing userdata'
@@ -41,26 +42,13 @@ run\describe(
 )\it('removes the stub when done', () ->
 
 	lassert.is_nil(getmetatable(input.SetMouseVisible))
-
 )
 
 
 run\describe(
 	'surface synchronous'
 )\beforeEach( () =>
-	@scene = Scene()
-	@scene\CreateComponent("Octree")
-
-	cameraNode = @scene\CreateChild("Camera")
-	cameraNode.position = Vector3(0.0, 0.0, -10.0)
-	camera = cameraNode\CreateComponent("Camera")
-	viewport = Viewport\new(@scene, cameraNode\GetComponent("Camera"))
-	renderer\SetViewport(0, viewport)
-
-	lightNode = @scene\CreateChild("DirectionalLight")
-	lightNode.direction = Vector3(0.6, -1.0, 0.8)
-	light = lightNode\CreateComponent("Light")
-	light.lightType = LIGHT_DIRECTIONAL
+	bootstrap_scene(self)
 
 )\afterEach( () =>
 	final_scene = @scene
@@ -100,33 +88,20 @@ run\describe(
 )
 
 
-run\describe 'asynchronous operations', ()=>
+run\describe 'asynchronous operations', ()=>		
 
 	@beforeEach () =>
-		@scene = Scene()
-		@scene\CreateComponent("Octree")
-
-		cameraNode = @scene\CreateChild("Camera")
-		cameraNode.position = Vector3(0.0, 0.0, -50.0)
-		camera = cameraNode\CreateComponent("Camera")
-		viewport = Viewport\new(@scene, cameraNode\GetComponent("Camera"))
-		renderer\SetViewport(0, viewport)
-
-		lightNode = @scene\CreateChild("DirectionalLight")
-		lightNode.direction = Vector3(0.6, -1.0, 0.8)
-		light = lightNode\CreateComponent("Light")
-		light.lightType = LIGHT_DIRECTIONAL
+		bootstrap_scene(self)
 
 		node = @scene\CreateChild("Surface")
 		@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), node)
 		@surface\seed(IntVector3(0,0,0))
-
+		
 	@afterEach () =>
 		final_scene = @scene
 		final_surface = @surface
 		@scene = nil
 		@surface = nil
-
 
 	@it 'block on await', () =>
 		finished = false
@@ -185,7 +160,50 @@ run\describe 'asynchronous operations', ()=>
 			coroutine.yield()
 
 		print("Iterations " .. tostring(count))
-		lassert.is_true(finished)
+
+
+		
+run\describe 'global expansion', ()=>		
+
+	@beforeEach () =>
+		bootstrap_scene(self)
+
+		node = @scene\CreateChild("Surface")
+		
+		@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), node)
+		@surface\seed(IntVector3(0,0,0))
+		@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
+		
+		@finished = false
+		
+		@await_finish = ()=>
+			last = now()
+			count = 0
+			is_rendering = true
+			while not @finished
+				count = count + 1
+				if now() - last > 100
+					if not is_rendering
+						is_rendering = true
+						@surface\enqueue UrFelt.Op.Polygonise ()->
+							last = now()
+							@surface\flush()
+							is_rendering = false
+						
+					@surface\poll()
+					
+				coroutine.yield()	
+						
+			print("Iterations " .. tostring(count)) 
+			
+	@it 'can fill a sphere', () =>
+
+		@surface\enqueue UrFelt.Op.ExpandToSphere Vector3(-1,-1,-1), 5.0, ()->
+			@surface\enqueue UrFelt.Op.Polygonise ()->
+				@surface\flush()
+				@finished = true
+
+		@await_finish()
 
 	@it 'can fill a box', () =>
 		finished = false
@@ -193,32 +211,15 @@ run\describe 'asynchronous operations', ()=>
 		box_start = Vector3(-10,-5,-10)
 		box_end = Vector3(10,5,10)
 
-		@surface\invalidate()
-		@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
-
 		callback = () ->
-			@surface\invalidate()
 			@surface\enqueue UrFelt.Op.Polygonise ()->
 				@surface\flush()
-				finished = true
+				@finished = true
 
 		op = UrFelt.Op.ExpandToBox(box_start, box_end, callback)
 
 		@surface\enqueue(op)
-
-		last = os.time()
-		count = 0
-		while not finished
-			count = count + 1
-			@surface\poll()
-			if os.time() - last > 0.05
-				last = os.time()
-				@surface\enqueue UrFelt.Op.Polygonise ()->
-					@surface\flush()
-			coroutine.yield()
-
-		print("Iterations " .. tostring(count))
-		lassert.is_true(finished)
+		@await_finish()
 
 	@it 'can move a box to fill a different box', () =>
 		finished = false
@@ -226,53 +227,50 @@ run\describe 'asynchronous operations', ()=>
 		box_start = Vector3(3,3,3)
 		box_end = Vector3(10,10,10)
 
-		@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
-
 		@surface\enqueue UrFelt.Op.ExpandToBox Vector3(3,3,3), Vector3(11,11,11), ()->
 			@surface\enqueue UrFelt.Op.ExpandToBox Vector3(-10,-10,-10), Vector3(0,3,0), ()->
 				@surface\enqueue UrFelt.Op.Polygonise ()->
 					@surface\flush()
-					finished = true
+					@finished = true
 
+		@await_finish()
 
-		last = os.time()
-		count = 0
-		while not finished
-			count = count + 1
-			if os.time() - last > 0.05
+	@it 'can move a box to fill a different box', () =>
+		finished = false
+
+		box_start = Vector3(3,3,3)
+		box_end = Vector3(10,10,10)
+
+		@surface\enqueue UrFelt.Op.ExpandToBox Vector3(3,3,3), Vector3(11,11,11), ()->
+			@surface\enqueue UrFelt.Op.ExpandToSphere Vector3(-5,-5,-5), 7, ()->
 				@surface\enqueue UrFelt.Op.Polygonise ()->
-					last = os.time()
 					@surface\flush()
-			@surface\poll()
-			coroutine.yield()
+					@finished = true
 
-		print("Iterations " .. tostring(count))
-		lassert.is_true(finished)
+		@await_finish()
 
+	
+run\describe 'local updates', ()=>
+
+	@beforeEach ()=>
+		bootstrap_scene(self)
+
+		node = @scene\CreateChild("Surface")
+		@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), node)
+		@surface\seed(IntVector3(0,0,0))
+
+	@it 'can cast ray to surface', ()=>
+		ray = @camera\GetScreenRay(0.5, 0.5)
+
+		pos_hit = @surface\ray(ray)
+
+		lassert.is_equal(pos_hit, Vector3(0,0,0))
+		
 
 run\describe 'ExpandToImage', ()=>
 
 	@beforeEach () =>
-		@scene = Scene()
-		@scene\CreateComponent("Octree")
-
-		cameraNode = @scene\CreateChild("Camera")
-		cameraNode.position = Vector3(0.0, 0.0, -50.0)
-		camera = cameraNode\CreateComponent("Camera")
-		viewport = Viewport\new(@scene, cameraNode\GetComponent("Camera"))
-		renderer\SetViewport(0, viewport)
-
-		lightNode = @scene\CreateChild("DirectionalLight")
-		lightNode.direction = Vector3(0.6, -1.0, 0.8)
-		light = lightNode\CreateComponent("Light")
-		light.lightType = LIGHT_DIRECTIONAL
-
-		point_light = cameraNode\CreateComponent("Light")
-		point_light.lightType = LIGHT_POINT
-		point_light.color = Color(1.0, 1.0, 1.0)
-		point_light.specularIntensity = 0.001
-		point_light.range = 50
-
+		bootstrap_scene(self)
 		@node = @scene\CreateChild("Surface")
 
 	@afterEach () =>
@@ -293,7 +291,7 @@ run\describe 'ExpandToImage', ()=>
 		
 		@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
 		
-		op = UrFelt.Op.ExpandToImage "brain.hdr", 0.58, 0.2, 0.1, ()->
+		op = UrFelt.Op.ExpandToImage "brain.hdr", 0.58, 0.2, 0.2, ()->
 			finished = true
 
 		@surface\enqueue(op)
@@ -304,10 +302,10 @@ run\describe 'ExpandToImage', ()=>
 		while not finished
 			count = count + 1
 			if now() - last > 100
-				last = now()
 				if not is_rendering
 					is_rendering = true
 					@surface\enqueue UrFelt.Op.Polygonise ()->
+						last = now()
 						@surface\flush_graphics()
 						is_rendering = false
 				@surface\poll()
@@ -316,43 +314,31 @@ run\describe 'ExpandToImage', ()=>
 				op\stop()
 
 			coroutine.yield()
+			
+		print("Segmentation took " .. tostring(now() - start_time) .. " ms")
 
 
-run\describe 'local updates within a radius', ()=>
+export bootstrap_scene = ()=>
+	@scene = Scene()
+	@scene\CreateComponent("Octree")
 
-	@beforeEach ()=>
-		@scene = Scene()
-		@scene\CreateComponent("Octree")
+	camera_node = @scene\CreateChild("Camera")
+	camera_node.position = Vector3(0.0, 0.0, -50.0)
+	@camera = camera_node\CreateComponent("Camera")
+	viewport = Viewport\new(@scene, camera_node\GetComponent("Camera"))
+	renderer\SetViewport(0, viewport)
 
-		cameraNode = @scene\CreateChild("Camera")
-		cameraNode.position = Vector3(0.0, 0.0, -50.0)
-		@camera = cameraNode\CreateComponent("Camera")
-		viewport = Viewport\new(@scene, cameraNode\GetComponent("Camera"))
-		renderer\SetViewport(0, viewport)
+	light_node = @scene\CreateChild("DirectionalLight")
+	light_node.direction = Vector3(0.6, -1.0, 0.8)
+	light = light_node\CreateComponent("Light")
+	light.lightType = LIGHT_DIRECTIONAL
 
-		lightNode = @scene\CreateChild("DirectionalLight")
-		lightNode.direction = Vector3(0.6, -1.0, 0.8)
-		light = lightNode\CreateComponent("Light")
-		light.lightType = LIGHT_DIRECTIONAL
-
-		point_light = cameraNode\CreateComponent("Light")
-		point_light.lightType = LIGHT_POINT
-		point_light.color = Color(1.0, 1.0, 1.0)
-		point_light.specularIntensity = 0.001
-		point_light.range = 50
-
-		node = @scene\CreateChild("Surface")
-		@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), node)
-		@surface\seed(IntVector3(0,0,0))
-		@surface\enqueue (UrFelt.Op.ExpandByConstant(-1))
-
-	@it 'can cast ray to surface and expand by a constant', ()=>
-		ray = @camera\GetScreenRay(0.5, 0.5)
-
-		pos_hit = @surface\ray(ray)
-
-		lassert.is_equal(pos_hit, Vector3(0,0,-1))
-
+	point_light = camera_node\CreateComponent("Light")
+	point_light.lightType = LIGHT_POINT
+	point_light.color = Color(1.0, 1.0, 1.0)
+	point_light.specularIntensity = 0.001
+	point_light.range = 50	
+	
 
 export HandleUpdate = (eventType, eventData)->
 
@@ -371,27 +357,27 @@ export HandleUpdate = (eventType, eventData)->
 		yaw = yaw + MOUSE_SENSITIVITY * mouseMove.x
 		pitch = pitch - MOUSE_SENSITIVITY * mouseMove.y
 -- 		pitch = Clamp(pitch, -90.0, 90.0)
-		cameraNode.rotation = Quaternion(pitch, yaw, 0.0)
+		camera_node.rotation = Quaternion(pitch, yaw, 0.0)
 
 	-- Read WASD keys and move the camera scene node to the corresponding direction if they are
 	-- pressed
 	if input\GetKeyDown(KEY_W)
-		cameraNode\Translate(Vector3(0.0, 1.0, 0.0) * MOVE_SPEED * timeStep)
+		camera_node\Translate(Vector3(0.0, 1.0, 0.0) * MOVE_SPEED * timeStep)
 
 	if input\GetKeyDown(KEY_S)
-		cameraNode\Translate(Vector3(0.0, -1.0, 0.0) * MOVE_SPEED * timeStep)
+		camera_node\Translate(Vector3(0.0, -1.0, 0.0) * MOVE_SPEED * timeStep)
 
 	if input\GetKeyDown(KEY_A)
-		cameraNode\Translate(Vector3(-1.0, 0.0, 0.0) * MOVE_SPEED * timeStep)
+		camera_node\Translate(Vector3(-1.0, 0.0, 0.0) * MOVE_SPEED * timeStep)
 
 	if input\GetKeyDown(KEY_D)
-		cameraNode\Translate(Vector3(1.0, 0.0, 0.0) * MOVE_SPEED * timeStep)
+		camera_node\Translate(Vector3(1.0, 0.0, 0.0) * MOVE_SPEED * timeStep)
 
 	if input\GetKeyDown(KEY_X)
-		cameraNode\Translate(Vector3(0.0, 0.0, 1.0) * MOVE_SPEED * timeStep)
+		camera_node\Translate(Vector3(0.0, 0.0, 1.0) * MOVE_SPEED * timeStep)
 
 	if input\GetKeyDown(KEY_Z)
-		cameraNode\Translate(Vector3(0.0, 0.0, -1.0) * MOVE_SPEED * timeStep)
+		camera_node\Translate(Vector3(0.0, 0.0, -1.0) * MOVE_SPEED * timeStep)
 
 
 export HandleKeyDown = (eventType, eventData)->
