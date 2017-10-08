@@ -70,11 +70,11 @@ public:
 			bool m_cancelled;
 		};
 
-		#define URFELT_URSURFACE_OP_FACTORY(Derived)\
+		#define URFELT_URSURFACE_OP_FACTORY(Class)\
 			template <typename... Args>\
-			static Ptr<Derived> factory(Args&&... args) \
+			static Ptr<Class> factory(Args&&... args) \
 			{ \
-				return std::make_shared<Derived>(std::forward<Args>(args)...); \
+				return std::make_shared<Class>(std::forward<Args>(args)...); \
 			}
 
 		struct Polygonise : Base
@@ -85,15 +85,46 @@ public:
 			void execute(UrSurface& surface);
 		};
 
-		struct ExpandByConstant : Base
+		struct LocalBase
 		{
-			URFELT_URSURFACE_OP_FACTORY(ExpandByConstant)
-			ExpandByConstant(const float amount_);
-			ExpandByConstant(const float amount_, sol::function callback_);
-			void execute(UrSurface& surface);
+			LocalBase(const Felt::Vec3f& pos_min_, const Felt::Vec3f& pos_max_);
+		protected:
+			const Felt::Vec3f	m_pos_min;
+			const Felt::Vec3f	m_pos_max;
+		};
+
+		struct ExpandByConstantBase : Base
+		{
+			ExpandByConstantBase(const float amount_);
+			ExpandByConstantBase(const float amount_, sol::function callback_);
+
+			template <typename... Bounds>
+			void execute(UrSurface& surface, Bounds... args);
+
 			bool is_complete();
 		private:
 			float m_amount;
+		};
+
+		struct ExpandByConstantGlobal : ExpandByConstantBase
+		{
+			URFELT_URSURFACE_OP_FACTORY(ExpandByConstantGlobal)
+			ExpandByConstantGlobal(const float amount_);
+			ExpandByConstantGlobal(const float amount_, sol::function callback_);
+			void execute(UrSurface& surface);
+		};
+
+		struct ExpandByConstantLocal : ExpandByConstantBase, LocalBase
+		{
+			URFELT_URSURFACE_OP_FACTORY(ExpandByConstantLocal)
+			ExpandByConstantLocal(
+				const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
+				const float amount_
+			);
+			ExpandByConstantLocal(
+				const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
+				const float amount_, sol::function callback_);
+			void execute(UrSurface& surface);
 		};
 
 		struct ExpandToSphere : Base
@@ -222,16 +253,7 @@ public:
 	* @tparam T operation type derived from Op::Base.
 	* @param op_ operation instance derived from Op::Base.
 	*/
-	template <class T>
-	void enqueue(Op::Ptr<T>& op_)
-	{
-	    static_assert(
-	        std::is_base_of<UrSurface::Op::Base, T>::value,
-	        "Parameter must be derived from Op::Base"
-	    );
-		Pause pause{this};
-		m_queue_pending.push_back(op_);
-	}
+	void enqueue(Op::BasePtr& op_);
 
 
 	/**

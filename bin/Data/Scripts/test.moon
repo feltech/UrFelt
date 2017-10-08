@@ -2,7 +2,7 @@ lassert = require 'luassert'
 stub = require 'luassert.stub'
 Runner = require 'feltest'
 Runner.DEBUG = false
-Runner.TIMEOUT = 30
+Runner.TIMEOUT = 120
 run = Runner()
 
 
@@ -17,6 +17,7 @@ export MOUSE_SENSITIVITY
 export yaw
 export pitch
 export ui_fps_txt
+await_finish = nil		
 
 
 snapshot = nil
@@ -162,7 +163,8 @@ run\describe 'asynchronous operations', ()=>
 		print("Iterations " .. tostring(count))
 
 
-		
+
+			
 run\describe 'global expansion', ()=>		
 
 	@beforeEach () =>
@@ -176,25 +178,13 @@ run\describe 'global expansion', ()=>
 		
 		@finished = false
 		
-		@await_finish = ()=>
-			last = now()
-			count = 0
-			is_rendering = true
-			while not @finished
-				count = count + 1
-				if now() - last > 100
-					if not is_rendering
-						is_rendering = true
-						@surface\enqueue UrFelt.Op.Polygonise ()->
-							last = now()
-							@surface\flush()
-							is_rendering = false
-						
-					@surface\poll()
-					
-				coroutine.yield()	
-						
-			print("Iterations " .. tostring(count)) 
+		@await_finish = await_finish 
+		
+	@afterEach () =>
+		final_scene = @scene
+		final_surface = @surface
+		@scene = nil
+		@surface = nil
 			
 	@it 'can fill a sphere', () =>
 
@@ -235,7 +225,7 @@ run\describe 'global expansion', ()=>
 
 		@await_finish()
 
-	@it 'can move a box to fill a different box', () =>
+	@it 'can move a box to fill a sphere', () =>
 		finished = false
 
 		box_start = Vector3(3,3,3)
@@ -250,7 +240,7 @@ run\describe 'global expansion', ()=>
 		@await_finish()
 
 	
-run\describe 'local updates', ()=>
+run\describe 'ray', ()=>
 
 	@beforeEach ()=>
 		bootstrap_scene(self)
@@ -258,15 +248,51 @@ run\describe 'local updates', ()=>
 		node = @scene\CreateChild("Surface")
 		@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), node)
 		@surface\seed(IntVector3(0,0,0))
-
-	@it 'can cast ray to surface', ()=>
+		
+	@it 'can cast to surface', ()=>
 		ray = @camera\GetScreenRay(0.5, 0.5)
 
 		pos_hit = @surface\ray(ray)
 
 		lassert.is_equal(pos_hit, Vector3(0,0,0))
-		
 
+
+run\describe 'local expansion', ()=>		
+
+	@beforeEach () =>
+		bootstrap_scene(self)
+
+		node = @scene\CreateChild("Surface")		
+		@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), node)
+		@surface\seed(IntVector3(0,0,0))
+		
+		@finished = false
+		
+		@await_finish = await_finish 
+		
+	@afterEach () =>
+		final_scene = @scene
+		final_surface = @surface
+		@scene = nil
+		@surface = nil
+	
+	@it "can expand by a constant", ()=>
+			
+		@surface\enqueue UrFelt.Op.ExpandByConstant -1, ()->
+			print("Initial expansion done")
+			@surface\enqueue UrFelt.Op.Local.ExpandByConstant(
+				Vector3(-1, -1, 1), Vector3(1, 1, 1), -1, ()->
+					print("FINISHED")
+					@finished = true
+			)
+			
+		@await_finish()
+		
+		pos_hit = @surface\ray(@camera\GetScreenRay(0.5, 0.5))
+		
+		lassert.is_equal(pos_hit, Vector3(0,0,-1))
+		
+		
 run\describe 'ExpandToImage', ()=>
 
 	@beforeEach () =>
@@ -339,13 +365,43 @@ export bootstrap_scene = ()=>
 	point_light.specularIntensity = 0.001
 	point_light.range = 50	
 	
+	
+await_finish = ()=>
+	last = now()
+	count = 0
+	is_rendering = true
+	while not @finished
+		count = count + 1
+		if now() - last > 100
+			if not is_rendering
+				is_rendering = true
+				@surface\enqueue UrFelt.Op.Polygonise ()->
+					last = now()
+					@surface\flush()
+					is_rendering = false
+				
+			@surface\poll()
+			
+		coroutine.yield()
+		
+	has_final_render = false
+	@surface\enqueue UrFelt.Op.Polygonise ()->
+		@surface\flush()
+		has_final_render = true		
 
+	while not has_final_render
+		@surface\poll()
+		coroutine.yield()
+				
+	print("Iterations " .. tostring(count))
+	
+	
 export HandleUpdate = (eventType, eventData)->
 
 	success = run\resumeTests()
--- 	if success ~= nil
--- 		print("Tests completed with success=" .. tostring(success))
--- 		os.exit(sucesss and 0 or 1)
+	if success ~= nil
+		print("Tests completed with " .. if success then "success" else "failure")
+		os.exit(sucesss and 0 or 1)
 
 	timeStep = eventData["TimeStep"]\GetFloat()
 

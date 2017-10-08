@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <limits>
 
+#include <Urho3D/IO/Log.h>
 #include <Urho3D/Physics/RigidBody.h>
 #include <Felt/Impl/Util.hpp>
 
@@ -76,18 +77,13 @@ void UrSurface::to_lua(sol::table& lua)
 			});
 		},
 
-		"enqueue", sol::overload(
-			&UrSurface::enqueue<UrSurface::Op::Polygonise>,
-			&UrSurface::enqueue<UrSurface::Op::ExpandByConstant>,
-			&UrSurface::enqueue<UrSurface::Op::ExpandToSphere>,
-			&UrSurface::enqueue<UrSurface::Op::ExpandToBox>,
-			&UrSurface::enqueue<UrSurface::Op::ExpandToImage>
-		),
+		"enqueue", &UrSurface::enqueue,
 		"await", &UrSurface::await,
 		"poll", &UrSurface::poll
 	);
 
 	sol::table lua_Op = lua.create_named("Op");
+	sol::table lua_OpLocal = lua_Op.create_named("Local");
 
 	lua_Op.new_usertype<UrSurface::Op::Polygonise>(
 		"Polygonise",
@@ -99,14 +95,28 @@ void UrSurface::to_lua(sol::table& lua)
 		"stop", &UrSurface::Op::Polygonise::stop
 	);
 
-	lua_Op.new_usertype<UrSurface::Op::ExpandByConstant>(
+	lua_Op.new_usertype<UrSurface::Op::ExpandByConstantGlobal>(
 		"ExpandByConstant",
 		sol::call_constructor,
 		sol::factories(
-			&UrSurface::Op::ExpandByConstant::factory<float>,
-			&UrSurface::Op::ExpandByConstant::factory<float, sol::function>
+			&UrSurface::Op::ExpandByConstantGlobal::factory<float>,
+			&UrSurface::Op::ExpandByConstantGlobal::factory<float, sol::function>
 		),
-		"stop", &UrSurface::Op::ExpandByConstant::stop
+		"stop", &UrSurface::Op::ExpandByConstantGlobal::stop
+	);
+
+	lua_OpLocal.new_usertype<UrSurface::Op::ExpandByConstantLocal>(
+		"ExpandByConstant",
+		sol::call_constructor,
+		sol::factories(
+			&UrSurface::Op::ExpandByConstantLocal::factory<
+				const Urho3D::Vector3&, const Urho3D::Vector3&, float
+			>,
+			&UrSurface::Op::ExpandByConstantLocal::factory<
+				const Urho3D::Vector3&, const Urho3D::Vector3&, float, sol::function
+			>
+		),
+		"stop", &UrSurface::Op::ExpandByConstantLocal::stop
 	);
 
 	lua_Op.new_usertype<UrSurface::Op::ExpandToSphere>(
@@ -340,6 +350,13 @@ Urho3D::Vector3 UrSurface::ray(const Urho3D::Ray& ray_) const
 }
 
 
+void UrSurface::enqueue(Op::BasePtr& op_)
+{
+	Pause pause{this};
+	m_queue_pending.push_back(op_);
+}
+
+
 void UrSurface::polygonise()
 {
 	m_polys.march();
@@ -361,6 +378,7 @@ void UrSurface::Op::Base::stop()
 	m_cancelled = true;
 }
 
+
 UrSurface::Op::Polygonise::Polygonise(sol::function callback_) :
 	UrSurface::Op::Base{callback_}
 {}
@@ -375,32 +393,88 @@ void UrSurface::Op::Polygonise::execute(UrSurface& surface)
 }
 
 
-UrSurface::Op::ExpandByConstant::ExpandByConstant(const float amount_) :
-	UrSurface::Op::ExpandByConstant{amount_, sol::function{}}
+UrSurface::Op::LocalBase::LocalBase(const Felt::Vec3f& pos_min_, const Felt::Vec3f& pos_max_) :
+	m_pos_min{pos_min_}, m_pos_max{pos_max_}
 {}
 
 
-UrSurface::Op::ExpandByConstant::ExpandByConstant(const float amount_, sol::function callback_) :
+UrSurface::Op::ExpandByConstantBase::ExpandByConstantBase(const float amount_) :
+	UrSurface::Op::ExpandByConstantBase{amount_, sol::function{}}
+{}
+
+
+UrSurface::Op::ExpandByConstantBase::ExpandByConstantBase(
+	const float amount_, sol::function callback_
+) :
 	UrSurface::Op::Base{callback_}, m_amount{amount_}
 {}
 
 
-void UrSurface::Op::ExpandByConstant::execute(UrSurface& surface)
+template <typename... Bounds>
+void UrSurface::Op::ExpandByConstantBase::execute(UrSurface& surface_, Bounds... bounds_)
 {
 	if (this->m_cancelled)
 		return;
 
 	const float amount = std::min(std::abs(m_amount), 1.0f) * Felt::sgn(m_amount);
 	m_amount -= amount;
-	surface.update([amount](const auto&, const auto&) {
+	surface_.update(bounds_..., [amount](const auto&, const auto&) {
 		return amount;
 	});
 }
 
-
-bool UrSurface::Op::ExpandByConstant::is_complete()
+bool UrSurface::Op::ExpandByConstantBase::is_complete()
 {
 	return std::abs(m_amount) < std::numeric_limits<float>::epsilon();
+}
+
+
+UrSurface::Op::ExpandByConstantLocal::ExpandByConstantLocal(
+	const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
+	const float amount_
+) :
+	UrSurface::Op::ExpandByConstantLocal{pos_min_, pos_max_, amount_, sol::function{}}
+{}
+
+
+UrSurface::Op::ExpandByConstantLocal::ExpandByConstantLocal(
+	const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
+	const float amount_, sol::function callback_
+) :
+	UrSurface::Op::LocalBase{
+		reinterpret_cast<const Felt::Vec3f&>(pos_min_),
+		reinterpret_cast<const Felt::Vec3f&>(pos_max_)
+	},
+	UrSurface::Op::ExpandByConstantBase{amount_, callback_}
+{}
+
+
+void UrSurface::Op::ExpandByConstantLocal::execute(UrSurface& surface)
+{
+	using namespace Felt;
+	ExpandByConstantBase::execute(
+		surface,
+		m_pos_min.array().floor().matrix().template cast<int>(),
+		m_pos_max.array().ceil().matrix().template cast<int>()
+	);
+}
+
+
+UrSurface::Op::ExpandByConstantGlobal::ExpandByConstantGlobal(const float amount_) :
+	UrSurface::Op::ExpandByConstantGlobal{amount_, sol::function{}}
+{}
+
+
+UrSurface::Op::ExpandByConstantGlobal::ExpandByConstantGlobal(
+	const float amount_, sol::function callback_
+) :
+	UrSurface::Op::ExpandByConstantBase{amount_, callback_}
+{}
+
+
+void UrSurface::Op::ExpandByConstantGlobal::execute(UrSurface& surface)
+{
+	ExpandByConstantBase::execute(surface);
 }
 
 
@@ -719,9 +793,11 @@ void UrSurface::Op::ExpandToImage::execute(UrSurface& surface)
 	{
 		m_image.load(m_file_name.c_str());
 		m_divisor = m_image.max();
-		std::cerr << "Loaded " << m_file_name << " with " << m_image.size() << " pixels in a " <<
+		std::stringstream ss;
+		ss << "Loaded " << m_file_name << " with " << m_image.size() << " pixels in a " <<
 			m_image.width() << "x" <<  m_image.height() << "x" <<  m_image.depth() <<
-			" configuration with max voxel value " << m_divisor << std::endl;
+			" configuration with max voxel value " << m_divisor;
+		URHO3D_LOGINFO(ss.str().c_str());
 	}
 
 	surface.update([this](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
