@@ -1,5 +1,3 @@
-TestBuilder = require 'feltest.Builder'
-
 Runner = nil
 
 class Describe
@@ -15,14 +13,6 @@ class Describe
 		if fn
 			fn(self)
 	
-	setup: (fn)=>
-		@_setupFn = fn
-		return self
-
-	teardown: (fn)=>
-		@teardown = fn
-		return self
-
 	beforeEach: (fn)=>
 		table.insert(@_beforeFns, fn)
 		return self
@@ -41,9 +31,6 @@ class Describe
 
 	_runTests: ()=>
 		return coroutine.create(()->
-			if @_setupFn 
-				@_setupFn() 
-			
 			Runner.debug("describe._runTests: looping over tests")
 			
 			for behaviour in *@_behaviours 
@@ -71,6 +58,8 @@ class Describe
 		return coroutine.create(()->
 			start = os.time()
 			Runner.debug("describe._verifyBehaviour: before x" .. tostring(#@_beforeFns))
+			@_runner.curr_test_num += 1
+			io.write("[" .. @_runner.curr_test_num .. "] " .. behaviour.description .. " ...\n") 
 			
 			beforeFns = [coroutine.create(fn) for fn in *@_beforeFns]		
 			afterFns = [coroutine.create(fn) for fn in *@_afterFns]		
@@ -106,7 +95,7 @@ class Describe
 					break
 				elseif os.time() - start > Runner.TIMEOUT
 					success = false
-					print("timeout after " .. tostring(Runner.TIMEOUT) .. "s")
+					message = "timeout after " .. tostring(Runner.TIMEOUT) .. "s"
 					break
 				else
 					Runner.debug("describe._verifyBehaviour: test incomplete")	
@@ -125,21 +114,17 @@ class Describe
 					elseif coroutine.status(afterFn) ~= "suspended"
 						break
 					elseif os.time() - start > Runner.TIMEOUT
-						error("timeout after .. " .. tostring(Runner.TIMEOUT) .. "s")
+						error("timeout after .. " .. tostring(Runner.TIMEOUT) .. "s\n")
 					else
 						Runner.debug("describe._verifyBehaviour: afterFn incomplete")			
 						coroutine.yield()
 
 			
-			Runner.debug(
-				"describe._verifyBehaviour: notifying testBuilder of success=" ..
-				 tostring(success)
-			)			
+			Runner.debug("describe._verifyBehaviour: success=" .. tostring(success))			
 			if success
-				@_runner.testBuilder\ok(true, behaviour.description, 999)
+				io.write("... PASSED\n\n")
 			else
-				@_runner.testBuilder\ok(false, behaviour.description, 999)
-				@_runner.testBuilder\diag(message)
+				io.write("... FAILED\n" .. message .. "\n\n")
 						
 			@_runner.success = @_runner.success and success
 		)
@@ -153,23 +138,23 @@ class Runner
 			print(msg)
 				
 	new: ()=>		
+		@num_tests = 0
+		@curr_test_num = 0
 		@success = true
 		@descriptions = {}		
 		@_asyncRunTests = @_createAsyncTestsRunner()
-		@testBuilder = TestBuilder.new()
 
 	describe: (subject, fn)=>
 		return Describe(self, subject, fn)
 
 	runTests: ()=>
-		Runner.debug("runTests: counting tests")
-		testCount = 0
-		for _,description in ipairs(@descriptions) 
-			testCount = testCount + #description._behaviours
+		Runner.debug("runTests: starting tests")	
 		
-		Runner.debug("runTests: counted " .. testCount .. " tests")
-		@testBuilder\plan(testCount)
-		Runner.debug("runTests: starting tests")	 
+		for _,description in ipairs(@descriptions) 
+			@num_tests = @num_tests + #description._behaviours
+			
+		io.write("Running " .. @num_tests .. " tests\n")
+ 
 		return @resumeTests()
 
 	resumeTests: ()=>
@@ -185,7 +170,7 @@ class Runner
 	
 		if not success then 
 			Runner.debug("resumeTests: tests failed")	 
-			print(message)
+			io.write(message .. "\n")
 			@success = false 
 			
 		if coroutine.status(@_asyncRunTests) == "suspended" then return nil 
@@ -213,7 +198,7 @@ class Runner
 						break		
 		)
 -- Runner.messageHandler = ( originalMessage )->
--- 	print(debug.traceback(originalMessage))
+-- 	io.write(debug.traceback(originalMessage))
 
 
 return Runner
