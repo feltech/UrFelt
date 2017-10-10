@@ -248,13 +248,18 @@ run\describe 'ray', ()=>
 		node = @scene\CreateChild("Surface")
 		@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), node)
 		@surface\seed(IntVector3(0,0,0))
-		
+				
 	@it 'can cast to surface', ()=>
 		ray = @camera\GetScreenRay(0.5, 0.5)
+		print(ray.origin\ToString())
+		print(ray.direction\ToString())
 
 		pos_hit = @surface\ray(ray)
 
-		lassert.is_equal(pos_hit, Vector3(0,0,0))
+		lassert.is_equal(
+			pos_hit, Vector3(0,0,0), 
+			Vector3(pos_hit)\ToString() .. " != " .. Vector3(0,0,0)\ToString()
+		) 
 
 
 run\describe 'local expansion', ()=>		
@@ -327,7 +332,7 @@ run\describe 'ExpandToImage', ()=>
 		count = 0
 		while not finished
 			count = count + 1
-			if now() - last > 100
+			if now() - last > 5000
 				if not is_rendering
 					is_rendering = true
 					@surface\enqueue UrFelt.Op.Polygonise ()->
@@ -369,7 +374,7 @@ export bootstrap_scene = ()=>
 await_finish = ()=>
 	last = now()
 	count = 0
-	is_rendering = true
+	is_rendering = false
 	while not @finished
 		count = count + 1
 		if now() - last > 100
