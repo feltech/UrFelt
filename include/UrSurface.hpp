@@ -14,12 +14,12 @@
 
 #include <Urho3D/ThirdParty/toluapp/tolua++.h>
 #include <sol.hpp>
-#define cimg_display 0
-#include <CImg.h>
 
 #include <Felt/Impl/Tracked.hpp>
 #include <Felt/Surface.hpp>
+
 #include "GPUPoly.hpp"
+#include "Op/Base.hpp"
 
 
 namespace Urho3D
@@ -32,7 +32,7 @@ namespace UrFelt
 {
 
 class UrSurfaceCollisionShape;
-class UrSurfaceOp;
+
 
 class UrSurface
 {
@@ -48,148 +48,6 @@ private:
 public:
 	using IsoGrid = Surface::IsoGrid;
 	static const Felt::Vec3f ray_miss;
-private:
-//	using UpdateFn = std::function<Felt::Distance(const Felt::Vec3i&, const IsoGrid&)>;
-public:
-
-	struct Op
-	{
-		struct Base;
-		template <class T> using Ptr = std::shared_ptr<T>;
-		using BasePtr = Ptr<Base>;
-
-		struct Base
-		{
-			sol::function callback;
-			virtual void execute(UrSurface& surface) = 0;
-			virtual bool is_complete();
-			virtual void stop();
-		protected:
-			Base() = default;
-			Base(sol::function callback_);
-			bool m_cancelled;
-		};
-
-		#define URFELT_URSURFACE_OP_FACTORY(Class)\
-			template <typename... Args>\
-			static Ptr<Class> factory(Args&&... args) \
-			{ \
-				return std::make_shared<Class>(std::forward<Args>(args)...); \
-			}
-
-		struct Polygonise : Base
-		{
-			URFELT_URSURFACE_OP_FACTORY(Polygonise)
-			Polygonise() = default;
-			Polygonise(sol::function callback_);
-			void execute(UrSurface& surface);
-		};
-
-		struct LocalBase
-		{
-			LocalBase(const Felt::Vec3f& pos_min_, const Felt::Vec3f& pos_max_);
-		protected:
-			const Felt::Vec3f	m_pos_min;
-			const Felt::Vec3f	m_pos_max;
-		};
-
-		struct ExpandByConstantBase : Base
-		{
-			ExpandByConstantBase(const float amount_);
-			ExpandByConstantBase(const float amount_, sol::function callback_);
-
-			template <typename... Bounds>
-			void execute(UrSurface& surface, Bounds... args);
-
-			bool is_complete();
-		private:
-			float m_amount;
-		};
-
-		struct ExpandByConstantGlobal : ExpandByConstantBase
-		{
-			URFELT_URSURFACE_OP_FACTORY(ExpandByConstantGlobal)
-			ExpandByConstantGlobal(const float amount_);
-			ExpandByConstantGlobal(const float amount_, sol::function callback_);
-			void execute(UrSurface& surface);
-		};
-
-		struct ExpandByConstantLocal : ExpandByConstantBase, LocalBase
-		{
-			URFELT_URSURFACE_OP_FACTORY(ExpandByConstantLocal)
-			ExpandByConstantLocal(
-				const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
-				const float amount_
-			);
-			ExpandByConstantLocal(
-				const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
-				const float amount_, sol::function callback_);
-			void execute(UrSurface& surface);
-		};
-
-		struct ExpandToSphere : Base
-		{
-			URFELT_URSURFACE_OP_FACTORY(ExpandToSphere)
-			ExpandToSphere(const Urho3D::Vector3& pos_centre_, const float radius_);
-			ExpandToSphere(
-				const Urho3D::Vector3& pos_centre_, const float radius_, sol::function callback_
-			);
-			void execute(UrSurface& surface);
-			bool is_complete();
-		private:
-			bool m_is_complete;
-			const float m_radius;
-			const Felt::Vec3f	m_pos_centre;
-			Felt::Vec3f	m_pos_COM;
-			Felt::ListIdx	m_size;
-			std::vector<Surface::Plane>	m_planes;
-
-		};
-
-		struct ExpandToBox : Base
-		{
-			URFELT_URSURFACE_OP_FACTORY(ExpandToBox)
-			ExpandToBox(const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_);
-			ExpandToBox(
-				const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
-				sol::function callback_
-			);
-			void execute(UrSurface& surface);
-			bool is_complete();
-		private:
-			bool m_is_complete;
-			const Felt::Vec3f	m_pos_min;
-			const Felt::Vec3f	m_pos_max;
-			const Felt::Vec3f	m_pos_centre;
-			Felt::Vec3f	m_pos_COM;
-			Felt::ListIdx	m_size;
-			std::vector<Surface::Plane>	m_planes;
-
-		};
-
-		struct ExpandToImage : Base
-		{
-			URFELT_URSURFACE_OP_FACTORY(ExpandToImage)
-			ExpandToImage(
-				const std::string& file_name_, const float ideal_, const float tolerance_,
-				const float curvature_weight_
-			);
-			ExpandToImage(
-				const std::string& file_name_, const float ideal_, const float tolerance_,
-				const float curvature_weight_, sol::function callback_
-			);
-			void execute(UrSurface& surface);
-			bool is_complete();
-		private:
-			bool m_is_complete;
-			const std::string m_file_name;
-			const float m_ideal;
-			const float m_tolerance;
-			const float m_curvature_weight;
-			float m_divisor;
-			cimg_library::CImg<float>	m_image;
-		};
-	};
 
 	static void to_lua(sol::table& lua);
 
@@ -238,23 +96,6 @@ public:
 		m_surface.update(pos_leaf_lower_, pos_leaf_upper_, fn_);
 		m_polys.notify();
 	}
-
-	/**
-	* Loop changed spatial partitions and construct polygonisation.
-	*/
-	void polygonise();
-
-	/**
-	* Enqueue an operation that should be processed in a worker thread.
-	*
-	* Ops can have an optional Lua callback function, which will be called in the main thread
-	* on poll() or await() once the op is complete (or cancelled).
-	*
-	* @tparam T operation type derived from Op::Base.
-	* @param op_ operation instance derived from Op::Base.
-	*/
-	void enqueue(Op::BasePtr& op_);
-
 
 	/**
 	* Wait for the executor to complete, then call callbacks and clear the queue.
@@ -314,7 +155,26 @@ public:
 	void flush_graphics();
 
 private:
+
+	/**
+	* Enqueue an operation that should be processed in a worker thread.
+	*
+	* Ops can have an optional Lua callback function, which will be called in the main thread
+	* on poll() or await() once the op is complete (or cancelled).
+	*
+	* @param op_ operation instance derived from Op::Base.
+	*/
+	void enqueue(Op::Ptr& op_);
+
+
+	template <class TOp, typename... Args>
+	Op::Ptr op(Args&&... args);
+
+	/**
+	 * Worker thread function that pops `Op`s from the queue and executes them.
+	 */
 	void executor();
+
 	void flush_physics_impl();
 	void flush_graphics_impl();
 
@@ -331,8 +191,8 @@ private:
 	Lock	m_lock_pending;
 	Lock	m_lock_done;
 
-	std::deque<Op::BasePtr>	m_queue_pending;
-	std::deque<Op::BasePtr>	m_queue_done;
+	std::deque<Op::Ptr>	m_queue_pending;
+	std::deque<Op::Ptr>	m_queue_done;
 
 	UrFelt::Surface		m_surface;
 	UrFelt::Polys		m_polys;
