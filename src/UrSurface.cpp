@@ -74,14 +74,6 @@ void UrSurface::to_lua(sol::table& lua)
 		"flush", &UrSurface::flush,
 		"flush_graphics", &UrSurface::flush_graphics,
 
-		"update", [](UrSurface& self, sol::function fn_) {
-			self.update([&fn_](const Felt::Vec3i& pos_, const UrSurface::IsoGrid& isogrid_) {
-				Urho3D::IntVector3 vpos_ = reinterpret_cast<const Urho3D::IntVector3&>(pos_);
-				Felt::Distance dist = fn_(vpos_, isogrid_);
-				return dist;
-			});
-		},
-
 		"await", &UrSurface::await,
 		"poll", &UrSurface::poll,
 
