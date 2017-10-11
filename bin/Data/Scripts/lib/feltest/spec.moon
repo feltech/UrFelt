@@ -123,6 +123,23 @@ run\describe('feltests', =>
 )
 
 
+run\describe "nested tests", =>
+	@beforeEach =>	@before_ran_lvl1 = true
+		
+	@afterEach => @after_ran_lvl1 = true
+	
+	@describe "second level", =>
+		@beforeEach => @before_ran_lvl2 = true
+			
+		@it "has run a test", =>
+			lassert.is_true(@before_ran_lvl1)
+			lassert.is_true(@before_ran_lvl2)
+		
+	@it "has run a test", =>
+		lassert.is_true(@before_ran_lvl1)
+		lassert.is_nil(@before_ran_lvl2)
+
+
 before_ran = 0
 after_ran = 0
 it_ran = 0
@@ -148,10 +165,30 @@ run\describe("async tests", =>
 		lassert.are.equal(it_ran, 1)	
 	)
 )
+		
+
+high_prio = 0
+low_prio = 0
+
+-- run\describe "high priority", =>
+-- 	
+-- 	@describe "second level", =>
+-- 		@it "doesn't run a low priority test", => low_prio += 1
+-- 		
+-- 		@fit "runs a high priority test", => 
+-- 			high_prio += 1
+-- 
+-- 	@it "doesn't run a low priority test", => low_prio += 1
+-- 					
+-- 	@fit "has run a high priority test but not a low priorty test", =>
+-- 		lassert.is_equal(high_prio, 1, "high priority test should be run")
+-- 		lassert.is_equal(low_prio, 0, "low priority test should not be run")
+		
 
 success = run\runTests()
--- Async so should be nil
-lassert.is_nil(success)
+
+if high_prio == 0
+	lassert.is_nil(success)
 
 resume_count = 0
 while success == nil
@@ -159,7 +196,8 @@ while success == nil
 
 	success = run\resumeTests()
 
-lassert.is.same(resume_count, 5)	
+if high_prio == 0
+	lassert.is.same(resume_count, 5)	
 
 print("Tests completed with success=" .. tostring(success)) 
 os.exit(sucess and 0 or 1)
