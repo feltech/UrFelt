@@ -13,7 +13,7 @@ namespace Polygonise
 
 struct Global : Base
 {
-	Global() = default;
+	Global();
 	Global(sol::function callback_);
 	void execute(UrSurface& surface);
 };

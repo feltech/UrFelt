@@ -43,7 +43,7 @@ struct Local : Impl, Bounded
 		const Urho3D::Vector3& pos_box_min_, const Urho3D::Vector3& pos_box_max_
 	);
 	Local(
-		const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max,
+		const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
 		const Urho3D::Vector3& pos_box_min_, const Urho3D::Vector3& pos_box_max_,
 		sol::function callback_
 	);

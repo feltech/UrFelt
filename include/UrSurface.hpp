@@ -132,6 +132,11 @@ public:
 	}
 
 	/**
+	 * March through changed spatial partitions, re-polygonising them.
+	 */
+	void polygonise();
+
+	/**
 	* Create singularity seed surface (single zero-layer point).
 	*
 	* @param pos_centre_ position of seed.
@@ -164,11 +169,8 @@ private:
 	*
 	* @param op_ operation instance derived from Op::Base.
 	*/
-	void enqueue(Op::Ptr& op_);
-
-
 	template <class TOp, typename... Args>
-	Op::Ptr op(Args&&... args);
+	Op::Ptr enqueue(Args&&... args);
 
 	/**
 	 * Worker thread function that pops `Op`s from the queue and executes them.

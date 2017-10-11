@@ -3,8 +3,6 @@
 
 #include <Felt/Impl/Common.hpp>
 
-#include <UrSurface.hpp>
-
 #include <sol.hpp>
 #include <Urho3D/Math/Vector3.h>
 
@@ -20,7 +18,9 @@
 namespace UrFelt
 {
 
+
 class UrSurface;
+
 
 namespace Op
 {

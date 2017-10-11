@@ -32,7 +32,7 @@ void Impl::execute(UrSurface& surface_, Bounds... bounds_)
 	m_size = 0;
 	m_pos_COM = Felt::Vec3f{0,0,0};
 
-	surface_.update(bounds...,
+	surface_.update(bounds_...,
 		[this, &pos_COM, &size](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
 			using namespace Felt;
 			// Size of surface update to consider zero (thus finished).
@@ -127,7 +127,7 @@ bool Impl::is_complete()
 
 Local::Local(
 	const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
-	const Urho3D::Vector3& pos_centre_, const float radius_,
+	const Urho3D::Vector3& pos_centre_, const float radius_
 ) :
 	Local{pos_min_, pos_max_, pos_centre_, radius_, sol::function{}}
 {}

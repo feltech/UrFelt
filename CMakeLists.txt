@@ -39,7 +39,7 @@ add_definitions(
 	# Enable sol::stack::userdata_checker
 	-DSOL_ENABLE_INTEROP
 	# Force enable debugging
-# 	-O0 
+# 	-O0
 	# Enable extra debugging/profiling
 #	-ggdb -g -fno-omit-frame-pointer
 	# Enable Felt library exceptions
@@ -82,7 +82,7 @@ include_directories (
 set (TARGET_NAME UrhoFelt)
 
 # Define source files
-file (GLOB CPP_FILES src/*.cpp)
+file (GLOB_RECURSE CPP_FILES src/*.cpp)
 file (GLOB H_FILES include/*.h)
 set (
 	SOURCE_FILES ${CPP_FILES} ${H_FILES}

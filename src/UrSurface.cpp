@@ -82,20 +82,100 @@ void UrSurface::to_lua(sol::table& lua)
 			});
 		},
 
-		"enqueue", &UrSurface::enqueue,
 		"await", &UrSurface::await,
 		"poll", &UrSurface::poll,
 
+		"polygonise", sol::overload(
+			&UrSurface::enqueue<Op::Polygonise::Global>,
+			&UrSurface::enqueue<Op::Polygonise::Global, sol::function>
+		),
+
 		"expand_by_constant", sol::overload(
-			&UrSurface::op<Op::ExpandByConstant::Global, const float>,
-			&UrSurface::op<Op::ExpandByConstant::Global, const float, sol::function>,
-			&UrSurface::op<
-				Op::ExpandByConstant::Local, const Urho3D::Vector3&, const Urho3D::Vector3&,
+			&UrSurface::enqueue<
+				Op::ExpandByConstant::Global,
 				const float
 			>,
-			&UrSurface::op<
-				Op::ExpandByConstant::Local, const Urho3D::Vector3&, const Urho3D::Vector3&,
-				const float, sol::function
+			&UrSurface::enqueue<
+				Op::ExpandByConstant::Global,
+				const float,
+				sol::function
+			>,
+			&UrSurface::enqueue<
+				Op::ExpandByConstant::Local,
+				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				const float
+			>,
+			&UrSurface::enqueue<
+				Op::ExpandByConstant::Local,
+				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				const float,
+				sol::function
+			>
+		),
+		"expand_to_sphere", sol::overload(
+			&UrSurface::enqueue<
+				Op::ExpandToSphere::Global,
+				const Urho3D::Vector3&, const float
+			>,
+			&UrSurface::enqueue<
+				Op::ExpandToSphere::Global,
+				const Urho3D::Vector3&, const float,
+				sol::function
+			>,
+			&UrSurface::enqueue<
+				Op::ExpandToSphere::Local,
+				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				const Urho3D::Vector3&, const float
+			>,
+			&UrSurface::enqueue<
+				Op::ExpandToSphere::Local,
+				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				const Urho3D::Vector3&, const float,
+				sol::function
+			>
+		),
+		"expand_to_box", sol::overload(
+			&UrSurface::enqueue<
+				Op::ExpandToBox::Global,
+				const Urho3D::Vector3&, const Urho3D::Vector3&
+			>,
+			&UrSurface::enqueue<
+				Op::ExpandToBox::Global,
+				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				sol::function
+			>,
+			&UrSurface::enqueue<
+				Op::ExpandToBox::Local,
+				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				const Urho3D::Vector3&, const Urho3D::Vector3&
+			>,
+			&UrSurface::enqueue<
+				Op::ExpandToBox::Local,
+				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				sol::function
+			>
+		),
+		"expand_to_image", sol::overload(
+			&UrSurface::enqueue<
+				Op::ExpandToImage::Global,
+				const std::string&, const float, const float, const float
+			>,
+			&UrSurface::enqueue<
+				Op::ExpandToImage::Global,
+				const std::string&, const float, const float, const float,
+				sol::function
+			>,
+			&UrSurface::enqueue<
+				Op::ExpandToImage::Local,
+				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				const std::string&, const float, const float, const float
+			>,
+			&UrSurface::enqueue<
+				Op::ExpandToImage::Local,
+				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				const std::string&, const float, const float, const float,
+				sol::function
 			>
 		)
 	);
@@ -265,18 +345,18 @@ Urho3D::Vector3 UrSurface::ray(const Urho3D::Ray& ray_) const
 }
 
 
-void UrSurface::enqueue(Op::Ptr& op_)
+void UrSurface::polygonise()
 {
-	Pause pause{this};
-	m_queue_pending.push_back(op_);
+	m_polys.march();
 }
 
 
 template <class TOp, typename... Args>
-Op::Ptr UrSurface::op(Args&&... args)
+Op::Ptr UrSurface::enqueue(Args&&... args)
 {
 	Op::Ptr op = std::make_shared<TOp>(std::forward<Args>(args)...);
-	enqueue(op);
+	Pause pause{this};
+	m_queue_pending.push_back(op);
 	return op;
 }
 

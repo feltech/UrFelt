@@ -1,1 +1,0 @@
-define_source_files (GLOB_CPP_PATTERNS *.cpp)

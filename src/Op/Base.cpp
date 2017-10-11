@@ -6,11 +6,6 @@ namespace Op
 {
 
 
-Base::Base() :
-	Base{sol::function{}}
-{}
-
-
 Base::Base(sol::function callback_) :
 	callback{callback_}, m_cancelled{false}
 {}
