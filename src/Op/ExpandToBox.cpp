@@ -1,4 +1,5 @@
-#include <Op/ExpandToBox.hpp>
+#include "Op/ExpandToBox.hpp"
+#include "UrSurface.hpp"
 
 
 namespace UrFelt
@@ -20,7 +21,22 @@ Impl::Impl(
 		m_pos_box_min + (m_pos_box_max - m_pos_box_min) / 2
 	},
 	m_is_complete{false}, m_size{0}
-{}
+{
+	for (Felt::Dim d = 0; d < m_pos_box_min.size(); d++)
+	{
+		Felt::Vec3f plane_normal = Felt::Vec3f::Zero();
+		plane_normal(d) = -1;
+		Surface::Plane plane{plane_normal, m_pos_box_min(d)};
+		m_planes.push_back(plane);
+	}
+	for (Felt::Dim d = 0; d < m_pos_box_max.size(); d++)
+	{
+		Felt::Vec3f plane_normal = Felt::Vec3f::Zero();
+		plane_normal(d) = 1;
+		Surface::Plane plane{plane_normal, -m_pos_box_max(d)};
+		m_planes.push_back(plane);
+	}
+}
 
 
 template <typename... Bounds>
