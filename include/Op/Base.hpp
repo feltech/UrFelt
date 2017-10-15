@@ -43,6 +43,7 @@ protected:
 struct Bounded
 {
 	Bounded(const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_);
+	Bounded(const Felt::Vec3f& pos_min_, const Felt::Vec3f& pos_max_);
 protected:
 	const Felt::Vec3i	m_pos_min;
 	const Felt::Vec3i	m_pos_max;

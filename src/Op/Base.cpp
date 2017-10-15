@@ -24,16 +24,16 @@ void Base::stop()
 
 
 Bounded::Bounded(const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_) :
-	m_pos_min{
-		reinterpret_cast<const Felt::Vec3f&>(pos_min_)
-			.array().floor().matrix().template cast<int>()
-	},
-	m_pos_max{
+	Bounded{
+		reinterpret_cast<const Felt::Vec3f&>(pos_min_),
 		reinterpret_cast<const Felt::Vec3f&>(pos_max_)
-			.array().ceil().matrix().template cast<int>()
 	}
 {}
 
 
+Bounded::Bounded(const Felt::Vec3f& pos_min_, const Felt::Vec3f& pos_max_) :
+	m_pos_min{pos_min_.array().floor().matrix().template cast<int>()},
+	m_pos_max{pos_max_.array().ceil().matrix().template cast<int>()}
+{}
 } // Base.
 } // UrFelt.

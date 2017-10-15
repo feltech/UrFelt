@@ -14,8 +14,8 @@ namespace TransformToSphere
 
 struct Impl : Base
 {
-	template <typename... Bounds>
-	void execute(UrSurface& surface, Bounds... args);
+	template <int TDir>
+	void execute(UrSurface& surface_, const Felt::Vec3i& pos_min_, const Felt::Vec3i& pos_max_);
 
 	bool is_complete();
 protected:
@@ -31,14 +31,12 @@ private:
 };
 
 
-struct Local : Impl, Bounded
+struct Attract : Impl, Bounded
 {
-	Local(
-		const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
+	Attract(
 		const Urho3D::Vector3& pos_centre_, const float radius_
 	);
-	Local(
-		const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
+	Attract(
 		const Urho3D::Vector3& pos_centre_, const float radius_,
 		sol::function callback_
 	);
@@ -46,10 +44,15 @@ struct Local : Impl, Bounded
 };
 
 
-struct Global : Impl
+struct Repel : Impl, Bounded
 {
-	Global(const Urho3D::Vector3& pos_centre_, const float radius_);
-	Global(const Urho3D::Vector3& pos_centre_, const float radius_, sol::function callback_);
+	Repel(
+		const Urho3D::Vector3& pos_centre_, const float radius_
+	);
+	Repel(
+		const Urho3D::Vector3& pos_centre_, const float radius_,
+		sol::function callback_
+	);
 	void execute(UrSurface& surface);
 };
 

@@ -104,24 +104,24 @@ void UrSurface::to_lua(sol::table& lua)
 				sol::function
 			>
 		),
-		"transform_to_sphere", sol::overload(
+		"attract_to_sphere", sol::overload(
 			&UrSurface::enqueue<
-				Op::TransformToSphere::Global,
+				Op::TransformToSphere::Attract,
 				const Urho3D::Vector3&, const float
 			>,
 			&UrSurface::enqueue<
-				Op::TransformToSphere::Global,
+				Op::TransformToSphere::Attract,
 				const Urho3D::Vector3&, const float,
 				sol::function
-			>,
+			>
+		),
+		"repel_from_sphere", sol::overload(
 			&UrSurface::enqueue<
-				Op::TransformToSphere::Local,
-				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				Op::TransformToSphere::Repel,
 				const Urho3D::Vector3&, const float
 			>,
 			&UrSurface::enqueue<
-				Op::TransformToSphere::Local,
-				const Urho3D::Vector3&, const Urho3D::Vector3&,
+				Op::TransformToSphere::Repel,
 				const Urho3D::Vector3&, const float,
 				sol::function
 			>

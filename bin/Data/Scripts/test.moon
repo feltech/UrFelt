@@ -178,16 +178,6 @@ run\describe "surface", =>
 				pos_hit = @surface\ray(@camera\GetScreenRay(0.5, 0.5))
 				lassert.is_equal(pos_hit, Vector3(0,0,-1))
 
-		@describe "transform to sphere", =>
-			@it "can fill a sphere", =>
-
-				@surface\transform_to_sphere Vector3(-1,-1,-1), 5.0, ->
-					@surface\polygonise ->
-						@surface\flush()
-						@finished = true
-
-				@await_finish()
-
 		@describe "transform to box", =>
 			@it "can fill a box", =>
 
@@ -207,9 +197,23 @@ run\describe "surface", =>
 
 				@await_finish()
 
-			@it "can move a box to fill a sphere", =>
-				@surface\transform_to_box Vector3(3,3,3), Vector3(11,11,11), ->
-					@surface\transform_to_sphere Vector3(-5,-5,-5), 7, ->
+		@describe "attract to sphere", =>
+			@it "can expand towards a sphere", =>
+
+				@surface\transform_to_box Vector3(-5,-5,-5), Vector3(5,5,5), ->
+					@surface\attract_to_sphere Vector3(1,1,-5), 3, ->
+						@surface\polygonise ->
+							@surface\flush()
+							@finished = true
+
+
+				@await_finish()
+
+		@describe "repel from sphere", =>
+			@it "can contract towards a sphere", =>
+
+				@surface\transform_to_box Vector3(-5,-5,-5), Vector3(5,5,5), ->
+					@surface\repel_from_sphere Vector3(1,1,-5), 3, ->
 						@surface\polygonise ->
 							@surface\flush()
 							@finished = true
