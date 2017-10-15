@@ -157,10 +157,6 @@ class Runner
 
 		success, message = coroutine.resume(@_asyncRunTests)
 
-			"resumeTests: Runner._asyncRunTests: success=" .. tostring(success) .. ", status=" ..
-			coroutine.status(@_asyncRunTests)
-		)
-
 		if not success then
 			io.write(message .. "\n")
 			@success = false
