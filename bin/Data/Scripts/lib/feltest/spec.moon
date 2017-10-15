@@ -1,6 +1,5 @@
 lassert = require 'luassert'
 Runner = require 'feltest'
--- Runner.DEBUG = true
 
 run = Runner()
 calls = {}
@@ -126,8 +125,6 @@ run\describe('feltests', =>
 run\describe "nested tests", =>
 	@beforeEach =>	@before_ran_lvl1 = true
 		
-	@afterEach => @after_ran_lvl1 = true
-	
 	@describe "second level", =>
 		@beforeEach => @before_ran_lvl2 = true
 			
