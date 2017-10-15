@@ -8,7 +8,7 @@ namespace UrFelt
 {
 namespace Op
 {
-namespace ExpandToSphere
+namespace TransformToSphere
 {
 
 

@@ -11,7 +11,7 @@ namespace UrFelt
 {
 namespace Op
 {
-namespace ExpandToImage
+namespace TransformToImage
 {
 
 

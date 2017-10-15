@@ -96,31 +96,31 @@ run\describe "surface", =>
 
 		@it "blocks on await", =>
 			finished = false
-			expanded = false
+			transformed = false
 
 			-- No callback.
 			@surface\expand_by_constant(-1)
 
 			-- With a callback.
-			@surface\expand_by_constant(-1, -> expanded = true)
+			@surface\expand_by_constant(-1, -> transformed = true)
 
 			-- Finish with a polygonise and flush in main thread.
 			@surface\polygonise ->
 				@surface\flush()
 				finished = true
 
-			lassert.is_false(expanded)
+			lassert.is_false(transformed)
 			lassert.is_false(finished)
 
 			coroutine.yield()
 
 			lassert.is_false(finished)
-			lassert.is_false(expanded)
+			lassert.is_false(transformed)
 
 			@surface\await()
 
 			lassert.is_true(finished)
-			lassert.is_true(expanded)
+			lassert.is_true(transformed)
 
 
 		@it "doesn't block on poll", =>
@@ -165,8 +165,8 @@ run\describe "surface", =>
 
 			@await_finish = await_finish
 
-		@describe "expand by constant", =>
-			@it "can expand a small region", =>
+		@describe "transform by constant", =>
+			@it "can transform a small region", =>
 
 				@surface\expand_by_constant Vector3(-1, -1, 1), Vector3(1, 1, 1), -1.0, ->
 					@surface\polygonise ->
@@ -178,20 +178,20 @@ run\describe "surface", =>
 				pos_hit = @surface\ray(@camera\GetScreenRay(0.5, 0.5))
 				lassert.is_equal(pos_hit, Vector3(0,0,-1))
 
-		@describe "expand to sphere", =>
+		@describe "transform to sphere", =>
 			@it "can fill a sphere", =>
 
-				@surface\expand_to_sphere Vector3(-1,-1,-1), 5.0, ->
+				@surface\transform_to_sphere Vector3(-1,-1,-1), 5.0, ->
 					@surface\polygonise ->
 						@surface\flush()
 						@finished = true
 
 				@await_finish()
 
-		@describe "expand to box", =>
+		@describe "transform to box", =>
 			@it "can fill a box", =>
 
-				@surface\expand_to_box Vector3(-10,-5,-10), Vector3(10,5,10), ->
+				@surface\transform_to_box Vector3(-10,-5,-10), Vector3(10,5,10), ->
 					@surface\polygonise ->
 						@surface\flush()
 						@finished = true
@@ -199,8 +199,8 @@ run\describe "surface", =>
 				@await_finish()
 
 			@it "can move a box to fill a different box", =>
-				@surface\expand_to_box Vector3(3,3,3), Vector3(11,11,11), ->
-					@surface\expand_to_box Vector3(-10,-10,-10), Vector3(0,3,0), ->
+				@surface\transform_to_box Vector3(3,3,3), Vector3(11,11,11), ->
+					@surface\transform_to_box Vector3(-10,-10,-10), Vector3(0,3,0), ->
 						@surface\polygonise ->
 							@surface\flush()
 							@finished = true
@@ -208,8 +208,8 @@ run\describe "surface", =>
 				@await_finish()
 
 			@it "can move a box to fill a sphere", =>
-				@surface\expand_to_box Vector3(3,3,3), Vector3(11,11,11), ->
-					@surface\expand_to_sphere Vector3(-5,-5,-5), 7, ->
+				@surface\transform_to_box Vector3(3,3,3), Vector3(11,11,11), ->
+					@surface\transform_to_sphere Vector3(-5,-5,-5), 7, ->
 						@surface\polygonise ->
 							@surface\flush()
 							@finished = true
@@ -217,7 +217,7 @@ run\describe "surface", =>
 				@await_finish()
 
 	@describe "image segmentation", =>
-		@it 'expands to fit image until cancelled', ()=>
+		@it 'transforms to fit image until cancelled', ()=>
 			finished = false
 			start_time = now()
 
@@ -230,7 +230,7 @@ run\describe "surface", =>
 			@surface\seed(IntVector3(50,50,-50))
 			@surface\expand_by_constant(-1)
 
-			op = @surface\expand_to_image "brain.hdr", 0.58, 0.2, 0.2, -> finished = true
+			op = @surface\transform_to_image "brain.hdr", 0.58, 0.2, 0.2, -> finished = true
 
 			last = now()
 			is_rendering = false

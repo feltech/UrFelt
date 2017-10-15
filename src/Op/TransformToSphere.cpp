@@ -1,42 +1,20 @@
-#include "Op/ExpandToBox.hpp"
-#include "UrSurface.hpp"
-
+#include "Op/TransformToSphere.hpp"
 
 namespace UrFelt
 {
 namespace Op
 {
-namespace ExpandToBox
+namespace TransformToSphere
 {
 
 
-Impl::Impl(
-	const Urho3D::Vector3& pos_box_min_, const Urho3D::Vector3& pos_box_max_,
-	sol::function callback_
-) :
+Impl::Impl(const Urho3D::Vector3& pos_centre_, const float radius_, sol::function callback_) :
 	Base{callback_},
-	m_pos_box_min{reinterpret_cast<const Felt::Vec3f&>(pos_box_min_)},
-	m_pos_box_max{reinterpret_cast<const Felt::Vec3f&>(pos_box_max_)},
-	m_pos_centre{
-		m_pos_box_min + (m_pos_box_max - m_pos_box_min) / 2
-	},
-	m_is_complete{false}, m_size{0}
-{
-	for (Felt::Dim d = 0; d < m_pos_box_min.size(); d++)
-	{
-		Felt::Vec3f plane_normal = Felt::Vec3f::Zero();
-		plane_normal(d) = -1;
-		Surface::Plane plane{plane_normal, m_pos_box_min(d)};
-		m_planes.push_back(plane);
-	}
-	for (Felt::Dim d = 0; d < m_pos_box_max.size(); d++)
-	{
-		Felt::Vec3f plane_normal = Felt::Vec3f::Zero();
-		plane_normal(d) = 1;
-		Surface::Plane plane{plane_normal, -m_pos_box_max(d)};
-		m_planes.push_back(plane);
-	}
-}
+	m_pos_centre{reinterpret_cast<const Felt::Vec3f&>(pos_centre_)},
+	m_radius{radius_},
+	m_is_complete{false},
+	m_size{0}
+{}
 
 
 template <typename... Bounds>
@@ -76,13 +54,13 @@ void Impl::execute(UrSurface& surface_, Bounds... bounds_)
 			// Discretisation means grad can be non-normalised, so normalise it.
 			const Vec3f& normal = grad.normalized();
 			// Interpolate discrete zero-layer grid point to continuous zero-level isosurface.
-			const Vec3f& fpos = pos_.template cast<Felt::Distance>() - normal*dist_surf;
+			const Vec3f& posf = pos_.template cast<Felt::Distance>() - normal*dist_surf;
 			// Get euclidean norm of the gradient, for use in level set update equations.
 			const Distance grad_norm = grad.norm();
 
 			// Incremental update of centre of mass.
 			m_size++;
-			m_pos_COM += fpos;
+			m_pos_COM += posf;
 
 			// Direction from centre of mass of surface to this surface point.
 			Vec3f dir_from_COM;
@@ -97,7 +75,7 @@ void Impl::execute(UrSurface& surface_, Bounds... bounds_)
 			else
 			{
 				// Displacement of surface point from surface's centre of mass.
-				const Vec3f& disp_from_COM = fpos - pos_COM;
+				const Vec3f& disp_from_COM = posf - pos_COM;
 				// If the surface is tiny, don't allow it to collapse.
 				if (disp_from_COM.squaredNorm() <= 1.0f/clamp)
 				{
@@ -108,29 +86,11 @@ void Impl::execute(UrSurface& surface_, Bounds... bounds_)
 				dir_from_COM = disp_from_COM.normalized();
 			}
 
-			// Get ray from centre of target box along direction given by surface centre of mass
-			// to surface point.
-			const Surface::Line& line{m_pos_centre, dir_from_COM};
+			// Calculate point on sphere where this surface point wants to head toward.
+			const Vec3f& pos_target = m_pos_centre + dir_from_COM*m_radius;
 
-			// Calculate point on box where this surface point wants to head toward.
-			Vec3f pos_target = Vec3f::Constant(std::numeric_limits<Distance>::max());
-			for (const Surface::Plane& plane : m_planes)
-			{
-				// Find intersection point of closest plane enclosing target box and ray from centre
-				// of mass of target box that matches ray from centre of mass of surface to surface
-				// point.
-				const Vec3f& pos_test = line.intersectionPoint(plane);
-				if (plane.normal().dot(dir_from_COM) > 0)
-					if (
-						(pos_test - m_pos_centre).squaredNorm() <
-						(pos_target - m_pos_centre).squaredNorm()
-					) {
-						pos_target = pos_test;
-					}
-			}
-
-			// Get displacement of surface point to it's target point on the box.
-			const Vec3f& displacement_to_target =  pos_target - fpos;
+			// Get displacement of surface point to it's target point on the sphere.
+			const Vec3f& displacement_to_target =  pos_target - posf;
 
 			// Calculate "impulse" to apply to surface point along it's normal to get it heading
 			// toward target box point.
@@ -167,18 +127,18 @@ bool Impl::is_complete()
 
 Local::Local(
 	const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
-	const Urho3D::Vector3& pos_box_min_, const Urho3D::Vector3& pos_box_max_
+	const Urho3D::Vector3& pos_centre_, const float radius_
 ) :
-	Local{pos_min_, pos_max_, pos_box_min_, pos_box_max_, sol::function{}}
+	Local{pos_min_, pos_max_, pos_centre_, radius_, sol::function{}}
 {}
 
 
 Local::Local(
 	const Urho3D::Vector3& pos_min_, const Urho3D::Vector3& pos_max_,
-	const Urho3D::Vector3& pos_box_min_, const Urho3D::Vector3& pos_box_max_,
+	const Urho3D::Vector3& pos_centre_, const float radius_,
 	sol::function callback_
 ) :
-	Impl{pos_box_min_, pos_box_max_, callback_}, Bounded{pos_min_, pos_max_}
+	Impl{pos_centre_, radius_, callback_}, Bounded{pos_min_, pos_max_}
 {}
 
 
@@ -188,16 +148,13 @@ void Local::execute(UrSurface& surface)
 }
 
 
-Global::Global(const Urho3D::Vector3& pos_box_min_, const Urho3D::Vector3& pos_box_max_) :
-	Global{pos_box_min_, pos_box_max_, sol::function{}}
+Global::Global(const Urho3D::Vector3& pos_centre_, const float radius_) :
+	Global{pos_centre_, radius_, sol::function{}}
 {}
 
 
-Global::Global(
-	const Urho3D::Vector3& pos_box_min_, const Urho3D::Vector3& pos_box_max_,
-	sol::function callback_
-) :
-	Impl{pos_box_min_, pos_box_max_, callback_}
+Global::Global(const Urho3D::Vector3& pos_centre_, const float radius_, sol::function callback_) :
+	Impl{pos_centre_, radius_, callback_}
 {}
 
 
@@ -206,8 +163,7 @@ void Global::execute(UrSurface& surface)
 	Impl::execute(surface);
 }
 
-
-} // ExpandToBox.
+} // ExpandToSphere.
 } // Op.
 } // UrFelt.
 

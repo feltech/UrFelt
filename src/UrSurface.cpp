@@ -13,9 +13,9 @@
 
 #include "Op/Polygonise.hpp"
 #include "Op/ExpandByConstant.hpp"
-#include "Op/ExpandToSphere.hpp"
-#include "Op/ExpandToBox.hpp"
-#include "Op/ExpandToImage.hpp"
+#include "Op/TransformToBox.hpp"
+#include "Op/TransformToImage.hpp"
+#include "Op/TransformToSphere.hpp"
 
 
 namespace sol
@@ -104,67 +104,67 @@ void UrSurface::to_lua(sol::table& lua)
 				sol::function
 			>
 		),
-		"expand_to_sphere", sol::overload(
+		"transform_to_sphere", sol::overload(
 			&UrSurface::enqueue<
-				Op::ExpandToSphere::Global,
+				Op::TransformToSphere::Global,
 				const Urho3D::Vector3&, const float
 			>,
 			&UrSurface::enqueue<
-				Op::ExpandToSphere::Global,
+				Op::TransformToSphere::Global,
 				const Urho3D::Vector3&, const float,
 				sol::function
 			>,
 			&UrSurface::enqueue<
-				Op::ExpandToSphere::Local,
+				Op::TransformToSphere::Local,
 				const Urho3D::Vector3&, const Urho3D::Vector3&,
 				const Urho3D::Vector3&, const float
 			>,
 			&UrSurface::enqueue<
-				Op::ExpandToSphere::Local,
+				Op::TransformToSphere::Local,
 				const Urho3D::Vector3&, const Urho3D::Vector3&,
 				const Urho3D::Vector3&, const float,
 				sol::function
 			>
 		),
-		"expand_to_box", sol::overload(
+		"transform_to_box", sol::overload(
 			&UrSurface::enqueue<
-				Op::ExpandToBox::Global,
+				Op::TransformToBox::Global,
 				const Urho3D::Vector3&, const Urho3D::Vector3&
 			>,
 			&UrSurface::enqueue<
-				Op::ExpandToBox::Global,
+				Op::TransformToBox::Global,
 				const Urho3D::Vector3&, const Urho3D::Vector3&,
 				sol::function
 			>,
 			&UrSurface::enqueue<
-				Op::ExpandToBox::Local,
+				Op::TransformToBox::Local,
 				const Urho3D::Vector3&, const Urho3D::Vector3&,
 				const Urho3D::Vector3&, const Urho3D::Vector3&
 			>,
 			&UrSurface::enqueue<
-				Op::ExpandToBox::Local,
+				Op::TransformToBox::Local,
 				const Urho3D::Vector3&, const Urho3D::Vector3&,
 				const Urho3D::Vector3&, const Urho3D::Vector3&,
 				sol::function
 			>
 		),
-		"expand_to_image", sol::overload(
+		"transform_to_image", sol::overload(
 			&UrSurface::enqueue<
-				Op::ExpandToImage::Global,
+				Op::TransformToImage::Global,
 				const std::string&, const float, const float, const float
 			>,
 			&UrSurface::enqueue<
-				Op::ExpandToImage::Global,
+				Op::TransformToImage::Global,
 				const std::string&, const float, const float, const float,
 				sol::function
 			>,
 			&UrSurface::enqueue<
-				Op::ExpandToImage::Local,
+				Op::TransformToImage::Local,
 				const Urho3D::Vector3&, const Urho3D::Vector3&,
 				const std::string&, const float, const float, const float
 			>,
 			&UrSurface::enqueue<
-				Op::ExpandToImage::Local,
+				Op::TransformToImage::Local,
 				const Urho3D::Vector3&, const Urho3D::Vector3&,
 				const std::string&, const float, const float, const float,
 				sol::function
