@@ -1,8 +1,8 @@
 #ifndef INCLUDE_OP_Polygonise_HPP_
 #define INCLUDE_OP_Polygonise_HPP_
 
-#include <Op/Base.hpp>
-#include <UrSurface.hpp>
+#include "Op/Base.hpp"
+#include "UrSurface.hpp"
 
 namespace UrFelt
 {

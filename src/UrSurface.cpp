@@ -6,11 +6,14 @@
 
 #include <Urho3D/IO/Log.h>
 #include <Urho3D/Physics/RigidBody.h>
+#include <Urho3D/ThirdParty/toluapp/tolua++.h>
+
 #include <Felt/Impl/Util.hpp>
 
 #include "btFeltCollisionConfiguration.hpp"
 #include "UrSurfaceCollisionShape.hpp"
 
+#include "Op/Serialise.hpp"
 #include "Op/Polygonise.hpp"
 #include "Op/ExpandByConstant.hpp"
 #include "Op/TransformToBox.hpp"
@@ -68,6 +71,7 @@ void UrSurface::to_lua(sol::table& lua)
 		sol::constructors<
 			UrSurface(const Urho3D::IntVector3&, const Urho3D::IntVector3&, Urho3D::Node*)
 		>(),
+
 		"seed", &UrSurface::seed,
 		"ray", &UrSurface::ray,
 		"invalidate", &UrSurface::invalidate,
@@ -76,6 +80,20 @@ void UrSurface::to_lua(sol::table& lua)
 
 		"await", &UrSurface::await,
 		"poll", &UrSurface::poll,
+
+		"load", &Op::Serialise::Load::load,
+
+		"save", sol::overload(
+			&UrSurface::enqueue<
+				Op::Serialise::Save,
+				const std::string&
+			>,
+			&UrSurface::enqueue<
+				Op::Serialise::Save,
+				const std::string&,
+				sol::function
+			>
+		),
 
 		"polygonise", sol::overload(
 			&UrSurface::enqueue<Op::Polygonise::Global>,
@@ -176,6 +194,13 @@ void UrSurface::to_lua(sol::table& lua)
 		"Op",
 		"new", sol::no_constructor,
 		"stop", &Op::Base::stop
+	);
+
+	lua.new_usertype<Op::Serialise::Load>(
+		"Load",
+		"ready", &Op::Serialise::Load::ready,
+		"get", &Op::Serialise::Load::get,
+		"new", sol::no_constructor
 	);
 }
 
@@ -337,11 +362,6 @@ Urho3D::Vector3 UrSurface::ray(const Urho3D::Ray& ray_) const
 }
 
 
-void UrSurface::polygonise()
-{
-	m_polys.march();
-}
-
 
 template <class TOp, typename... Args>
 Op::Ptr UrSurface::enqueue(Args&&... args)
@@ -387,5 +407,49 @@ void UrSurface::flush_graphics_impl()
 }
 
 
+void UrSurface::polygonise()
+{
+	m_polys.march();
+}
+
+
+void UrSurface::save(const std::string& file_path_) const
+{
+	m_surface.save(file_path_);
+}
+
+
+UrSurface::UrSurface(Surface&& surface_, Urho3D::Node* pnode_) :
+	m_surface{std::move(surface_)},
+	m_coll_shapes{
+		m_surface.isogrid().children().size(), m_surface.isogrid().children().offset(), nullptr
+	},
+	m_polys{m_surface},
+	m_gpu_polys{
+		m_surface.isogrid().children().size(), m_surface.isogrid().children().offset(), GPUPoly{}
+	},
+	m_pnode{pnode_}, m_exit{false},
+	m_queue_pending{}, m_queue_done{}, m_lock_pending{}, m_lock_done{}
+{
+	for (
+		Felt::PosIdx pos_idx_child = 0; pos_idx_child < m_polys.children().data().size();
+		pos_idx_child++
+	) {
+		m_gpu_polys.get(pos_idx_child).bind(
+			&m_polys.children().get(pos_idx_child), pnode_
+		);
+	}
+
+	m_psurface_body = pnode_->CreateComponent<Urho3D::RigidBody>();
+	m_psurface_body->SetKinematic(true);
+	m_psurface_body->SetMass(10000000.0f);
+	m_psurface_body->SetFriction(1.0f);
+	m_psurface_body->SetUseGravity(false);
+	m_psurface_body->SetRestitution(0.0);
+	m_psurface_body->Activate();
+
+	m_executor = std::thread{&UrSurface::executor, this};
+}
 } // UrFelt.
+
 

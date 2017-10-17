@@ -12,7 +12,6 @@
 #include <boost/coroutine/all.hpp>
 #include <boost/smart_ptr/detail/spinlock.hpp>
 
-#include <Urho3D/ThirdParty/toluapp/tolua++.h>
 #include <sol.hpp>
 
 #include <Felt/Impl/Tracked.hpp>
@@ -60,6 +59,7 @@ public:
 		const Felt::Vec3i& size_, const Felt::Vec3i& size_partition_,
 		Urho3D::Node* pnode_
 	);
+	UrSurface(Surface&& surface_, Urho3D::Node* pnode_);
 
 	~UrSurface();
 
@@ -137,6 +137,17 @@ public:
 	void polygonise();
 
 	/**
+	 * Save surface to disk.
+	 *
+	 * Actually just saves the isogrid, but that is sufficient to regenerate the surface.
+	 *
+	 * @see load
+	 *
+	 * @param file_path_ path to file on disk.
+	 */
+	void save(const std::string& file_path_) const;
+
+	/**
 	* Create singularity seed surface (single zero-layer point).
 	*
 	* @param pos_centre_ position of seed.
@@ -160,6 +171,12 @@ public:
 	void flush_graphics();
 
 private:
+	/**
+	 * Construct from (deserialised) `Felt::Surface`.
+	 *
+	 * @param surface_ rvalue surface to move into this.
+	 */
+	UrSurface(Surface&& surface_);
 
 	/**
 	* Enqueue an operation that should be processed in a worker thread.

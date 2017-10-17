@@ -154,6 +154,8 @@ run\describe "surface", =>
 	@describe "ops", =>
 		@beforeEach () =>
 			bootstrap_scene(self)
+			@finished = false
+			@await_finish = await_finish
 
 			node = @scene\CreateChild("Surface")
 
@@ -161,9 +163,6 @@ run\describe "surface", =>
 			@surface\seed(IntVector3(0,0,0))
 			@surface\expand_by_constant(-1)
 
-			@finished = false
-
-			@await_finish = await_finish
 
 		@describe "transform by constant", =>
 			@it "can transform a small region", =>
@@ -219,6 +218,40 @@ run\describe "surface", =>
 							@finished = true
 
 				@await_finish()
+
+	@describe "serialisation", =>
+		@beforeEach () =>
+			bootstrap_scene(self)
+			@node = @scene\CreateChild("Surface")
+			@finished = false
+			@await_finish = await_finish
+
+		@it "can save to disk", =>
+			@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), @node)
+			@surface\seed(IntVector3(0,0,0))
+			@surface\expand_by_constant(-1)
+
+			@surface\transform_to_box Vector3(-2,-2,-2), Vector3(2,2,2), ->
+				@surface\save "/tmp/urfelt.test.bin", ->
+					@finished = true
+
+			@await_finish()
+
+		@it "can load from disk", =>
+			loader = UrFelt.UrSurface.load("/tmp/urfelt.test.bin", @node)
+
+			while not loader\ready()
+				io.write(".")
+				coroutine.yield()
+
+			io.write("\n")
+			@surface = loader\get()
+
+			@surface\invalidate()
+			@surface\polygonise()
+			@surface\await()
+			@surface\flush()
+
 
 	@describe "image segmentation", =>
 		@it 'transforms to fit image until cancelled', ()=>

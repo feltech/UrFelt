@@ -27,6 +27,7 @@ add_custom_target(
 	"Enable moonc transpiler"
 )
 
+
 # Add common C++ definitions.
 add_definitions(
 	-std=c++14 -Wfatal-errors
@@ -41,7 +42,7 @@ add_definitions(
 	# Force enable debugging
 # 	-O0
 	# Enable extra debugging/profiling
-#	-ggdb -g -fno-omit-frame-pointer
+	-ggdb -g -fno-omit-frame-pointer
 	# Enable Felt library exceptions
 #	-DFELT_EXCEPTIONS
 	# Enable profiling
