@@ -1,8 +1,10 @@
+local camera_node = nil
+local ui_fps_txt = nil
 local bootstrap_scene
 bootstrap_scene = function()
   local scene = Scene()
   scene:CreateComponent("Octree")
-  local camera_node = scene:CreateChild("Camera")
+  camera_node = scene:CreateChild("Camera")
   camera_node.position = Vector3(0.0, 0.0, -50.0)
   local camera = camera_node:CreateComponent("Camera")
   local viewport = Viewport:new(scene, camera_node:GetComponent("Camera"))
@@ -19,14 +21,20 @@ bootstrap_scene = function()
   return scene, camera
 end
 updateFPSDisplay = function(eventType, eventData)
+  print("Update display")
   local timeStep = eventData["TimeStep"]:GetFloat()
   return ui_fps_txt:SetText("FPS: " .. tostring(1 / timeStep))
 end
+local MOVE_SPEED = 30.0
+local MOUSE_SENSITIVITY = 0.1
+local yaw = 0
+local pitch = 0
 updateCameraMovement = function()
+  print("Update camera")
   if input:IsMouseGrabbed() then
     local mouseMove = input.mouseMove
-    local yaw = yaw + MOUSE_SENSITIVITY * mouseMove.x
-    local pitch = pitch - MOUSE_SENSITIVITY * mouseMove.y
+    yaw = yaw + MOUSE_SENSITIVITY * mouseMove.x
+    pitch = pitch - MOUSE_SENSITIVITY * mouseMove.y
     camera_node.rotation = Quaternion(pitch, yaw, 0.0)
   end
   if input:GetKeyDown(KEY_W) then
@@ -49,22 +57,19 @@ updateCameraMovement = function()
   end
 end
 handleKeyDown = function(eventType, eventData)
+  print("Pressed key")
   local key = eventData["Key"]:GetInt()
   if key == KEY_ESC then
     engine:Exit()
   end
-  if input:GetKeyDown(KEY_SPACE) then
+  if key == KEY_SPACE then
     input:SetMouseVisible(not input:IsMouseVisible())
     return input:SetMouseGrabbed(not input:IsMouseVisible())
   end
 end
-local MOVE_SPEED = 30.0
-local MOUSE_SENSITIVITY = 0.1
-local yaw = 0
-local pitch = 0
 input:SetMouseVisible(true)
 input:SetMouseGrabbed(false)
-local ui_fps_txt = ui.root:CreateChild("Text")
+ui_fps_txt = ui.root:CreateChild("Text")
 ui_fps_txt:SetFont(cache:GetResource("Font", "Fonts/Anonymous Pro.ttf"), 15)
 ui_fps_txt.textAlignment = HA_CENTER
 ui_fps_txt.horizontalAlignment = HA_LEFT

@@ -1,3 +1,6 @@
+camera_node = nil
+ui_fps_txt = nil
+
 bootstrap_scene = ()->
 	scene = Scene()
 	scene\CreateComponent("Octree")
@@ -23,11 +26,20 @@ bootstrap_scene = ()->
 
 
 export updateFPSDisplay = (eventType, eventData)->
+	print("Update display")
 	timeStep = eventData["TimeStep"]\GetFloat()
 	ui_fps_txt\SetText("FPS: " .. tostring(1/timeStep))
 
 
+-- Movement speed as world units per second
+MOVE_SPEED = 30.0
+-- Mouse sensitivity as degrees per pixel
+MOUSE_SENSITIVITY = 0.1
+yaw = 0
+pitch = 0
+
 export updateCameraMovement = ()->
+	print("Update camera")
 	-- Use this frame's mouse motion to adjust camera node yaw and pitch.
 	if input\IsMouseGrabbed()
 		mouseMove = input.mouseMove
@@ -58,28 +70,17 @@ export updateCameraMovement = ()->
 
 
 export handleKeyDown = (eventType, eventData)->
+	print("Pressed key")
 	key = eventData["Key"]\GetInt()
 	-- Close console (if open) or exit when ESC is pressed
 	if key == KEY_ESC
 		engine\Exit()
 
-	if input\GetKeyDown(KEY_SPACE)
+	if key == KEY_SPACE
 		input\SetMouseVisible(not input\IsMouseVisible())
 		input\SetMouseGrabbed(not input\IsMouseVisible())
 
 
--- export MOVE_SPEED
--- export MOUSE_SENSITIVITY
--- export yaw
--- export pitch
--- export ui_fps_txt
-
--- Movement speed as world units per second
-MOVE_SPEED = 30.0
--- Mouse sensitivity as degrees per pixel
-MOUSE_SENSITIVITY = 0.1
-yaw = 0
-pitch = 0
 input\SetMouseVisible(true)
 input\SetMouseGrabbed(false)
 
