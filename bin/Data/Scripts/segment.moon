@@ -1,32 +1,32 @@
-bootstrap_scene = require 'debug_scene'
+DebugScene = require 'debug_scene'
 
 surface = nil
-scene, camera = bootstrap_scene()
+debug_scene = DebugScene()
+debug_scene\recreate()
 
-run = ->
-	node = scene\CreateChild("Surface")
-	surface = UrFelt.UrSurface(
-		IntVector3(200, 200, 200), IntVector3(20, 20, 20), node
-	)
-	surface\seed(IntVector3(-50,-50,-50))
-	surface\seed(IntVector3(-50,-50, 50))
-	surface\seed(IntVector3(-50, 50,-50))
-	surface\seed(IntVector3(-50, 50, 50))
-	surface\seed(IntVector3( 50,-50,-50))
-	surface\seed(IntVector3( 50,-50, 50))
-	surface\seed(IntVector3( 50, 50,-50))
-	surface\seed(IntVector3( 50, 50, 50))
+node = debug_scene.scene\CreateChild("Surface")
+surface = UrFelt.UrSurface(
+	IntVector3(200, 200, 200), IntVector3(20, 20, 20), node
+)
+surface\seed(IntVector3(-50,-50,-50))
+surface\seed(IntVector3(-50,-50, 50))
+surface\seed(IntVector3(-50, 50,-50))
+surface\seed(IntVector3(-50, 50, 50))
+surface\seed(IntVector3( 50,-50,-50))
+surface\seed(IntVector3( 50,-50, 50))
+surface\seed(IntVector3( 50, 50,-50))
+surface\seed(IntVector3( 50, 50, 50))
 
-	surface\expand_by_constant(-1)
+surface\expand_by_constant(-1)
 
-	surface\transform_to_image("brain.hdr", 0.58, 0.2, 0.2)
+surface\transform_to_image("brain.hdr", 0.58, 0.2, 0.2)
 
 
 last = now()
 is_rendering = false
 saved = false
 
-export poll = (eventType, eventData)->
+on_update = (eventType, eventData)->
 	if surface ~= nil
 		surface\poll()
 
@@ -42,16 +42,14 @@ export poll = (eventType, eventData)->
 		engine\Exit()
 
 
-export handleSaveAndExit = (eventType, eventData)->
+on_key = (eventType, eventData)->
 	key = eventData["Key"]\GetInt()
-	-- Close console (if open) or exit when ESC is pressed
-	if key == KEY_ENTER
-		surface\save "/tmp/urfelt.brain.bin"
+	if key == KEY_RETURN
+		print("Saving ...")
+		surface\save "/tmp/urfelt.brain.bin", ->
+			print("... saved")
 
 
-SubscribeToEvent("Update", "poll")
-SubscribeToEvent("KeyDown", "handleSaveAndExit")
+debug_scene\subscribe_to_update(on_update)
+debug_scene\subscribe_to_key_down(on_key)
 
-
-
--- run()

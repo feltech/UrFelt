@@ -13,8 +13,8 @@ GPUPoly::~GPUPoly ()
 		m_pvb->Release();
 	if (m_pib.NotNull())
 		m_pib->Release();
-	if (m_pnode != nullptr)
-		m_pnode->Remove();
+//	if (m_pnode != nullptr)
+//		m_pnode->Remove();
 }
 
 void GPUPoly::bind (

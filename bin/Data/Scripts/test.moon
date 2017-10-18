@@ -1,16 +1,14 @@
 lassert = require 'luassert'
 stub = require 'luassert.stub'
-bootstrap_scene = require 'debug_scene'
+DebugScene = require 'debug_scene'
 Runner = require 'feltest'
 
 Runner.DEBUG = false
 Runner.TIMEOUT = 120
 
 run = Runner()
+debug_scene = DebugScene()
 
--- export camera_node
--- export final_scene
--- export final_surface
 
 await_finish = nil
 snapshot = nil
@@ -42,36 +40,30 @@ run\describe(
 
 run\describe "surface", =>
 
-	@beforeEach => @scene, @camera = bootstrap_scene()
-
-	@afterEach =>
-		final_scene = @scene
-		final_surface = @surface
-		@scene = nil
-		@surface = nil
+	@beforeEach => debug_scene\recreate()
 
 	@it "can be constructed", =>
-		node = @scene\CreateChild("Surface")
+		node = debug_scene.scene\CreateChild("Surface")
 		@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
 
 		lassert.are.equal(type(@surface), "userdata", "surface should be userdata")
 
 	@it "can spawn a seed", =>
-		node = @scene\CreateChild("Surface")
+		node = debug_scene.scene\CreateChild("Surface")
 		@surface = UrFelt.UrSurface(IntVector3(16, 16, 16), IntVector3(8, 8, 8), node)
 
 		@surface\seed(IntVector3(0,0,0))
 
 	@describe "ray", =>
 		@beforeEach =>
-			node = @scene\CreateChild("Surface")
+			node = debug_scene.scene\CreateChild("Surface")
 			@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), node)
 			@surface\seed(IntVector3(0,0,0))
 			@surface\expand_by_constant(-1)
 			@surface\await()
 
 		@it "can cast to surface", =>
-			ray = @camera\GetScreenRay(0.5, 0.5)
+			ray = debug_scene.camera\GetScreenRay(0.5, 0.5)
 
 			pos_hit = @surface\ray(ray)
 
@@ -80,12 +72,9 @@ run\describe "surface", =>
 				Vector3(pos_hit)\ToString() .. " != " .. Vector3(0,0,0)\ToString()
 			)
 
-
 	@describe "async", =>
 		@beforeEach () =>
-			@scene, @camera = bootstrap_scene()
-
-			node = @scene\CreateChild("Surface")
+			node = debug_scene.scene\CreateChild("Surface")
 			@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), node)
 			@surface\seed(IntVector3(0,0,0))
 
@@ -148,11 +137,10 @@ run\describe "surface", =>
 
 	@describe "ops", =>
 		@beforeEach () =>
-			@scene, @camera = bootstrap_scene()
 			@finished = false
 			@await_finish = await_finish
 
-			node = @scene\CreateChild("Surface")
+			node = debug_scene.scene\CreateChild("Surface")
 
 			@surface = UrFelt.UrSurface(IntVector3(32, 32, 32), IntVector3(8, 8, 8), node)
 			@surface\seed(IntVector3(0,0,0))
@@ -169,7 +157,7 @@ run\describe "surface", =>
 
 				@await_finish()
 
-				pos_hit = @surface\ray(@camera\GetScreenRay(0.5, 0.5))
+				pos_hit = @surface\ray(debug_scene.camera\GetScreenRay(0.5, 0.5))
 				lassert.is_equal(pos_hit, Vector3(0,0,-1))
 
 		@describe "transform to box", =>
@@ -216,8 +204,7 @@ run\describe "surface", =>
 
 	@describe "serialisation", =>
 		@beforeEach () =>
-			@scene, @camera = bootstrap_scene()
-			@node = @scene\CreateChild("Surface")
+			@node = debug_scene.scene\CreateChild("Surface")
 			@finished = false
 			@await_finish = await_finish
 
@@ -253,7 +240,7 @@ run\describe "surface", =>
 			finished = false
 			start_time = now()
 
-			node = @scene\CreateChild("Surface")
+			node = debug_scene.scene\CreateChild("Surface")
 			@surface = UrFelt.UrSurface(
 				IntVector3(200, 200, 200), IntVector3(20, 20, 20), node
 			)
@@ -316,7 +303,7 @@ await_finish = ()=>
 	print("Iterations " .. tostring(count))
 
 
-export resumeTesting = ()->
+resumeTesting = ()->
 
 	success = run\resumeTests()
 	if success ~= nil
@@ -324,7 +311,7 @@ export resumeTesting = ()->
 		os.exit(sucesss and 0 or 1)
 
 
-SubscribeToEvent("Update", "resumeTesting")
+debug_scene\subscribe_to_update(resumeTesting)
 
 
 run\runTests()
