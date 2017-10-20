@@ -19,7 +19,7 @@ class Load
 {
 public:
 	static Load load(const std::string& file_path_, Urho3D::Node* pnode_);
-	bool ready();
+	bool ready() const;
 	std::unique_ptr<UrSurface> get();
 
 private:

@@ -413,9 +413,9 @@ void UrSurface::polygonise()
 }
 
 
-void UrSurface::save(const std::string& file_path_) const
+void UrSurface::save(std::ostream& output_stream_) const
 {
-	m_surface.save(file_path_);
+	m_surface.save(output_stream_);
 }
 
 

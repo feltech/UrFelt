@@ -5,7 +5,7 @@ debug_scene = DebugScene()
 debug_scene\recreate()
 
 node = debug_scene.scene\CreateChild("Surface")
-surface = UrFelt.UrSurface.load("brain.bin", node)\get()
+surface = UrFelt.UrSurface.load("brain.bin.gz", node)\get()
 surface\invalidate()
 surface\polygonise()
 surface\await()
@@ -30,15 +30,5 @@ on_update = (eventType, eventData)->
 	if saved
 		engine\Exit()
 
-
-on_key = (eventType, eventData)->
-	key = eventData["Key"]\GetInt()
-	if key == KEY_RETURN
-		print("Saving ...")
-		surface\save "/tmp/urfelt.brain.bin", ->
-			print("... saved")
-
-
 debug_scene\subscribe_to_update(on_update)
-debug_scene\subscribe_to_key_down(on_key)
 
