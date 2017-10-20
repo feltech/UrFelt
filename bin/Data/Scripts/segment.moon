@@ -46,7 +46,7 @@ on_key = (eventType, eventData)->
 	key = eventData["Key"]\GetInt()
 	if key == KEY_RETURN
 		print("Saving ...")
-		surface\save "/tmp/urfelt.brain.bin", ->
+		surface\save "/tmp/brain.bin.gz", ->
 			print("... saved")
 
 

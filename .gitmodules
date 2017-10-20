@@ -17,3 +17,6 @@
 	path = vendor/CImg
 	url = https://github.com/dtschump/CImg.git
 	branch = master
+[submodule "vendor/zstr"]
+	path = vendor/zstr
+	url = https://github.com/mateidavid/zstr.git

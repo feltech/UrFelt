@@ -61,6 +61,8 @@ find_package(Boost
 	coroutine system	# Boost libraries by their canonical name
 )
 
+find_package(ZLIB REQUIRED)
+
 
 # Set include folders
 set (FELT_INCLUDE vendor/Felt/include)
@@ -68,11 +70,13 @@ set (LUACPPMSG_INCLUDE vendor/LuaCppMsg/include)
 set (SML_INCLUDE vendor/sml/include)
 set (LUAHPP_INCLUDE ${URHO3D_HOME}/Source/ThirdParty/LuaJIT/src)
 set (CIMG_INCLUDE vendor/CImg)
+set (ZSTR_INCLUDE vendor/zstr/src)
 set (VENDOR_INCLUDE vendor/include)
 
 include_directories (
 	include ${FELT_INCLUDE} ${LUACPPMSG_INCLUDE} ${LUAHPP_INCLUDE}
-	${SML_INCLUDE} ${VENDOR_INCLUDE} ${Boost_INCLUDE_DIRS} ${CIMG_INCLUDE}
+	${SML_INCLUDE} ${VENDOR_INCLUDE} ${Boost_INCLUDE_DIRS} ${CIMG_INCLUDE} ${ZLIB_INCLUDE_DIRS}
+	${ZSTR_INCLUDE}
 	#/usr/include/x86_64-linux-gnu/c++/5
 )
 
@@ -97,5 +101,5 @@ target_link_libraries(
 	UrhoFelt
 	# Enable profiling
 #	-g -fno-omit-frame-pointer -ggdb
-	gomp atomic ${Boost_LIBRARIES}
+	gomp atomic ${Boost_LIBRARIES} ${ZLIB_LIBRARIES}
 )

@@ -145,7 +145,7 @@ public:
 	 *
 	 * @param file_path_ path to file on disk.
 	 */
-	void save(const std::string& file_path_) const;
+	void save(std::ostream& output_stream_) const;
 
 	/**
 	* Create singularity seed surface (single zero-layer point).
