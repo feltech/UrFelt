@@ -20,3 +20,6 @@
 [submodule "vendor/zstr"]
 	path = vendor/zstr
 	url = https://github.com/mateidavid/zstr.git
+[submodule "bin/Data/Scripts/lib/feltest"]
+	path = bin/Data/Scripts/lib/feltest
+	url = https://github.com/feltech/feltest.git
