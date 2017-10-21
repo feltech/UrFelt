@@ -3,7 +3,6 @@ stub = require 'luassert.stub'
 DebugScene = require 'debug_scene'
 Runner = require 'feltest'
 
-Runner.DEBUG = false
 Runner.TIMEOUT = 120
 
 run = Runner()
