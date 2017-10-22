@@ -76,6 +76,14 @@ void Impl::execute(UrSurface& surface_, Bounds... bounds_)
 
 		m_is_complete &= std::abs(amount) <= epsilon;
 
+		if (std::abs(amount) > 0.5f)
+		{
+			std::stringstream ss;
+			ss << amount << " = " << grad_norm << " * (" << speed << " + " <<
+				m_curvature_weight << "*" << curvature << ") * " << clamp << std::endl;
+			std::cerr << ss.str();
+		}
+
 		return amount;
 	});
 }

@@ -16,7 +16,8 @@ class BrainApp extends DebugScene
 			events: {
 				{name: "load", from: "idle", to: "load_from_disk"},
 				{name: "loaded", from: "load_from_disk", to: "generate"},
-				{name: "generated", from: "generate", to: "running"}
+				{name: "generated", from: "generate", to: "running"},
+				{name: "regenerate", from: "running", to: "generate"}
 			},
 			callbacks: {
 				on_enter_idle: (fsm, event, fro, to)-> @_transition(Idle)
@@ -99,7 +100,7 @@ class Load extends LoadingBase
 		@_ui_txt\SetText("Loading from disk...")
 
 		node = @_app.scene\CreateChild("Surface")
-		@_loader = UrFelt.UrSurface.load("brain.bin.gz", node)
+		@_loader = UrFelt.UrSurface.load("brain2.bin.gz", node)
 
 	poll: =>
 		super()
@@ -137,6 +138,10 @@ class Running extends State
 		@_op_start_time = nil
 
 	poll: =>
+		if input\GetKeyPress(KEY_R)
+			@_app.fsm.regenerate()
+			return
+
 		if input\IsMouseGrabbed()
 			if input\GetMouseButtonPress(MOUSEB_LEFT) then @_throw_box()
 
@@ -156,7 +161,7 @@ class Running extends State
 		-- 5ms between polling for Lua callbacks to surface Ops.
 		if current_time - @_last_poll > 5
 			@_app.surface\poll()
-		
+
 		if @_op_start_time ~= nil
 			if current_time - @_op_start_time > 50
 				@_op\stop()

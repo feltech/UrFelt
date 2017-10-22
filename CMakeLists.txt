@@ -18,7 +18,6 @@ set (URHO3D_HOME "vendor/Urho3D")
 set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-
 add_custom_target(
 	Moonc ALL
 	COMMAND
@@ -42,11 +41,10 @@ add_definitions(
 	# Force enable debugging
 # 	-O0
 	# Enable extra debugging/profiling
-	-ggdb -g -fno-omit-frame-pointer
+#	-ggdb -g -fno-omit-frame-pointer
 	# Enable Felt library exceptions
-#	-DFELT_EXCEPTIONS
+	-DFELT_EXCEPTIONS
 	# Enable profiling
-	-g -fno-omit-frame-pointer -ggdb
 	# sudo perf record -g --call-graph dwarf -- ./UrhoFelt
 	# sudo perf report -g graph --no-children
 )
