@@ -11,9 +11,6 @@ class DebugScene
 		@_ui_fps_txt.horizontalAlignment = HA_LEFT
 		@_ui_fps_txt.verticalAlignment = VA_TOP
 
-		@_yaw = 0
-		@_pitch = 0
-
 		@_update_cbs = {}
 		@_key_down_cbs = {}
 
@@ -44,7 +41,7 @@ class DebugScene
 		point_light.lightType = LIGHT_POINT
 		point_light.color = Color(1.0, 1.0, 1.0)
 		point_light.specularIntensity = 0.001
-		point_light.range = 50
+		point_light.range = 100
 
 	subscribe_to_update: (fn) => table.insert(@_update_cbs, fn)
 
