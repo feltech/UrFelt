@@ -113,7 +113,7 @@ public:
 	 * @param ray_ ray to cast.
 	 * @return position on surface that ray hits, or `ray_miss` if didn't hit.
 	 */
-	Urho3D::Vector3 ray(const Urho3D::Ray& ray_) const;
+	sol::optional<Urho3D::Vector3> ray(const Urho3D::Ray& ray_) const;
 
 
 	const IsoGrid& isogrid() const

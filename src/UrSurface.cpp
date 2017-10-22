@@ -351,16 +351,17 @@ void UrSurface::flush_graphics()
 }
 
 
-Urho3D::Vector3 UrSurface::ray(const Urho3D::Ray& ray_) const
+sol::optional<Urho3D::Vector3> UrSurface::ray(const Urho3D::Ray& ray_) const
 {
 	const Felt::Vec3f& pos_hit = m_surface.ray(
 		reinterpret_cast<const Felt::Vec3f&>(ray_.origin_),
 		reinterpret_cast<const Felt::Vec3f&>(ray_.direction_)
 	);
+	if (pos_hit == ray_miss)
+		return sol::optional<Urho3D::Vector3>{};
 	const Urho3D::Vector3& pos_ur_hit = reinterpret_cast<const Urho3D::Vector3&>(pos_hit);
-	return pos_ur_hit;
+	return sol::optional<Urho3D::Vector3>{pos_ur_hit};
 }
-
 
 
 template <class TOp, typename... Args>
