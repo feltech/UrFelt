@@ -31,33 +31,39 @@ void Impl::execute(UrSurface& surface_, const Felt::Vec3i& pos_min_, const Felt:
 			using namespace Felt;
 			// Size of surface update to consider zero (thus finished).
 			static constexpr Distance epsilon = 0.0001;
-			// Multiplier to ensure no surface update with magnitude greater than 1.0.
-			// TODO: understand why grad can be > 2 and if sqrt(2) per component theory is correct.
-			static constexpr Distance clamp = 1.0f/sqrt(6.0f);
+			// Multiplier to ensure no surface update with magnitude greater than 0.5.
+			static constexpr Distance clamp = 0.5f;
 
 			// Get entropy-satisfying gradient (surface "normal").
 			const Vec3f& grad = isogrid_.gradE(pos_);
-			// If the gradient is zero, we must have a singularity, so just trivially contract
-			// (i.e. destroy).
+			Distance dist;
+			// If the gradient is zero, we must have a singularity.
 			if (grad.isZero())
-				return TDir*1.0f;
-			// Get distance of this discrete zero-layer point to the continuous zero-level set
-			// surface.
-			const Felt::Distance dist_surf = isogrid_.get(pos_);
+			{
+				const Vec3f& posf = pos_.template cast<Felt::Distance>();
+				const Vec3f& pos_dist = m_pos_centre - posf;
+				dist = pos_dist.norm() - m_radius;
+			}
+			else
+			{
+				// Get distance of this discrete zero-layer point to the continuous zero-level set
+				// surface.
+				const Felt::Distance dist_surf = isogrid_.get(pos_);
+				// Discretisation means grad can be non-normalised, so normalise it.
+				const Vec3f& normal = grad.normalized();
+				// Interpolate discrete zero-layer grid point to continuous zero-level isosurface.
+				const Vec3f& posf = pos_.template cast<Felt::Distance>() - normal*dist_surf;
+				// Get euclidean norm of the gradient, for use in level set update equations.
+				const Distance grad_norm = grad.norm();
 
-			// Discretisation means grad can be non-normalised, so normalise it.
-			const Vec3f& normal = grad.normalized();
-			// Interpolate discrete zero-layer grid point to continuous zero-level isosurface.
-			const Vec3f& posf = pos_.template cast<Felt::Distance>() - normal*dist_surf;
-			// Get euclidean norm of the gradient, for use in level set update equations.
-			const Distance grad_norm = grad.norm();
-
-			const Vec3f& pos_dist = m_pos_centre - posf;
-			const Distance dist = pos_dist.norm() - m_radius;
-			const Distance impulse = TDir * std::min(dist / m_radius, 0.0f);
+				const Vec3f& pos_dist = m_pos_centre - posf;
+				dist = grad_norm * (pos_dist.norm() - m_radius);
+			}
 
 			// The level set update.
-			const Distance speed = clamp*grad_norm*impulse;
+			const Distance impulse = std::max(std::min(dist / m_radius, 0.0f), -1.0f);
+
+			const Distance speed = TDir * clamp * impulse;
 
 			// Flag that the operation is incomplete if this surface point wants to move a distance
 			// larger than epsilon.
