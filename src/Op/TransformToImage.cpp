@@ -39,6 +39,9 @@ void Impl::execute(UrSurface& surface_, Bounds... bounds_)
 		URHO3D_LOGINFO(ss.str().c_str());
 	}
 
+	try
+	{
+
 	surface_.update(bounds_..., [this](const Felt::Vec3i& pos_, const IsoGrid& isogrid_) {
 		using namespace Felt;
 		// Size of surface update to consider zero (thus finished).
@@ -86,6 +89,30 @@ void Impl::execute(UrSurface& surface_, Bounds... bounds_)
 
 		return amount;
 	});
+
+	}
+	catch (const std::domain_error& e)
+	{
+		const unsigned int x_max = surface_.isogrid().size()(0);
+		const unsigned int y_max = surface_.isogrid().size()(1);
+		const unsigned int z_max = surface_.isogrid().size()(2);
+
+		cimg_library::CImg<float> out(x_max, y_max, z_max);
+
+		for (int x = 0; x < x_max; x++)
+			for (int y = 0; y < y_max; y++)
+				for (int z = 0; z < z_max; z++)
+				{
+					Felt::Vec3i pos{x,y,z};
+					pos += surface_.isogrid().offset();
+					out(x,y,z) = surface_.isogrid().get(pos);
+				}
+
+		out.save_analyze("/tmp/dump.hdr");
+		std::cerr << "Dumped isogrid to /tmp/dump.hdr" << std::endl;
+
+		throw e;
+	}
 }
 
 

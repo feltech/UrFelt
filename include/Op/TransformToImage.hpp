@@ -4,6 +4,7 @@
 #include <Op/Base.hpp>
 #include <UrSurface.hpp>
 #define cimg_display 0
+//#define cimg_verbosity 3
 #include <CImg.h>
 
 
