@@ -47,45 +47,44 @@ void Impl::execute(UrSurface& surface_, Bounds... bounds_)
 		// Size of surface update to consider zero (thus finished).
 		static constexpr Distance epsilon = 0.0001;
 		// Multiplier to ensure no surface update with magnitude greater than 1.0.
-		static constexpr Distance clamp = 1.0f/(2*sqrt(6.0f));
-
-		// Get entropy-satisfying gradient (surface "normal").
-		const Vec3f& grad = isogrid_.gradE(pos_);
-		// If the gradient is zero, we must have a singularity, so just trivially contract
-		// (i.e. destroy).
-		if (grad.isZero())
-			return 1.0f;
-		// Get distance of this discrete zero-layer point to the continuous zero-level set
-		// surface.
-		const Felt::Distance dist_surf = isogrid_.get(pos_);
-
-		// Discretisation means grad can be non-normalised, so normalise it.
-		const Vec3f& normal = grad.normalized();
-		// Interpolate discrete zero-layer grid point to continuous zero-level isosurface.
-		const Vec3f& posf = pos_.template cast<Felt::Distance>() - normal*dist_surf;
-		// Get euclidean norm of the gradient, for use in level set update equations.
-		const Distance grad_norm = grad.norm();
+		const Distance clamp = 0.5f * 1.0f / (2*(1 + m_curvature_weight*2));
 
 		const Distance voxel = m_image.atXYZ(
 			pos_(0) + m_image.width()/2, pos_(1) + m_image.height()/2, pos_(2) + m_image.depth()/2,
 			0, std::numeric_limits<unsigned char>::max()
 		)/m_divisor;
+		const Distance diff_sq = pow(voxel - m_ideal, 2);
+		const Distance tolerance_sq = pow(m_tolerance, 2);
+		const Distance speed = -1 + 2 * diff_sq / ( diff_sq + tolerance_sq);
 
-		const Distance speed =
-			2*pow(voxel - m_ideal, 2) / ( pow(voxel - m_ideal, 2) + pow(m_tolerance, 2) ) - 1;
-		const Distance curvature = isogrid_.curv(pos_);
+		Distance amount;
 
-		const Distance amount = grad_norm*(speed + m_curvature_weight*curvature)*clamp;
+		// Get entropy-satisfying gradient (surface "normal").
+		const Vec3f& grad = isogrid_.gradE(pos_);
+		// If the gradient is zero, we must have a singularity, so can't use gradient.
+		if (grad.isZero())
+		{
+			amount = 0.5f * speed;
+		}
+		else
+		{
+			// Get distance of this discrete zero-layer point to the continuous zero-level set
+			// surface.
+			const Felt::Distance dist_surf = isogrid_.get(pos_);
+
+			// Discretisation means grad can be non-normalised, so normalise it.
+			const Vec3f& normal = grad.normalized();
+			// Interpolate discrete zero-layer grid point to continuous zero-level isosurface.
+			const Vec3f& posf = pos_.template cast<Felt::Distance>() - normal*dist_surf;
+			// Get euclidean norm of the gradient, for use in level set update equations.
+			const Distance grad_norm = grad.norm();
+
+			const Distance curvature = isogrid_.curv(pos_);
+
+			amount = clamp * grad_norm*(speed + m_curvature_weight*curvature);
+		}
 
 		m_is_complete &= std::abs(amount) <= epsilon;
-
-		if (std::abs(amount) > 0.5f)
-		{
-			std::stringstream ss;
-			ss << amount << " = " << grad_norm << " * (" << speed << " + " <<
-				m_curvature_weight << "*" << curvature << ") * " << clamp << std::endl;
-			std::cerr << ss.str();
-		}
 
 		return amount;
 	});
