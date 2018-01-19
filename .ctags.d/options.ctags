@@ -1,0 +1,9 @@
+--exclude=bin
+--exclude=CMake*
+--exclude=oprofile_data
+--exclude=cmake*
+--exclude=*/html
+--exclude=*.html
+--exclude=*/docs
+--exclude=*/doc
+--exclude=*.json

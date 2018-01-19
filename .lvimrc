@@ -1,0 +1,19 @@
+let g:session_directory = '.'
+let g:session_default_name = '.session'
+" Syntaxt highlight class members in c++
+let g:cpp_class_member_highlight = 1
+" Tagbar addon for moonscript
+let g:tagbar_type_moon = {
+    \ 'ctagstype' : 'moonscript',
+    \ 'kinds'     : [
+        \ 'v:variables',
+        \ 'f:functions',
+        \ 'c:classes',
+        \ 'm:methods',
+        \ 's:static properties',
+        \ 'p:properties',
+    \ ]
+\ }
+let g:ctrlp_buftag_types = {
+  \ 'moon' : '--language-force=moonscript --moonscript-types=vfcmsp',
+\ }
