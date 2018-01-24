@@ -100,7 +100,7 @@ class Load extends LoadingBase
 		@_ui_txt\SetText("Loading from disk...")
 
 		node = @_app.scene\CreateChild("Surface")
-		@_loader = UrFelt.UrSurface.load("brain2.bin.gz", node)
+		@_loader = UrFelt.UrSurface.load("brain.bin.gz", node)
 
 	poll: =>
 		super()
