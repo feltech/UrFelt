@@ -6,32 +6,31 @@ debug_scene\recreate()
 
 node = debug_scene.scene\CreateChild("Surface")
 surface = UrFelt.UrSurface(
-	IntVector3(200, 200, 200), IntVector3(20, 20, 20), node
+	IntVector3(200, 200, 200), IntVector3(10, 10, 10), node
 )
-surface\seed(IntVector3(-50,-50,-50))
-surface\seed(IntVector3(-50,-50, 50))
-surface\seed(IntVector3(-50, 50,-50))
-surface\seed(IntVector3(-50, 50, 50))
-surface\seed(IntVector3( 50,-50,-50))
-surface\seed(IntVector3( 50,-50, 50))
-surface\seed(IntVector3( 50, 50,-50))
-surface\seed(IntVector3( 50, 50, 50))
+surface\seed(IntVector3(40,0,30))
+surface\seed(IntVector3(-50,0 -20))
+surface\seed(IntVector3(25, -70,-50))
+surface\seed(IntVector3(25, 60,35))
 
 surface\expand_by_constant(-1)
 
 surface\transform_to_image("brain.hdr", 0.58, 0.2, 0.2)
 
 
-last = now()
+last_render = now()
+last_poll = last_render
 is_rendering = false
 saved = false
 
 on_update = (eventType, eventData)->
 	if surface ~= nil
-		surface\poll()
+		if now() - last_poll > 100
+			last_poll = now()
+			surface\poll()
 
-		if now() - last > 5000
-			last = now()
+		if now() - last_render > 5000
+			last_render = now()
 			if not is_rendering
 				is_rendering = true
 				surface\polygonise ->
@@ -46,7 +45,7 @@ on_key = (eventType, eventData)->
 	key = eventData["Key"]\GetInt()
 	if key == KEY_RETURN
 		print("Saving ...")
-		surface\save "brain2.bin.gz", ->
+		surface\save "brain.bin.gz", ->
 			print("... saved")
 
 
