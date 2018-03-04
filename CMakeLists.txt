@@ -43,7 +43,7 @@ add_definitions(
 	# Enable extra debugging/profiling
 #	-ggdb -g -fno-omit-frame-pointer
 	# Enable Felt library exceptions
-	-DFELT_EXCEPTIONS
+#	-DFELT_EXCEPTIONS
 	# Enable profiling
 	# sudo perf record -g --call-graph dwarf -- ./UrhoFelt
 	# sudo perf report -g graph --no-children
@@ -86,9 +86,9 @@ set (TARGET_NAME UrhoFelt)
 
 # Define source files
 file (GLOB_RECURSE CPP_FILES src/*.cpp)
-file (GLOB H_FILES include/*.h)
+file (GLOB_RECURSE H_FILES include/*.hpp)
 set (
-	SOURCE_FILES ${CPP_FILES} ${H_FILES}
+	SOURCE_FILES ${CPP_FILES}
 )
 
 # Setup target with resource copying
