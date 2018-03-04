@@ -170,6 +170,11 @@ public:
 	*/
 	void flush_graphics();
 
+	/**
+	 * Get statistics on the current state of the surface.
+	 */
+	UrFelt::Surface::Stats stats();
+
 private:
 	/**
 	 * Construct from (deserialised) `Felt::Surface`.

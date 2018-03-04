@@ -1,5 +1,3 @@
-#include "UrSurface.hpp"
-
 #include <vector>
 #include <algorithm>
 #include <limits>
@@ -187,7 +185,8 @@ void UrSurface::to_lua(sol::table& lua)
 				const std::string&, const float, const float, const float,
 				sol::function
 			>
-		)
+		),
+		"stats", &UrSurface::stats
 	);
 
 	lua.new_usertype<Op::Base>(
@@ -202,6 +201,8 @@ void UrSurface::to_lua(sol::table& lua)
 		"get", &Op::Serialise::Load::get,
 		"new", sol::no_constructor
 	);
+
+	lua.new_usertype<UrFelt::Surface::Stats>("Stats");
 }
 
 
@@ -219,16 +220,18 @@ UrSurface::UrSurface(
 UrSurface::UrSurface(
 	const Felt::Vec3i& size_, const Felt::Vec3i& size_partition_, Urho3D::Node* pnode_
 ) :
+	m_exit{false},
+	m_lock_pending{}, m_lock_done{},
+	m_queue_pending{}, m_queue_done{},
 	m_surface{size_, size_partition_},
+	m_polys{m_surface},
 	m_coll_shapes{
 		m_surface.isogrid().children().size(), m_surface.isogrid().children().offset(), nullptr
 	},
-	m_polys{m_surface},
 	m_gpu_polys{
 		m_surface.isogrid().children().size(), m_surface.isogrid().children().offset(), GPUPoly{}
 	},
-	m_pnode{pnode_}, m_exit{false},
-	m_queue_pending{}, m_queue_done{}, m_lock_pending{}, m_lock_done{}
+	m_pnode{pnode_}
 {
 	for (
 		Felt::PosIdx pos_idx_child = 0; pos_idx_child < m_polys.children().data().size();
@@ -246,7 +249,6 @@ UrSurface::UrSurface(
 	m_psurface_body->SetUseGravity(false);
 	m_psurface_body->SetRestitution(0.0);
 	m_psurface_body->Activate();
-
 	m_executor = std::thread{&UrSurface::executor, this};
 }
 
@@ -419,18 +421,24 @@ void UrSurface::save(std::ostream& output_stream_) const
 	m_surface.save(output_stream_);
 }
 
+UrFelt::Surface::Stats UrSurface::stats()
+{
+	return m_surface.stats();
+}
 
 UrSurface::UrSurface(Surface&& surface_, Urho3D::Node* pnode_) :
+	m_exit{false},
+	m_lock_pending{}, m_lock_done{},
+	m_queue_pending{}, m_queue_done{},
 	m_surface{std::move(surface_)},
+	m_polys{m_surface},
 	m_coll_shapes{
 		m_surface.isogrid().children().size(), m_surface.isogrid().children().offset(), nullptr
 	},
-	m_polys{m_surface},
 	m_gpu_polys{
 		m_surface.isogrid().children().size(), m_surface.isogrid().children().offset(), GPUPoly{}
 	},
-	m_pnode{pnode_}, m_exit{false},
-	m_queue_pending{}, m_queue_done{}, m_lock_pending{}, m_lock_done{}
+	m_pnode{pnode_}
 {
 	for (
 		Felt::PosIdx pos_idx_child = 0; pos_idx_child < m_polys.children().data().size();
