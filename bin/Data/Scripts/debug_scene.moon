@@ -1,3 +1,5 @@
+SHOW_FPS_AND_POS = true
+
 class DebugScene
 	-- Movement speed as world units per second
 	MOVE_SPEED: 30.0
@@ -27,7 +29,9 @@ class DebugScene
 		@scene\CreateComponent("Octree")
 
 		@_camera_node = @scene\CreateChild("Camera")
-		@_camera_node.position = Vector3(0.0, 0.0, -50.0)
+		@_camera_node.position = Vector3(-70.0, 180.0, -70.0)
+		@_camera_node.rotation = Quaternion(0.8, 0.57, 0.14, 0.09)
+		@_camera_node.rotation\Normalize()
 		@camera = @_camera_node\CreateComponent("Camera")
 		viewport = Viewport\new(@scene, @_camera_node\GetComponent("Camera"))
 		renderer\SetViewport(0, viewport)
@@ -36,6 +40,10 @@ class DebugScene
 		light_node.direction = Vector3(0.6, -1.0, 0.8)
 		light = light_node\CreateComponent("Light")
 		light.lightType = LIGHT_DIRECTIONAL
+		light.castShadows = true
+		light.shadowBias = BiasParameters(0.00025, 0.5)
+		light.shadowCascade = CascadeParameters(10.0, 50.0, 200.0, 0.0, 0.8)
+		light.specularIntensity = 0.5
 
 		point_light = @_camera_node\CreateComponent("Light")
 		point_light.lightType = LIGHT_POINT
@@ -55,7 +63,12 @@ class DebugScene
 			fn(event_type, event_data)
 
 	_update_FPS_display: (time_step)=>
-		@_ui_fps_txt\SetText("FPS: " .. tostring(1/time_step))
+		if SHOW_FPS_AND_POS
+			@_ui_fps_txt\SetText(
+				@_camera_node.position\ToString() .. " :: " ..
+				@_camera_node.rotation\ToString() .. " :: " ..
+				"FPS: " .. string.format("%.2f", 1/time_step)
+			)
 
 	_update_camera_movement: (time_step)=>
 		-- Use this frame's mouse motion to adjust camera node _yaw and _pitch.
