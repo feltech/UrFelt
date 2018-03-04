@@ -51,8 +51,6 @@ class BrainApp extends DebugScene
 		-- model is also 1 x 1 x 1.)
 		shape\SetBox(Vector3(1.0, 1.0, 1.0))
 
-		@fsm.load()
-
 	_transition: (cls)=>
 		@_state\tear_down()
 		@_state = cls(self)
@@ -74,13 +72,6 @@ class State
 		return
 
 
-class Idle extends State
-	new: (app)=>
-		super(app)
-	poll: =>
-		super()
-
-
 class LoadingBase extends State
 	new: (app)=>
 		super(app)
@@ -94,17 +85,31 @@ class LoadingBase extends State
 		@_ui_txt\Remove()
 
 
+class Idle extends LoadingBase
+	new: (app)=>
+		super(app)
+		@_ui_txt\SetText("Prese ENTER to start")
+	poll: =>
+		super()
+		if input\GetKeyPress(KEY_RETURN)
+			@_app.fsm.load()
+			return
+
+
 class Load extends LoadingBase
 	new: (app, brain_scene)=>
 		super(app)
-		@_ui_txt\SetText("Loading from disk...")
-
+		print("Creating Surface node")
 		node = @_app.scene\CreateChild("Surface")
-		@_loader = UrFelt.UrSurface.load("brain.bin.gz", node)
+		filepath = GetFileSystem().GetProgramDir() .. "brain.bin.gz"
+		print("Loading surface from " .. filepath)
+		@_ui_txt\SetText("Loading from disk...")
+		@_loader = UrFelt.UrSurface.load(filepath, node)
 
 	poll: =>
 		super()
 		if @_loader\ready()
+			print("Surface loaded")
 			@_app.surface = @_loader\get()
 			@_app.fsm.loaded()
 
