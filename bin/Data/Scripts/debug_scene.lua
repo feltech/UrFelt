@@ -1,4 +1,4 @@
-local SHOW_FPS_AND_POS = false
+local SHOW_FPS_AND_POS = true
 local DebugScene
 do
   local _class_0
