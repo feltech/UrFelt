@@ -39,3 +39,5 @@
 /.session.vim
 /.ycm_extra_conf.py.old
 /**/*.swp
+/.idea/
+/.settings/
