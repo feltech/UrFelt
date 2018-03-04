@@ -15,12 +15,13 @@ Impl::Impl(
 	sol::function callback_
 ) :
 	Base{callback_},
+	m_is_complete{false},
 	m_pos_box_min{reinterpret_cast<const Felt::Vec3f&>(pos_box_min_)},
 	m_pos_box_max{reinterpret_cast<const Felt::Vec3f&>(pos_box_max_)},
 	m_pos_centre{
 		m_pos_box_min + (m_pos_box_max - m_pos_box_min) / 2
 	},
-	m_is_complete{false}, m_size{0}
+	m_size{0}
 {
 	for (Felt::Dim d = 0; d < m_pos_box_min.size(); d++)
 	{
@@ -61,7 +62,7 @@ void Impl::execute(UrSurface& surface_, Bounds... bounds_)
 			static constexpr Distance epsilon = 0.0001;
 			// Multiplier to ensure no surface update with magnitude greater than 1.0.
 			// TODO: understand why grad can be > 2 and if sqrt(2) per component theory is correct.
-			static constexpr Distance clamp = 1.0f/sqrt(6.0f);
+			static const Distance clamp = 1.0f/sqrt(6.0f);
 
 			// Get entropy-satisfying gradient (surface "normal").
 			const Vec3f& grad = isogrid_.gradE(pos_);

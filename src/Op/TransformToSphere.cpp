@@ -10,9 +10,9 @@ namespace TransformToSphere
 
 Impl::Impl(const Urho3D::Vector3& pos_centre_, const float radius_, sol::function callback_) :
 	Base{callback_},
-	m_pos_centre{reinterpret_cast<const Felt::Vec3f&>(pos_centre_)},
-	m_radius{radius_},
 	m_is_complete{false},
+	m_radius{radius_},
+	m_pos_centre{reinterpret_cast<const Felt::Vec3f&>(pos_centre_)},
 	m_size{0}
 {}
 

@@ -17,9 +17,7 @@ btConvexSurfaceCollisionAlgorithm::btConvexSurfaceCollisionAlgorithm(
 : btCollisionAlgorithm(ci),
 m_ownManifold(false),
 m_manifoldPtr(mf),
-m_isSwapped(isSwapped),
-m_numPerturbationIterations(numPerturbationIterations),
-m_minimumPointsPerturbationThreshold(minimumPointsPerturbationThreshold)
+m_isSwapped(isSwapped)
 {
 	const btCollisionObjectWrapper* convexObjWrap = m_isSwapped? col1Wrap : col0Wrap;
 	const btCollisionObjectWrapper* surfaceObjWrap = m_isSwapped? col0Wrap : col1Wrap;
@@ -83,7 +81,7 @@ void btConvexSurfaceCollisionAlgorithm::processCollision (
 		const Felt::Vec3f& grad = surfaceShape->isogrid()->grad(
 			surfaceShape->isogrid_child()->index(pos_idx_leaf)
 		);
-		const Felt::FLOAT& mag_grad_sq = grad.blueNorm();
+		const Felt::Distance& mag_grad_sq = grad.blueNorm();
 		if (mag_grad_sq < 0.1f)
 			continue;
 		const Felt::Vec3f& normal = grad.normalized();

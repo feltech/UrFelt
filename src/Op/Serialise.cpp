@@ -40,7 +40,7 @@ bool Load::ready() const
 
 std::unique_ptr<UrSurface> Load::get()
 {
-	return std::make_unique<UrSurface>(std::move(m_future.get()), m_pnode);
+	return std::make_unique<UrSurface>(m_future.get(), m_pnode);
 }
 
 

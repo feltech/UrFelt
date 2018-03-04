@@ -16,7 +16,7 @@ Impl::Impl(
 ) :
 	Base{callback_},
 	m_is_complete{false}, m_file_name{file_name_}, m_ideal{ideal_}, m_tolerance{tolerance_},
-	m_curvature_weight{curvature_weight_}, m_image{}, m_divisor{0}
+	m_curvature_weight{curvature_weight_}, m_divisor{0}, m_image{}
 {}
 
 
@@ -70,12 +70,12 @@ void Impl::execute(UrSurface& surface_, Bounds... bounds_)
 		{
 			// Get distance of this discrete zero-layer point to the continuous zero-level set
 			// surface.
-			const Felt::Distance dist_surf = isogrid_.get(pos_);
-
+//			const Felt::Distance dist_surf = isogrid_.get(pos_);
 			// Discretisation means grad can be non-normalised, so normalise it.
-			const Vec3f& normal = grad.normalized();
+//			const Vec3f& normal = grad.normalized();
 			// Interpolate discrete zero-layer grid point to continuous zero-level isosurface.
-			const Vec3f& posf = pos_.template cast<Felt::Distance>() - normal*dist_surf;
+//			const Vec3f& posf = pos_.template cast<Felt::Distance>() - normal*dist_surf;
+
 			// Get euclidean norm of the gradient, for use in level set update equations.
 			const Distance grad_norm = grad.norm();
 

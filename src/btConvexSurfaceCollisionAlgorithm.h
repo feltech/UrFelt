@@ -31,8 +31,6 @@ class btConvexSurfaceCollisionAlgorithm : public btCollisionAlgorithm
 	bool		m_ownManifold;
 	btPersistentManifold*	m_manifoldPtr;
 	bool		m_isSwapped;
-	int			m_numPerturbationIterations;
-	int			m_minimumPointsPerturbationThreshold;
 
 public:
 
@@ -56,12 +54,12 @@ public:
 	{
 		int	m_numPerturbationIterations;
 		int m_minimumPointsPerturbationThreshold;
-			
-		CreateFunc() 
+
+		CreateFunc()
 			: m_numPerturbationIterations(1), m_minimumPointsPerturbationThreshold(0)
 		{
 		}
-		
+
 		virtual	btCollisionAlgorithm* CreateCollisionAlgorithm(btCollisionAlgorithmConstructionInfo& ci, const btCollisionObjectWrapper* body0Wrap,const btCollisionObjectWrapper* body1Wrap)
 		{
 			void* mem = ci.m_dispatcher1->allocateCollisionAlgorithm(sizeof(btConvexSurfaceCollisionAlgorithm));
