@@ -1,7 +1,3 @@
-let g:session_directory = '.'
-let g:session_default_name = '.session'
-" Syntaxt highlight class members in c++
-let g:cpp_class_member_highlight = 1
 " Tagbar addon for moonscript
 let g:tagbar_type_moon = {
     \ 'ctagstype' : 'moonscript',
@@ -17,3 +13,10 @@ let g:tagbar_type_moon = {
 let g:ctrlp_buftag_types = {
   \ 'moon' : '--language-force=moonscript --moonscript-types=vfcmsp',
 \ }
+" Shortcuts for build + run
+nnoremap <F7> :silent AsyncRun /usr/local/bin/moonc bin/Data/Scripts && cmake --build .<CR>:copen<CR>
+nnoremap <F6> :silent AsyncRun /usr/local/bin/moonc bin/Data/Scripts && cmake --build . && ./bin/UrhoFelt<CR>:copen<CR>
+nnoremap <F5> :silent AsyncRun /usr/local/bin/moonc bin/Data/Scripts && cmake --build .<CR>:copen<CR>:Termdebug ./bin/UrhoFelt<CR>
+
+" Add gdb support
+packadd termdebug
