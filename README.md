@@ -6,7 +6,7 @@ A demo video is available at https://www.youtube.com/watch?v=KwpXzBb6Nzs
 
 The MRI brain scan asset was obtained from [BrainWeb](http://www.bic.mni.mcgill.ca/brainweb/).
 
-The business loging is written in Lua via [moonscript](https://moonscript.org/).  The key addition
+The business logic is written in Lua via [moonscript](https://moonscript.org/).  The key addition
 to the [Felt](https://github.com/feltech/Felt) library are the additional
 [Bullet](https://pybullet.org) collision shape classes, allowing for interaction with the physics
 engine.
