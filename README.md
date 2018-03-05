@@ -25,7 +25,8 @@ In mouse capture mode, left-click to throw a box.
 
 In normal mouse mode, left-click on the surface to destroy and right-click to raise the surface.
 
-Edit the `main.moon` (or `main.lua`, to avoid transpiling) file to show different demos.
+Moonscript/Lua scripts are found in `bin/Data/Scripts`. Edit the `main.moon` (or `main.lua`, to
+avoid transpiling) file to show different demos.
 
 Currently the only other demo is `segment`, which constructs the surface segmentation of grey
 matter from an MRI image, and does not include any physics.
