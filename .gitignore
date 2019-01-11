@@ -42,3 +42,6 @@
 /.idea/
 /.settings/
 /.externalToolBuilders/
+/docs/
+/.ccls-cache/
+/build/
