@@ -96,6 +96,26 @@ set (TARGET_NAME UrhoFelt)
 # Define source files
 file (GLOB_RECURSE CPP_FILES src/*.cpp)
 file (GLOB_RECURSE H_FILES include/*.hpp)
+
+# Remove strings matching given regular expression from a list.
+# @param(in,out) aItems Reference of a list variable to filter.
+# @param aRegEx Value of regular expression to match.
+function (filter_items aItems aRegEx)
+    # For each item in our list
+    foreach (item ${${aItems}})
+        # Check if our items matches our regular expression
+        if ("${item}" MATCHES ${aRegEx})
+            # Remove current item from our list
+            list (REMOVE_ITEM ${aItems} ${item})
+        endif ("${item}" MATCHES ${aRegEx})
+    endforeach(item)
+    # Provide output parameter
+    set(${aItems} ${${aItems}} PARENT_SCOPE)
+endfunction (filter_items)
+# Strip build artifacts from list of source files.
+filter_items(CPP_FILES "^\\.|/\\.|CMakeFiles")
+filter_items(H_FILES "^\\.|/\\.|CMakeFiles")
+
 set (
 	SOURCE_FILES ${CPP_FILES}
 )
