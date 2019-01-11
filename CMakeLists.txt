@@ -19,6 +19,8 @@ set (URHO3D_HOME "${PROJECT_SOURCE_DIR}/vendor/Urho3D")
 set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+add_custom_target(Moon ALL find bin/Data/Scripts/ -name "*.moon" -exec moonc {} \\\\;)
+
 find_package(Boost
 	1.58							# Minimum or EXACT version e.g. 1.36.0
 	REQUIRED						# Fail with error if Boost is not found
