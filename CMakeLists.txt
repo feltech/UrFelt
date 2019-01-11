@@ -16,6 +16,7 @@ endif ()
 
 set (URHO3D_HOME "vendor/Urho3D")
 
+set (URHO3D_HOME "${PROJECT_SOURCE_DIR}/vendor/Urho3D")
 set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
