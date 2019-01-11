@@ -61,16 +61,6 @@ add_definitions(
 # Include Urho3D Cmake common module
 include (UrhoCommon)
 
-
-find_package(Boost
-	1.58							# Minimum or EXACT version e.g. 1.36.0
-	REQUIRED						# Fail with error if Boost is not found
-	coroutine system	# Boost libraries by their canonical name
-)
-
-find_package(ZLIB REQUIRED)
-
-
 # Set include folders
 set (FELT_INCLUDE vendor/Felt/include)
 set (LUACPPMSG_INCLUDE vendor/LuaCppMsg/include)
