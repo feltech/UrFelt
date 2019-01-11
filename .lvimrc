@@ -14,9 +14,9 @@ let g:ctrlp_buftag_types = {
   \ 'moon' : '--language-force=moonscript --moonscript-types=vfcmsp',
 \ }
 " Shortcuts for build + run
-nnoremap <F7> :silent AsyncRun /usr/local/bin/moonc bin/Data/Scripts && cmake --build .<CR>:copen<CR>
-nnoremap <F6> :silent AsyncRun /usr/local/bin/moonc bin/Data/Scripts && cmake --build . && ./bin/UrhoFelt<CR>:copen<CR>
-nnoremap <F5> :silent AsyncRun /usr/local/bin/moonc bin/Data/Scripts && cmake --build .<CR>:copen<CR>:Termdebug ./bin/UrhoFelt<CR>
+nnoremap <F7> :wa<CR>:silent AsyncRun /usr/local/bin/moonc bin/Data/Scripts && cmake --build .<CR>:copen<CR>
+nnoremap <F6> :wa<CR>:silent AsyncRun /usr/local/bin/moonc bin/Data/Scripts && cmake --build . && ./bin/UrhoFelt<CR>:copen<CR>
+nnoremap <F5> :wa<CR>:silent AsyncRun /usr/local/bin/moonc bin/Data/Scripts && cmake --build .<CR>:copen<CR>:Termdebug ./bin/UrhoFelt<CR>
 
 " Add gdb support
 packadd termdebug
