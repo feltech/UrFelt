@@ -34,6 +34,7 @@ find_package(OpenMP)
 if (NOT OpenMP_CXX_FOUND)
     message(FATAL_ERROR "OpenMP not found")
 endif()
+
 # Add common C++ definitions.
 add_definitions(
 	-std=c++14 -Wfatal-errors
@@ -45,6 +46,8 @@ add_definitions(
 	-DSOL_EXCEPTIONS_SAFE_PROPAGATION
 	# Enable sol::stack::userdata_checker
 	-DSOL_ENABLE_INTEROP
+    # For boost compatibility with clang7
+    -Wno-argument-outside-range
 	# Force enable debugging
 # 	-O0
 	# Enable extra debugging/profiling
