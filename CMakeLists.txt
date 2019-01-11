@@ -20,20 +20,25 @@ set (URHO3D_HOME "${PROJECT_SOURCE_DIR}/vendor/Urho3D")
 set (CMAKE_MODULE_PATH "${URHO3D_HOME}/CMake/Modules")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_custom_target(
-	Moonc ALL
-	COMMAND
-	grep -q 'moonc' .project || sed -i '/<buildSpec>/ r .externalToolBuilders/moonc.xml' .project
-	COMMENT
-	"Enable moonc transpiler"
+find_package(Boost
+	1.58							# Minimum or EXACT version e.g. 1.36.0
+	REQUIRED						# Fail with error if Boost is not found
+	coroutine system	# Boost libraries by their canonical name
 )
 
+find_package(ZLIB REQUIRED)
 
+# E.g. LLVM version is installed outside of standard include path.
+find_package(OpenMP)
+
+if (NOT OpenMP_CXX_FOUND)
+    message(FATAL_ERROR "OpenMP not found")
+endif()
 # Add common C++ definitions.
 add_definitions(
 	-std=c++14 -Wfatal-errors
 	# Enable OpenMP
-	-fopenmp
+    ${OpenMP_CXX_FLAGS}
 	# Cannot use coroutine2 on Ubuntu 16.04 by default.
 	-DBOOST_COROUTINES_NO_DEPRECATION_WARNING -DBOOST_COROUTINE_NO_DEPRECATION_WARNING
 	# For LuaJIT exceptions
@@ -101,5 +106,5 @@ target_link_libraries(
 	UrhoFelt
 	# Enable profiling
 #	-g -fno-omit-frame-pointer -ggdb
-	gomp atomic ${Boost_LIBRARIES} ${ZLIB_LIBRARIES}
+	atomic ${Boost_LIBRARIES} ${ZLIB_LIBRARIES} ${OpenMP_CXX_LIB_NAMES}
 )
