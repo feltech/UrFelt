@@ -20,7 +20,7 @@ public:
 	using Base = Urho3D::CollisionShape;
 	enum ShapeType
 	{
-		SHAPE_SURFACE = Urho3D::ShapeType::SHAPE_TERRAIN + 1
+		SHAPE_SURFACE = 1983
 	};
 
 	using Base::CollisionShape;
@@ -31,7 +31,9 @@ public:
 	);
 
 protected:
-	btCollisionShape* UpdateDerivedShape(int shapeType, const Urho3D::Vector3& newWorldScale);
+	btCollisionShape* UpdateDerivedShape(
+        int shapeType, const Urho3D::Vector3& newWorldScale
+    ) override;
 };
 
 } /* namespace Felt */
