@@ -15,7 +15,6 @@ void UrSurfaceCollisionShape::SetSurface(
 	m_pisogrid = pisogrid_;
 	m_pisogrid_child = pisogrid_child_;
 	m_ppoly_child = ppoly_child_;
-	SetPosition(reinterpret_cast<const Urho3D::Vector3&>(m_pisogrid_child->offset()));
     SetShapeType((Urho3D::ShapeType)SHAPE_SURFACE);
 }
 
