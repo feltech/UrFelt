@@ -24,8 +24,6 @@ class btPersistentManifold;
 
 #include  <Urho3D/ThirdParty/Bullet/LinearMath/btVector3.h>
 
-/// btSphereBoxCollisionAlgorithm  provides sphere-box collision detection.
-/// Other features are frame-coherency (persistent data) and collision response.
 class btConvexSurfaceCollisionAlgorithm : public btCollisionAlgorithm
 {
 	bool		m_ownManifold;
