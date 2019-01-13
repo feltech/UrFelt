@@ -69,10 +69,7 @@ void btConvexSurfaceCollisionAlgorithm::processCollision (
 
 	resultOut->setPersistentManifold(m_manifoldPtr);
 
-	const float X = (float)surfaceShape->isogrid()->size()(0);
-	const float Y = (float)surfaceShape->isogrid()->size()(1);
-
-	std::set<float> vtx_hash_set;
+	std::set<std::tuple<btScalar, btScalar, btScalar>> vtx_hash_set;
 
 	m_manifoldPtr->clearManifold();
 
@@ -92,8 +89,7 @@ void btConvexSurfaceCollisionAlgorithm::processCollision (
 
 		btVector3 vtx = convexShape->localGetSupportingVertexWithoutMargin(btnormalInConvex);
 
-		const float& vtx_hash = vtx.z() * X * Y + vtx.y() * X + vtx.x();
-		if (!vtx_hash_set.insert(vtx_hash).second)
+		if (!vtx_hash_set.insert(std::make_tuple(vtx.x(), vtx.y(), vtx.z())).second)
 			continue;
 
 		btVector3 vtxInSurface = convexInSurfaceTrans(vtx);
