@@ -52,14 +52,14 @@ on_key = (eventType, eventData)->
 	key = eventData["Key"]\GetInt()
 	if key == KEY_RETURN
 		if not started
-			filepath = GetFileSystem().GetProgramDir() .. "brain.hdr"
+			filepath = GetFileSystem().GetProgramDir() .. "/Data/brain.hdr"
 			surface\transform_to_image(filepath, 0.58, 0.2, 0.2)
 			started = true
 			ui_txt\SetText("")
 			ui_txt = nil
 		else
 			print("Saving ...")
-			surface\save "brain.bin.gz", ->
+			surface\save "Data/brain.bin.gz", ->
 				print("... saved")
 
 

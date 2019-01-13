@@ -47,14 +47,14 @@ on_key = function(eventType, eventData)
   local key = eventData["Key"]:GetInt()
   if key == KEY_RETURN then
     if not started then
-      local filepath = GetFileSystem().GetProgramDir() .. "brain.hdr"
+      local filepath = GetFileSystem().GetProgramDir() .. "/Data/brain.hdr"
       surface:transform_to_image(filepath, 0.58, 0.2, 0.2)
       started = true
       ui_txt:SetText("")
       ui_txt = nil
     else
       print("Saving ...")
-      return surface:save("brain.bin.gz", function()
+      return surface:save("Data/brain.bin.gz", function()
         return print("... saved")
       end)
     end

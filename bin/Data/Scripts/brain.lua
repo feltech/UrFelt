@@ -63,7 +63,7 @@ do
       })
       self:recreate()
       local floor_node = self.scene:CreateChild("Floor")
-      floor_node.position = Vector3(0.0, -100, 0.0)
+      floor_node.position = Vector3(0.0, -200, 0.0)
       floor_node.scale = Vector3(1000.0, 1.0, 1000.0)
       local floor_object = floor_node:CreateComponent("StaticModel")
       floor_object.model = cache:GetResource("Model", "Models/Box.mdl")
@@ -237,7 +237,7 @@ do
       _class_0.__parent.__init(self, app)
       print("Creating Surface node")
       local node = self._app.scene:CreateChild("Surface")
-      local filepath = GetFileSystem().GetProgramDir() .. "brain.bin.gz"
+      local filepath = GetFileSystem().GetProgramDir() .. "Data/brain.bin.gz"
       print("Loading surface from " .. filepath)
       self._ui_txt:SetText("Loading from disk...")
       self._loader = UrFelt.UrSurface.load(filepath, node)
@@ -289,7 +289,9 @@ do
       self._ui_txt:SetText("Regenerating...")
       self._flushed = false
       self._app.surface:invalidate()
+      print("Updating polygonisation...")
       return self._app.surface:polygonise(function()
+        print("Updating physics shapes...")
         self._app.surface:flush()
         self._flushed = true
       end)
@@ -392,9 +394,6 @@ do
       end
       local ray = self._app.camera:GetScreenRay(screen_coordX, screen_coordY)
       local pos_hit = self._app.surface:ray(ray)
-      if pos_hit == nil then
-        return 
-      end
       return pos_hit
     end,
     _throw_box = function(self)

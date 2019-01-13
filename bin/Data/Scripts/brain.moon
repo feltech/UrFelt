@@ -35,7 +35,7 @@ class BrainApp extends DebugScene
 		-- Create a floor object, 1000 x 1000 world units. Adjust position so that the ground is at
 		-- zero Y
 		floor_node = @scene\CreateChild("Floor")
-		floor_node.position = Vector3(0.0, -100, 0.0)
+		floor_node.position = Vector3(0.0, -200, 0.0)
 		floor_node.scale = Vector3(1000.0, 1.0, 1000.0)
 		floor_object = floor_node\CreateComponent("StaticModel")
 		floor_object.model = cache\GetResource("Model", "Models/Box.mdl")
@@ -101,7 +101,7 @@ class Load extends LoadingBase
 		super(app)
 		print("Creating Surface node")
 		node = @_app.scene\CreateChild("Surface")
-		filepath = GetFileSystem().GetProgramDir() .. "brain.bin.gz"
+		filepath = GetFileSystem().GetProgramDir() .. "Data/brain.bin.gz"
 		print("Loading surface from " .. filepath)
 		@_ui_txt\SetText("Loading from disk...")
 		@_loader = UrFelt.UrSurface.load(filepath, node)
@@ -121,7 +121,9 @@ class Generate extends LoadingBase
 
 		@_flushed = false
 		@_app.surface\invalidate()
+		print("Updating polygonisation...")
 		@_app.surface\polygonise ->
+			print("Updating physics shapes...")
 			@_app.surface\flush()
 			@_flushed = true
 
@@ -200,9 +202,6 @@ class Running extends State
 
 		ray = @_app.camera\GetScreenRay(screen_coordX, screen_coordY)
 		pos_hit = @_app.surface\ray(ray)
-
-		if pos_hit == nil
-			return
 
 		return pos_hit
 
