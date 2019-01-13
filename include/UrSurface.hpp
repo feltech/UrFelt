@@ -183,6 +183,8 @@ private:
 	 */
 	UrSurface(Surface&& surface_);
 
+    void create_surface_body(Urho3D::Node* pnode_);
+
 	/**
 	* Enqueue an operation that should be processed in a worker thread.
 	*

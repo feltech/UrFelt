@@ -19,6 +19,7 @@
 #include "Op/TransformToSphere.hpp"
 
 
+
 namespace sol
 {
 	namespace stack
@@ -27,8 +28,7 @@ namespace sol
 	struct userdata_checker<extensible<T>> {
 		template <typename Handler>
 		static bool check(
-			lua_State* L, int relindex, type index_type, Handler&& handler, record& tracking
-		) {
+			lua_State* L, int relindex, type index_type, Handler&& handler, record& tracking) {
 			// just marking unused parameters for no compiler warnings
 			(void)index_type;
 			(void)handler;
@@ -241,14 +241,7 @@ UrSurface::UrSurface(
 			&m_polys.children().get(pos_idx_child), pnode_
 		);
 	}
-
-	m_psurface_body = pnode_->CreateComponent<Urho3D::RigidBody>();
-	m_psurface_body->SetKinematic(true);
-	m_psurface_body->SetMass(10000000.0f);
-	m_psurface_body->SetFriction(1.0f);
-	m_psurface_body->SetUseGravity(false);
-	m_psurface_body->SetRestitution(0.0);
-	m_psurface_body->Activate();
+    create_surface_body(pnode_);
 	m_executor = std::thread{&UrSurface::executor, this};
 }
 
@@ -385,13 +378,13 @@ void UrSurface::flush_physics_impl()
 
 		if (has_surface && pshape == nullptr)
 		{
-			pshape = m_pnode->CreateComponent<UrSurfaceCollisionShape>();
-			pshape->SetSurface(
-				&m_surface.isogrid(), &m_surface.isogrid().children().get(pos_idx_child),
-				&m_polys.children().get(pos_idx_child)
-			);
-			m_coll_shapes.set(pos_idx_child, pshape);
-		}
+				pshape = m_pnode->CreateComponent<UrSurfaceCollisionShape>();
+				pshape->SetSurface(
+					&m_surface.isogrid(), &m_surface.isogrid().children().get(pos_idx_child),
+					&m_polys.children().get(pos_idx_child)
+				);
+				m_coll_shapes.set(pos_idx_child, pshape);
+			}			
 		else if (!has_surface && pshape != nullptr)
 		{
 			m_pnode->RemoveComponent(pshape);
@@ -449,15 +442,21 @@ UrSurface::UrSurface(Surface&& surface_, Urho3D::Node* pnode_) :
 		);
 	}
 
-	m_psurface_body = pnode_->CreateComponent<Urho3D::RigidBody>();
-	m_psurface_body->SetKinematic(true);
-	m_psurface_body->SetMass(10000000.0f);
-	m_psurface_body->SetFriction(1.0f);
-	m_psurface_body->SetUseGravity(false);
-	m_psurface_body->SetRestitution(0.0);
-	m_psurface_body->Activate();
+    create_surface_body(pnode_);
 
 	m_executor = std::thread{&UrSurface::executor, this};
+}
+
+void UrSurface::create_surface_body(Urho3D::Node* pnode_)
+{
+	m_psurface_body = pnode_->CreateComponent<Urho3D::RigidBody>();
+	m_psurface_body->SetKinematic(true);
+	m_psurface_body->SetMass(0);
+	m_psurface_body->SetFriction(0.9f);
+	m_psurface_body->SetUseGravity(false);
+	m_psurface_body->SetRestitution(0.1);
+	// m_psurface_body->DisableMassUpdate();
+	// m_psurface_body->Activate();
 }
 } // UrFelt.
 
