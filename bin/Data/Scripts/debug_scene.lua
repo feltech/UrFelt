@@ -35,6 +35,9 @@ do
     subscribe_to_key_down = function(self, fn)
       return table.insert(self._key_down_cbs, fn)
     end,
+    log = function(self, msg)
+      return Log:Write(LOG_INFO, msg)
+    end,
     _on_update = function(self, event_type, event_data)
       local time_step = event_data["TimeStep"]:GetFloat()
       self:_update_FPS_display(time_step)

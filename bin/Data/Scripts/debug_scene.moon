@@ -55,6 +55,9 @@ class DebugScene
 
 	subscribe_to_key_down: (fn) => table.insert(@_key_down_cbs, fn)
 
+    log: (msg) => Log\Write(LOG_INFO, msg)
+
+
 	_on_update: (event_type, event_data)=>
 		time_step = event_data["TimeStep"]\GetFloat()
 		@_update_FPS_display(time_step)
