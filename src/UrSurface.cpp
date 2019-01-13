@@ -379,15 +379,24 @@ void UrSurface::flush_physics_impl()
 			const bool has_surface = m_surface.is_intersected(pos_idx_child);
 			UrSurfaceCollisionShape * pshape = m_coll_shapes.get(pos_idx_child);
 
-			if (has_surface && pshape == nullptr)
+			// If the surface cuts through this partition and there isn't currently a collision 
+			// shape covering it, create a new collition shape.
+			if (has_surface)
 			{
-				pshape = m_pnode->CreateComponent<UrSurfaceCollisionShape>();
-				pshape->SetSurface(
-					&m_surface.isogrid(), &m_surface.isogrid().children().get(pos_idx_child),
-					&m_polys.children().get(pos_idx_child)
-				);
-				m_coll_shapes.set(pos_idx_child, pshape);
-			}			
+				// If there isn't currently a collision shape covering this partition.
+				if (pshape == nullptr)
+				{
+					pshape = m_pnode->CreateComponent<UrSurfaceCollisionShape>();
+					pshape->SetSurface(
+						&m_surface.isogrid(), &m_surface.isogrid().children().get(pos_idx_child),
+						&m_polys.children().get(pos_idx_child)
+					);
+					m_coll_shapes.set(pos_idx_child, pshape);
+				}
+				// Recalculate compound collision shape AABB tree.
+				pshape->NotifyRigidBody(false);
+			}	
+			// If the surface no longer cuts through this partition, delete the collision shape.
 			else if (pshape != nullptr)
 			{
 				m_pnode->RemoveComponent(pshape);
