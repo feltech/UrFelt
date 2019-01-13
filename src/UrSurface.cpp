@@ -371,13 +371,16 @@ Op::Ptr UrSurface::enqueue(Args&&... args)
 
 void UrSurface::flush_physics_impl()
 {
-	for (const Felt::PosIdx pos_idx_child : m_polys.changes())
+	if (m_polys.changes().size()) 
 	{
-		const bool has_surface = m_surface.is_intersected(pos_idx_child);
-		UrSurfaceCollisionShape * pshape = m_coll_shapes.get(pos_idx_child);
-
-		if (has_surface && pshape == nullptr)
+		m_psurface_body->DisableMassUpdate();
+		for (const Felt::PosIdx pos_idx_child : m_polys.changes())
 		{
+			const bool has_surface = m_surface.is_intersected(pos_idx_child);
+			UrSurfaceCollisionShape * pshape = m_coll_shapes.get(pos_idx_child);
+
+			if (has_surface && pshape == nullptr)
+			{
 				pshape = m_pnode->CreateComponent<UrSurfaceCollisionShape>();
 				pshape->SetSurface(
 					&m_surface.isogrid(), &m_surface.isogrid().children().get(pos_idx_child),
@@ -385,11 +388,13 @@ void UrSurface::flush_physics_impl()
 				);
 				m_coll_shapes.set(pos_idx_child, pshape);
 			}			
-		else if (!has_surface && pshape != nullptr)
-		{
-			m_pnode->RemoveComponent(pshape);
-			m_coll_shapes.set(pos_idx_child, nullptr);
+			else if (pshape != nullptr)
+			{
+				m_pnode->RemoveComponent(pshape);
+				m_coll_shapes.set(pos_idx_child, nullptr);
+			}
 		}
+		m_psurface_body->EnableMassUpdate();
 	}
 }
 
@@ -455,8 +460,6 @@ void UrSurface::create_surface_body(Urho3D::Node* pnode_)
 	m_psurface_body->SetFriction(0.9f);
 	m_psurface_body->SetUseGravity(false);
 	m_psurface_body->SetRestitution(0.1);
-	// m_psurface_body->DisableMassUpdate();
-	// m_psurface_body->Activate();
 }
 } // UrFelt.
 
